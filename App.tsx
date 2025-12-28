@@ -34,32 +34,39 @@ const getLocalDate = (d = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const TracklyLogo = React.memo(({ collapsed = false }: { collapsed?: boolean }) => (
-  <div id="trackly-logo" className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} select-none transition-all duration-300`}>
-    {/* SVG Waveform Icon - Simplified shadow for performance */}
-    <div className="relative w-8 h-5 flex-shrink-0">
-      <svg viewBox="0 0 48 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_0_5px_currentColor] text-indigo-500">
-        <defs>
-          <linearGradient id="logo-gradient" x1="0" y1="0" x2="48" y2="0" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" className="stop-accent-light" stopColor="currentColor" /> 
-            <stop offset="100%" className="stop-accent-dark" stopColor="currentColor" /> 
-          </linearGradient>
-        </defs>
-        <path 
-          d="M2 18 C 6 18, 8 10, 12 14 C 15 17, 17 6, 20 2 C 23 -2, 26 18, 28 22 C 30 26, 32 10, 36 12 C 40 14, 42 18, 46 18" 
-          stroke="url(#logo-gradient)" 
-          strokeWidth="4" 
-          strokeLinecap="round" 
-          strokeLinejoin="round"
-        />
-      </svg>
+const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean, id?: string }) => {
+  // Use React.useId for generating unique IDs for SVG gradients
+  // This prevents conflicts when multiple logos are in the DOM (e.g. Sidebar + Mobile Header)
+  // especially when one is hidden via display:none
+  const gradientId = React.useId();
+  
+  return (
+    <div id={id} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} select-none transition-all duration-300`}>
+      {/* SVG Waveform Icon - Simplified shadow for performance */}
+      <div className="relative w-8 h-5 flex-shrink-0">
+        <svg viewBox="0 0 48 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_0_5px_currentColor] text-indigo-500">
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="48" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" className="stop-accent-light" stopColor="currentColor" /> 
+              <stop offset="100%" className="stop-accent-dark" stopColor="currentColor" /> 
+            </linearGradient>
+          </defs>
+          <path 
+            d="M2 18 C 6 18, 8 10, 12 14 C 15 17, 17 6, 20 2 C 23 -2, 26 18, 28 22 C 30 26, 32 10, 36 12 C 40 14, 42 18, 46 18" 
+            stroke={`url(#${gradientId})`}
+            strokeWidth="4" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      {/* Text */}
+      <span className={`text-xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${collapsed ? 'w-0 opacity-0 scale-0' : 'w-auto opacity-100 scale-100'}`}>
+        Trackly
+      </span>
     </div>
-    {/* Text */}
-    <span className={`text-xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${collapsed ? 'w-0 opacity-0 scale-0' : 'w-auto opacity-100 scale-100'}`}>
-      Trackly
-    </span>
-  </div>
-));
+  );
+});
 
 const AnimatedBackground = React.memo(({ enabled, themeId }: { enabled: boolean, themeId: ThemeId }) => {
   const config = THEME_CONFIG[themeId];
@@ -317,7 +324,7 @@ const Sidebar = ({
         style={{ transform: 'translateZ(0)' }}
     >
       <div className={`h-20 flex items-center relative shrink-0 ${isCollapsed ? 'justify-center px-0 w-full' : 'justify-between px-6'}`}>
-        <TracklyLogo collapsed={isCollapsed} />
+        <TracklyLogo collapsed={isCollapsed} id="trackly-logo" />
         
         {/* Toggle Button */}
         <button 
