@@ -500,6 +500,11 @@ const App: React.FC = () => {
   const [isTutorialActive, setIsTutorialActive] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
+  // Swipe Navigation State
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
   // Ref for global mouse tracking (Performance Optimization)
   const appContainerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>();
@@ -642,6 +647,33 @@ const App: React.FC = () => {
     }
   };
 
+  // Swipe Navigation Handlers
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null); // Reset
+    setTouchStart(e.targetTouches[0].clientX);
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe || isRightSwipe) {
+      const currentIndex = TABS.findIndex(t => t.id === view);
+      if (isLeftSwipe && currentIndex < TABS.length - 1) {
+         setView(TABS[currentIndex + 1].id as ViewType);
+      }
+      if (isRightSwipe && currentIndex > 0) {
+         setView(TABS[currentIndex - 1].id as ViewType);
+      }
+    }
+  }
+
   const themeConfig = THEME_CONFIG[theme];
 
   const dynamicStyles = useMemo(() => `
@@ -764,7 +796,12 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <main className={`relative z-10 flex-grow p-4 md:p-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}>
+      <main 
+          className={`relative z-10 flex-grow p-4 md:p-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+      >
         <div className="max-w-7xl mx-auto w-full">
           {view === 'daily' && (
               <Dashboard 
