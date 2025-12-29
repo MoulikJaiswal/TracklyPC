@@ -35,13 +35,11 @@ const getLocalDate = (d = new Date()) => {
 };
 
 const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean, id?: string }) => {
-  // Generate a unique ID for the gradient to prevent collisions when multiple logos exist
   const uniqueId = React.useId();
   const gradientId = `logo-gradient-${uniqueId.replace(/:/g, '')}`;
 
   return (
     <div id={id} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} select-none transition-all duration-300 transform-gpu`}>
-      {/* SVG Waveform Icon - Simplified shadow for performance */}
       <div className="relative w-8 h-5 flex-shrink-0">
         <svg viewBox="0 0 48 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_0_5px_currentColor] text-indigo-500">
           <defs>
@@ -59,7 +57,6 @@ const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean
           />
         </svg>
       </div>
-      {/* Text */}
       <span className={`text-xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight transition-all duration-300 origin-left whitespace-nowrap overflow-hidden ${collapsed ? 'w-0 opacity-0 scale-0' : 'w-auto opacity-100 scale-100'}`}>
         Trackly
       </span>
@@ -76,22 +73,54 @@ const AnimatedBackground = React.memo(({
 }) => {
   const config = THEME_CONFIG[themeId];
   
-  // Memoized items configuration to prevent recalculation on every render
   const items = useMemo(() => {
-    // Custom Logic for Lush Forest Theme
+    // --- MIDNIGHT QUIET THEME OVERHAUL ---
+    if (themeId === 'midnight') {
+        const midnightItems: any[] = [];
+        
+        // 1. Distant Star Field - Optimized count and properties
+        // Reduced count slightly for performance, removed expensive box-shadows on distant stars
+        for(let i=0; i<35; i++) {
+            const size = Math.random() * 0.15 + 0.05; 
+            const depth = Math.random() * 3 + 1; 
+            const isBright = Math.random() > 0.8;
+            midnightItems.push({
+                id: `star-${i}`,
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                size: size,
+                shape: 'star-point',
+                opacity: Math.random() * 0.5 + 0.1,
+                parallaxFactor: depth * 0.005, 
+                animationDelay: Math.random() * 5,
+                animationDuration: Math.random() * 3 + 3, // Slower animation is cheaper
+                isBright // Only bright stars get shadow
+            });
+        }
+
+        // 2. Shooting Star (Occasional)
+        midnightItems.push({
+            id: 'shooting-star-1',
+            top: '20%',
+            left: '10%',
+            size: 1, 
+            shape: 'shooting-star',
+            parallaxFactor: 0.02
+        });
+
+        return midnightItems;
+    }
+
+    // --- FOREST THEME ---
     if (themeId === 'forest') {
         return [
-            // Layer 1 (Back)
             { id: 1, top: '-10%', left: '-10%', size: 45, shape: 'leaf', depth: 1, rotation: 135, opacity: 0.03 },
             { id: 2, top: '50%', left: '90%', size: 35, shape: 'leaf', depth: 1, rotation: 45, opacity: 0.03 },
-            // Layer 2 (Mid)
             { id: 3, top: '85%', left: '5%', size: 25, shape: 'leaf', depth: 2, rotation: -25, opacity: 0.05 },
             { id: 4, top: '-10%', left: '60%', size: 28, shape: 'leaf', depth: 2, rotation: 160, opacity: 0.05 },
-            // Layer 3 (Front)
             { id: 5, top: '35%', left: '15%', size: 12, shape: 'leaf', depth: 3, rotation: 15, opacity: 0.08 },
             { id: 6, top: '20%', left: '85%', size: 15, shape: 'leaf', depth: 3, rotation: -10, opacity: 0.08 },
             { id: 7, top: '75%', left: '65%', size: 18, shape: 'leaf', depth: 3, rotation: 80, opacity: 0.08 },
-            // Pointer Leaf
             { id: 8, top: '58%', left: '22%', size: 9, shape: 'leaf', depth: 3, rotation: -45, opacity: 0.09 },
         ].map(item => ({
             ...item,
@@ -101,7 +130,7 @@ const AnimatedBackground = React.memo(({
         }));
     }
 
-    // Custom Logic for Obsidian Focus Theme
+    // --- OBSIDIAN THEME ---
     if (themeId === 'obsidian') {
       return [
         { id: 1, top: '70%', left: '5%', size: 55, shape: 'obsidian-bipyramid', depth: 1, rotation: -15, opacity: 0.02, strokeWidth: 0.3, glow: false },
@@ -118,46 +147,17 @@ const AnimatedBackground = React.memo(({
       }));
     }
 
-    // Custom Logic for Midnight Quiet Theme
-    if (themeId === 'midnight') {
-        const layer2 = [
-            { id: 1, top: '10%', left: '10%', size: 50, shape: 'circle', depth: 2, opacity: 0.12, color: '#4338ca' }, 
-            { id: 2, top: '80%', left: '85%', size: 40, shape: 'circle', depth: 2, opacity: 0.08, color: '#5b21b6' }, 
-            { id: 3, top: '40%', left: '40%', size: 60, shape: 'circle', depth: 2, opacity: 0.05, color: '#312e81' }, 
-        ].map(item => ({
-            ...item,
-            parallaxFactor: -0.005,
-            duration: 0,
-            delay: 0,
-            blur: 100
-        }));
-
-        const layer3 = [
-            { id: 4, top: '50%', left: '50%', size: 90, shape: 'circle', depth: 3, opacity: 0.04, color: '#6366f1' } 
-        ].map(item => ({
-            ...item,
-            parallaxFactor: 0.003,
-            duration: 0,
-            delay: 0,
-            blur: 120
-        }));
-
-        return [...layer2, ...layer3];
-    }
-
-    // Default Abstract Geometric Logic
+    // --- DEFAULT GEOMETRIC ---
     return [
         { id: 1, top: '8%', left: '5%', size: 16, shape: 'ring', depth: 1, opacity: 0.03, rotation: 0 },
         { id: 2, top: '75%', left: '85%', size: 20, shape: 'squircle', depth: 1, opacity: 0.03, rotation: 15 },
         { id: 3, top: '5%', left: '55%', size: 8, shape: 'circle', depth: 1, opacity: 0.02, rotation: 0 },
         { id: 4, top: '80%', left: '10%', size: 12, shape: 'square', depth: 1, opacity: 0.02, rotation: 45 },
-
         { id: 5, top: '30%', left: '90%', size: 4, shape: 'triangle', depth: 2, opacity: 0.06, rotation: 160 },
         { id: 6, top: '45%', left: '5%', size: 5, shape: 'grid', depth: 2, opacity: 0.06, rotation: 10 },
         { id: 7, top: '15%', left: '80%', size: 3.5, shape: 'plus', depth: 2, opacity: 0.08, rotation: 0 },
         { id: 8, top: '85%', left: '35%', size: 4, shape: 'ring', depth: 2, opacity: 0.06, rotation: 0 },
         { id: 9, top: '20%', left: '35%', size: 3, shape: 'circle', depth: 2, opacity: 0.05, rotation: 0 },
-
         { id: 10, top: '22%', left: '20%', size: 2, shape: 'squircle', depth: 3, opacity: 0.12, rotation: 30 },
         { id: 11, top: '60%', left: '88%', size: 2.5, shape: 'circle', depth: 3, opacity: 0.12, rotation: 0 },
         { id: 12, top: '88%', left: '65%', size: 1.5, shape: 'triangle', depth: 3, opacity: 0.15, rotation: -15 },
@@ -165,7 +165,6 @@ const AnimatedBackground = React.memo(({
         { id: 14, top: '45%', left: '15%', size: 1, shape: 'circle', depth: 3, opacity: 0.1, rotation: 0 },
         { id: 15, top: '70%', left: '80%', size: 1.5, shape: 'grid', depth: 3, opacity: 0.1, rotation: 20 },
         { id: 16, top: '35%', left: '75%', size: 1.8, shape: 'ring', depth: 3, opacity: 0.12, rotation: 0 },
-        
         { id: 17, top: '10%', left: '90%', size: 0.5, shape: 'circle', depth: 3, opacity: 0.2, rotation: 0 },
         { id: 18, top: '90%', left: '5%', size: 0.5, shape: 'circle', depth: 3, opacity: 0.2, rotation: 0 },
     ].map(item => ({
@@ -181,20 +180,44 @@ const AnimatedBackground = React.memo(({
         className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" 
         style={{ 
             backgroundColor: config.colors.bg,
-            // Strict containment for performance
-            contain: 'strict'
+            contain: 'strict',
+            transform: 'translateZ(0)' // Force GPU promotion for container
         } as React.CSSProperties}
     >
       
-      {/* 5. GRAIN / NOISE (Layer 5 - Static) */}
-      <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay"></div>
+      {/* Layer 5: Static Grain (Global) - Optimized */}
+      <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay" style={{ transform: 'translateZ(0)' }}></div>
 
-      {/* 2. SPECIFIC GRADIENTS */}
+      {/* MIDNIGHT: Layer 1 - Deep Space Gradient */}
+      {themeId === 'midnight' && (
+        <>
+            <div 
+                className="absolute inset-0 z-[1]" 
+                style={{ 
+                    // Pure black at top fading to a very deep subtle blue-grey at bottom for atmosphere
+                    background: `linear-gradient(to bottom, #000000 0%, #050505 60%, #0f172a 100%)`, 
+                    transform: 'translateZ(0)'
+                }} 
+            />
+            {/* Subtle Horizon Glow - Reduced blur radius for performance */}
+            <div 
+                className="absolute bottom-[-10%] left-[-10%] right-[-10%] h-[40%] z-[1] opacity-30"
+                style={{
+                    background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
+                    filter: 'blur(40px)', // Reduced from 60px
+                    transform: 'translateZ(0)'
+                }}
+            />
+        </>
+      )}
+
+      {/* Layer 1: Other Theme Backgrounds */}
       {themeId === 'forest' && (
         <div 
             className="absolute inset-0 z-[1] opacity-60" 
             style={{ 
-                background: `radial-gradient(circle at 50% 120%, #3f6212 0%, transparent 60%), radial-gradient(circle at 50% -20%, #1a2e22 0%, transparent 60%)` 
+                background: `radial-gradient(circle at 50% 120%, #3f6212 0%, transparent 60%), radial-gradient(circle at 50% -20%, #1a2e22 0%, transparent 60%)`,
+                transform: 'translateZ(0)'
             }} 
         />
       )}
@@ -207,26 +230,17 @@ const AnimatedBackground = React.memo(({
                     radial-gradient(circle at 50% -10%, #0f172a 0%, #020617 45%, #000000 100%),
                     radial-gradient(circle at 85% 25%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
                     radial-gradient(circle at 15% 75%, rgba(8, 145, 178, 0.05) 0%, transparent 45%)
-                `
+                `,
+                transform: 'translateZ(0)'
             }} 
         />
       )}
 
-      {themeId === 'midnight' && (
-        <div 
-            className="absolute inset-0 z-[1]" 
-            style={{ 
-                background: `linear-gradient(to bottom, #1e1b4b 0%, #020617 100%)`, 
-                opacity: 0.95
-            }} 
-        />
-      )}
-
-      {/* 3. AURORA MESH GRADIENTS - GPU Accelerated */}
+      {/* Aurora (Disabled for Midnight) */}
       {showAurora && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
-        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(80px)', transform: 'translateZ(0)' }}>
+        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(60px)', transform: 'translateZ(0)' }}>
             <div 
-               className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-[transform]"
+               className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
                    transform: `translate3d(calc(var(--off-x) * 0.05 * 1px), calc(var(--off-y) * 0.05 * 1px), 0)`,
                }} 
@@ -238,7 +252,7 @@ const AnimatedBackground = React.memo(({
             </div>
             
             <div 
-               className="absolute bottom-[-45%] right-[-10%] w-[60vw] h-[60vw] mix-blend-screen dark:mix-blend-screen will-change-[transform]"
+               className="absolute bottom-[-45%] right-[-10%] w-[60vw] h-[60vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
                    transform: `translate3d(calc(var(--off-x) * 0.08 * 1px), calc(var(--off-y) * 0.08 * 1px), 0)`,
                }} 
@@ -248,32 +262,21 @@ const AnimatedBackground = React.memo(({
                     style={{ background: `radial-gradient(circle, ${config.colors.accentGlow} 0%, transparent 70%)` }}
                 />
             </div>
-            
-            <div 
-                className="absolute top-[20%] left-[30%] w-[40vw] h-[40vw] opacity-30 mix-blend-overlay will-change-[transform]"
-                style={{
-                    transform: `translate3d(calc(var(--off-x) * 0.02 * 1px), calc(var(--off-y) * 0.02 * 1px), 0)`
-                }}
-            >
-                 <div 
-                    className="w-full h-full rounded-full animate-aurora-3" 
-                    style={{ background: `radial-gradient(circle, ${config.mode === 'dark' ? '#ffffff' : config.colors.accent} 0%, transparent 60%)` }} 
-                 />
-            </div>
         </div>
       )}
 
-      {/* 4. FLOATING ELEMENTS - GPU Accelerated */}
-      <div className="absolute inset-0 z-[3]">
+      {/* Floating Elements / Star Trails */}
+      <div className="absolute inset-0 z-[3] overflow-hidden">
         {items.map((item) => (
             <div 
                 key={item.id}
-                className={`absolute ${item.id % 2 === 0 ? 'hidden md:block' : ''} will-change-[transform]`}
+                className={`absolute ${typeof item.id === 'number' && item.id % 2 === 0 ? 'hidden md:block' : ''} will-change-transform`}
                 style={{
                     top: item.top,
                     left: item.left,
-                    // Force 3D transform for GPU layer promotion
-                    transform: `translate3d(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px), 0)`
+                    // GPU Parallax Transform
+                    transform: `translate3d(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px), 0)`,
+                    backfaceVisibility: 'hidden'
                 }}
             >
                 <div 
@@ -282,19 +285,22 @@ const AnimatedBackground = React.memo(({
                       !['forest', 'midnight'].includes(themeId) ? 'animate-float-gentle' : ''
                     }`}
                     style={{
-                        width: `${item.size}rem`,
-                        height: `${item.size}rem`,
+                        width: (item as any).width || `${item.size}rem`,
+                        height: (item as any).height || `${item.size}rem`,
                         animationDuration: `${item.duration}s`,
                         animationDelay: `${item.delay}s`,
                         color: (item as any).color || config.colors.accent, 
                         opacity: item.opacity,
                         transform: `rotate(${item.rotation || 0}deg)`,
+                        // Reduce blur filters for better performance, use opacity for depth perception where possible
                         filter: (item as any).blur ? `blur(${(item as any).blur}px)` : 
-                                item.shape === 'leaf' ? `blur(${item.depth * 1.5}px)` : 
+                                item.shape === 'leaf' ? `blur(${Math.min(item.depth * 1, 3)}px)` : 
                                 item.shape.startsWith('obsidian-') ? 'blur(0px)' : 
-                                (item.depth === 1 ? 'blur(3px)' : 'blur(0px)'),
+                                (item.depth === 1 ? 'blur(2px)' : 'blur(0px)'),
+                        willChange: 'transform'
                     }}
                 >
+                    {/* SVG Shapes */}
                     {item.shape === 'leaf' && (
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
                             <path d="M12 2C12 2 20 8 20 16C20 20.4 16.4 24 12 24C7.6 24 4 20.4 4 16C4 8 12 2 12 2Z" fill="currentColor" />
@@ -302,24 +308,31 @@ const AnimatedBackground = React.memo(({
                     )}
                     
                     {item.shape === 'obsidian-bipyramid' && (
-                         <svg 
-                            viewBox="0 0 24 24" 
-                            fill="none"
-                            stroke="currentColor" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            className={`w-full h-full ${(item as any).glow ? 'drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]' : ''}`}
-                         >
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" className={`w-full h-full ${(item as any).glow ? 'drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]' : ''}`}>
                              <path d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" strokeWidth="0.2" className="opacity-30" />
                              <path d="M12 2 L21 12 L12 22 L3 12 Z" strokeWidth={(item as any).strokeWidth || 0.5} />
                              <path d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" strokeWidth={(item as any).strokeWidth || 0.5} />
-                             {(item as any).fill && (
-                                <path d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" fill="currentColor" fillOpacity="0.03" stroke="none" />
-                             )}
+                             {(item as any).fill && <path d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" fill="currentColor" fillOpacity="0.03" stroke="none" />}
                          </svg>
                     )}
 
-                    {/* Simple Shapes */}
+                    {/* MIDNIGHT: Star Point */}
+                    {item.shape === 'star-point' && (
+                        <div 
+                            className="w-full h-full rounded-full bg-white"
+                            style={{
+                                // Only apply shadow to bright stars to reduce paint cost
+                                boxShadow: (item as any).isBright ? '0 0 4px 1px rgba(255,255,255,0.4)' : 'none'
+                            }}
+                        />
+                    )}
+
+                    {/* MIDNIGHT: Shooting Star */}
+                    {item.shape === 'shooting-star' && (
+                         <div className="w-[100px] h-[2px] bg-gradient-to-r from-transparent via-indigo-200 to-transparent rotate-[-35deg] opacity-20" />
+                    )}
+
+                    {/* Standard Geometric Shapes */}
                     {item.shape === 'circle' && <div className="w-full h-full rounded-full bg-current" style={{ opacity: themeId === 'midnight' ? 1 : 0.4 }} />}
                     {item.shape === 'ring' && <div className="w-full h-full rounded-full border-[3px] border-current opacity-50" />}
                     {item.shape === 'squircle' && <div className="w-full h-full rounded-[2rem] border-[3px] border-current opacity-40" />}
@@ -345,8 +358,9 @@ const AnimatedBackground = React.memo(({
         className="absolute inset-0 z-[4] pointer-events-none transition-colors duration-500"
         style={{
             background: config.mode === 'dark' 
-                ? 'radial-gradient(circle at center, transparent 20%, rgba(2, 6, 23, 0.4) 100%)' 
-                : 'radial-gradient(circle at center, transparent 40%, rgba(255,255,255,0.4) 100%)' 
+                ? 'radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.4) 100%)' 
+                : 'radial-gradient(circle at center, transparent 40%, rgba(255,255,255,0.4) 100%)',
+            transform: 'translateZ(0)'
         }}
       />
     </div>
@@ -361,7 +375,6 @@ const TABS = [
   { id: 'analytics', label: 'Stats', icon: BarChart3 },
 ];
 
-// ... TOUR_STEPS ...
 const TOUR_STEPS: TutorialStep[] = [
   { view: 'daily', targetId: 'trackly-logo', title: 'Welcome to Trackly', description: 'Your command center for academic excellence. This guided tour will show you how to maximize your study efficiency.', icon: LayoutDashboard },
   { view: 'daily', targetId: 'dashboard-subjects', title: 'Track Subjects', description: 'These pods are your daily drivers. Click on Physics, Chemistry, or Maths to log your sessions and track syllabus progress.', icon: Atom },
@@ -478,8 +491,6 @@ const App: React.FC = () => {
   const appContainerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>();
 
-  // Efficient Mouse Tracking attached to the main container
-  // This avoids invalidating layout of document.documentElement
   useEffect(() => {
     if (!animationsEnabled) return;
 
@@ -495,7 +506,6 @@ const App: React.FC = () => {
                 const yOffset = (h / 2 - y);
 
                 // Update CSS variables scoped to the app container
-                // This triggers composite layer updates only for children using these vars
                 appContainerRef.current.style.setProperty('--mouse-x', `${x}px`);
                 appContainerRef.current.style.setProperty('--mouse-y', `${y}px`);
                 appContainerRef.current.style.setProperty('--off-x', `${xOffset}`);
@@ -592,11 +602,10 @@ const App: React.FC = () => {
     setTargets(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // Tutorial Logic
   const startTutorial = () => {
     setIsTutorialActive(true);
     setTutorialStep(0);
-    setView('daily'); // Start at home
+    setView('daily'); 
   };
 
   const nextTutorialStep = () => {
@@ -604,10 +613,9 @@ const App: React.FC = () => {
     if (nextStep >= TOUR_STEPS.length) {
       setIsTutorialActive(false);
       setTutorialStep(0);
-      setView('daily'); // Reset to home
+      setView('daily');
     } else {
       setTutorialStep(nextStep);
-      // Automatically switch view based on the step configuration
       if (TOUR_STEPS[nextStep].view) {
         setView(TOUR_STEPS[nextStep].view as ViewType);
       }
@@ -616,7 +624,6 @@ const App: React.FC = () => {
 
   const themeConfig = THEME_CONFIG[theme];
 
-  // Memoize Dynamic Styles to prevent recalculation
   const dynamicStyles = useMemo(() => `
         :root {
           --theme-accent: ${themeConfig.colors.accent};

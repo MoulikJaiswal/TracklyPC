@@ -103,8 +103,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     >
                       <div className="flex items-center gap-3 mb-2 relative z-10">
                         <div 
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm"
-                          style={{ backgroundColor: config.colors.accent }}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm ${id === 'midnight' ? 'border border-white/20' : ''}`}
+                          style={{ backgroundColor: id === 'midnight' ? '#000000' : config.colors.accent }}
                         >
                           <config.icon size={14} />
                         </div>
