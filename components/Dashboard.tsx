@@ -3,7 +3,6 @@ import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRigh
 import { Session, Target, MistakeCounts } from '../types';
 import { Card } from './Card';
 import { JEE_SYLLABUS, MISTAKE_TYPES } from '../constants';
-import { SubjectDetailModal } from './SubjectDetailModal';
 
 // Helper for local date string YYYY-MM-DD
 const getLocalDate = (d = new Date()) => {
