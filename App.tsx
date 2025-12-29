@@ -35,12 +35,12 @@ const getLocalDate = (d = new Date()) => {
 };
 
 const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean, id?: string }) => {
-  // Generate a unique ID for the gradient to prevent collisions when multiple logos exist (e.g. Sidebar hidden + Mobile visible)
+  // Generate a unique ID for the gradient to prevent collisions when multiple logos exist
   const uniqueId = React.useId();
   const gradientId = `logo-gradient-${uniqueId.replace(/:/g, '')}`;
 
   return (
-    <div id={id} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} select-none transition-all duration-300`}>
+    <div id={id} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} select-none transition-all duration-300 transform-gpu`}>
       {/* SVG Waveform Icon - Simplified shadow for performance */}
       <div className="relative w-8 h-5 flex-shrink-0">
         <svg viewBox="0 0 48 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_0_5px_currentColor] text-indigo-500">
@@ -68,82 +68,30 @@ const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean
 });
 
 const AnimatedBackground = React.memo(({ 
-    enabled, 
     themeId,
     showAurora
 }: { 
-    enabled: boolean, 
     themeId: ThemeId,
     showAurora: boolean
 }) => {
   const config = THEME_CONFIG[themeId];
-  const containerRef = useRef<HTMLDivElement>(null);
-  const requestRef = useRef<number>();
   
-  // Cache window dimensions to avoid layout thrashing during mouse move
-  const dims = useRef({ w: typeof window !== 'undefined' ? window.innerWidth : 1000, h: typeof window !== 'undefined' ? window.innerHeight : 1000 });
-
-  // Efficient Mouse Tracking using CSS Variables on ROOT for global access
-  useEffect(() => {
-    if (!enabled) return;
-
-    const handleResize = () => {
-        dims.current = { w: window.innerWidth, h: window.innerHeight };
-    };
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      // Throttle via requestAnimationFrame
-      if (requestRef.current) return;
-      
-      requestRef.current = requestAnimationFrame(() => {
-        const x = e.clientX;
-        const y = e.clientY;
-        
-        // Calculate offsets for parallax (origin at center)
-        const xOffset = (dims.current.w / 2 - x);
-        const yOffset = (dims.current.h / 2 - y);
-
-        // Update CSS variables on the ROOT element so shadows and other components can use them
-        document.documentElement.style.setProperty('--mouse-x', `${x}px`);
-        document.documentElement.style.setProperty('--mouse-y', `${y}px`);
-        document.documentElement.style.setProperty('--off-x', `${xOffset}`);
-        document.documentElement.style.setProperty('--off-y', `${yOffset}`);
-
-        requestRef.current = undefined;
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('mousemove', handleMouseMove);
-    
-    // Initialize dims
-    handleResize();
-
-    return () => {
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('mousemove', handleMouseMove);
-        if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, [enabled]);
-  
+  // Memoized items configuration to prevent recalculation on every render
   const items = useMemo(() => {
     // Custom Logic for Lush Forest Theme
     if (themeId === 'forest') {
         return [
-            // Layer 1 (Back - Faint, Heavy, very little movement)
+            // Layer 1 (Back)
             { id: 1, top: '-10%', left: '-10%', size: 45, shape: 'leaf', depth: 1, rotation: 135, opacity: 0.03 },
             { id: 2, top: '50%', left: '90%', size: 35, shape: 'leaf', depth: 1, rotation: 45, opacity: 0.03 },
-            
-            // Layer 2 (Mid - Framing)
+            // Layer 2 (Mid)
             { id: 3, top: '85%', left: '5%', size: 25, shape: 'leaf', depth: 2, rotation: -25, opacity: 0.05 },
             { id: 4, top: '-10%', left: '60%', size: 28, shape: 'leaf', depth: 2, rotation: 160, opacity: 0.05 },
-
-            // Layer 3 (Front - slightly sharper but soft edges)
+            // Layer 3 (Front)
             { id: 5, top: '35%', left: '15%', size: 12, shape: 'leaf', depth: 3, rotation: 15, opacity: 0.08 },
             { id: 6, top: '20%', left: '85%', size: 15, shape: 'leaf', depth: 3, rotation: -10, opacity: 0.08 },
             { id: 7, top: '75%', left: '65%', size: 18, shape: 'leaf', depth: 3, rotation: 80, opacity: 0.08 },
-            
-            // SPECIFIC USER REQUEST: Small leaf at pointer location
+            // Pointer Leaf
             { id: 8, top: '58%', left: '22%', size: 9, shape: 'leaf', depth: 3, rotation: -45, opacity: 0.09 },
         ].map(item => ({
             ...item,
@@ -153,62 +101,18 @@ const AnimatedBackground = React.memo(({
         }));
     }
 
-    // Custom Logic for Obsidian Focus Theme (Aesthetic Crystal Void)
-    // Refined composition: Less is more. Specific rotations to catch the eye.
+    // Custom Logic for Obsidian Focus Theme
     if (themeId === 'obsidian') {
       return [
-        // 1. The Anchor (Bottom Left Background)
-        // Large, very faint, grounding the composition.
-        { 
-            id: 1, top: '70%', left: '5%', size: 55, 
-            shape: 'obsidian-bipyramid', depth: 1, 
-            rotation: -15, opacity: 0.02, 
-            strokeWidth: 0.3, glow: false
-        },
-        // 2. The Ceiling (Top Right Background)
-        // Balances the Anchor.
-        { 
-            id: 2, top: '-15%', left: '75%', size: 65, 
-            shape: 'obsidian-bipyramid', depth: 1, 
-            rotation: 165, opacity: 0.02, 
-            strokeWidth: 0.3, glow: false 
-        },
-        // 3. Mid-Field Right
-        // Defining the mid-plane, slightly sharper.
-        { 
-            id: 3, top: '45%', left: '88%', size: 22, 
-            shape: 'obsidian-bipyramid', depth: 2, 
-            rotation: 25, opacity: 0.04, 
-            strokeWidth: 0.5, glow: false 
-        },
-        // 4. Mid-Field Left (Top)
-        { 
-            id: 4, top: '15%', left: '15%', size: 18, 
-            shape: 'obsidian-bipyramid', depth: 2.5, 
-            rotation: 45, opacity: 0.05, 
-            strokeWidth: 0.5, glow: true 
-        },
-        // 5. Focal Accent (Floating near center-right)
-        // The most distinct element.
-        { 
-            id: 5, top: '25%', left: '60%', size: 12, 
-            shape: 'obsidian-bipyramid', depth: 3, 
-            rotation: -10, opacity: 0.08, 
-            strokeWidth: 0.8, glow: true, fill: true
-        },
-        // 6. Foreground Detail (Bottom Center)
-        // Fast moving, creates depth.
-        { 
-            id: 6, top: '85%', left: '40%', size: 14, 
-            shape: 'obsidian-bipyramid', depth: 4, 
-            rotation: -35, opacity: 0.07, 
-            strokeWidth: 0.8, glow: true 
-        },
+        { id: 1, top: '70%', left: '5%', size: 55, shape: 'obsidian-bipyramid', depth: 1, rotation: -15, opacity: 0.02, strokeWidth: 0.3, glow: false },
+        { id: 2, top: '-15%', left: '75%', size: 65, shape: 'obsidian-bipyramid', depth: 1, rotation: 165, opacity: 0.02, strokeWidth: 0.3, glow: false },
+        { id: 3, top: '45%', left: '88%', size: 22, shape: 'obsidian-bipyramid', depth: 2, rotation: 25, opacity: 0.04, strokeWidth: 0.5, glow: false },
+        { id: 4, top: '15%', left: '15%', size: 18, shape: 'obsidian-bipyramid', depth: 2.5, rotation: 45, opacity: 0.05, strokeWidth: 0.5, glow: true },
+        { id: 5, top: '25%', left: '60%', size: 12, shape: 'obsidian-bipyramid', depth: 3, rotation: -10, opacity: 0.08, strokeWidth: 0.8, glow: true, fill: true },
+        { id: 6, top: '85%', left: '40%', size: 14, shape: 'obsidian-bipyramid', depth: 4, rotation: -35, opacity: 0.07, strokeWidth: 0.8, glow: true },
       ].map(item => ({
         ...item,
-        // Negative parallax: objects move opposite to cursor (heavier feel)
         parallaxFactor: item.depth * -0.01,
-        // Long, slow animation cycles to avoid distraction
         duration: 50 + (item.id * 5),
         delay: -(item.id * 10)
       }));
@@ -217,29 +121,25 @@ const AnimatedBackground = React.memo(({
     // Custom Logic for Midnight Quiet Theme
     if (themeId === 'midnight') {
         const layer2 = [
-            // Layer 2: Soft Radial Blurs (Negative Parallax: moves opposite cursor)
-            // Large, diffused, low contrast, indigo/blue-violet
-            { id: 1, top: '10%', left: '10%', size: 50, shape: 'circle', depth: 2, opacity: 0.12, color: '#4338ca' }, // Indigo-700
-            { id: 2, top: '80%', left: '85%', size: 40, shape: 'circle', depth: 2, opacity: 0.08, color: '#5b21b6' }, // Violet-800
-            { id: 3, top: '40%', left: '40%', size: 60, shape: 'circle', depth: 2, opacity: 0.05, color: '#312e81' }, // Indigo-900
+            { id: 1, top: '10%', left: '10%', size: 50, shape: 'circle', depth: 2, opacity: 0.12, color: '#4338ca' }, 
+            { id: 2, top: '80%', left: '85%', size: 40, shape: 'circle', depth: 2, opacity: 0.08, color: '#5b21b6' }, 
+            { id: 3, top: '40%', left: '40%', size: 60, shape: 'circle', depth: 2, opacity: 0.05, color: '#312e81' }, 
         ].map(item => ({
             ...item,
-            parallaxFactor: -0.005, // 1.5-2px opposite cursor
+            parallaxFactor: -0.005,
             duration: 0,
             delay: 0,
-            blur: 100 // High blur for diffuse light effect
+            blur: 100
         }));
 
         const layer3 = [
-            // Layer 3: Background Glow Veil (Positive Parallax: moves with cursor)
-            // Soft glow behind main content
-            { id: 4, top: '50%', left: '50%', size: 90, shape: 'circle', depth: 3, opacity: 0.04, color: '#6366f1' } // Indigo-500
+            { id: 4, top: '50%', left: '50%', size: 90, shape: 'circle', depth: 3, opacity: 0.04, color: '#6366f1' } 
         ].map(item => ({
             ...item,
-            parallaxFactor: 0.003, // ~1px with cursor
+            parallaxFactor: 0.003,
             duration: 0,
             delay: 0,
-            blur: 120 // Extreme blur for veil effect
+            blur: 120
         }));
 
         return [...layer2, ...layer3];
@@ -276,14 +176,13 @@ const AnimatedBackground = React.memo(({
     }));
   }, [themeId]); 
 
-  if (!enabled) return <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundColor: config.colors.bg }} />;
-
   return (
     <div 
-        ref={containerRef}
         className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" 
         style={{ 
-            backgroundColor: config.colors.bg
+            backgroundColor: config.colors.bg,
+            // Strict containment for performance
+            contain: 'strict'
         } as React.CSSProperties}
     >
       
@@ -291,8 +190,6 @@ const AnimatedBackground = React.memo(({
       <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay"></div>
 
       {/* 2. SPECIFIC GRADIENTS */}
-      
-      {/* Forest: Moss to Olive */}
       {themeId === 'forest' && (
         <div 
             className="absolute inset-0 z-[1] opacity-60" 
@@ -302,7 +199,6 @@ const AnimatedBackground = React.memo(({
         />
       )}
 
-      {/* Obsidian: Deep Atmospheric Void with Subtle Cyan Injection */}
       {themeId === 'obsidian' && (
         <div 
             className="absolute inset-0 z-[1]" 
@@ -316,7 +212,6 @@ const AnimatedBackground = React.memo(({
         />
       )}
 
-      {/* Midnight: Deep Navy to Near-Black (Layer 1 - Static) */}
       {themeId === 'midnight' && (
         <div 
             className="absolute inset-0 z-[1]" 
@@ -327,15 +222,13 @@ const AnimatedBackground = React.memo(({
         />
       )}
 
-      {/* 3. AURORA MESH GRADIENTS */}
+      {/* 3. AURORA MESH GRADIENTS - GPU Accelerated */}
       {showAurora && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
-        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(80px)' }}>
-            
-            {/* Blob 1: Top Left */}
+        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(80px)', transform: 'translateZ(0)' }}>
             <div 
-               className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
+               className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-[transform]"
                style={{ 
-                   transform: `translate(calc(var(--off-x) * 0.05 * 1px), calc(var(--off-y) * 0.05 * 1px))`,
+                   transform: `translate3d(calc(var(--off-x) * 0.05 * 1px), calc(var(--off-y) * 0.05 * 1px), 0)`,
                }} 
             >
                 <div 
@@ -344,11 +237,10 @@ const AnimatedBackground = React.memo(({
                 />
             </div>
             
-            {/* Blob 2: Bottom Right */}
             <div 
-               className="absolute bottom-[-45%] right-[-10%] w-[60vw] h-[60vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
+               className="absolute bottom-[-45%] right-[-10%] w-[60vw] h-[60vw] mix-blend-screen dark:mix-blend-screen will-change-[transform]"
                style={{ 
-                   transform: `translate(calc(var(--off-x) * 0.08 * 1px), calc(var(--off-y) * 0.08 * 1px))`,
+                   transform: `translate3d(calc(var(--off-x) * 0.08 * 1px), calc(var(--off-y) * 0.08 * 1px), 0)`,
                }} 
             >
                  <div 
@@ -357,11 +249,10 @@ const AnimatedBackground = React.memo(({
                 />
             </div>
             
-            {/* Blob 3: Center Drifter */}
             <div 
-                className="absolute top-[20%] left-[30%] w-[40vw] h-[40vw] opacity-30 mix-blend-overlay will-change-transform"
+                className="absolute top-[20%] left-[30%] w-[40vw] h-[40vw] opacity-30 mix-blend-overlay will-change-[transform]"
                 style={{
-                    transform: `translate(calc(var(--off-x) * 0.02 * 1px), calc(var(--off-y) * 0.02 * 1px))`
+                    transform: `translate3d(calc(var(--off-x) * 0.02 * 1px), calc(var(--off-y) * 0.02 * 1px), 0)`
                 }}
             >
                  <div 
@@ -372,20 +263,19 @@ const AnimatedBackground = React.memo(({
         </div>
       )}
 
-      {/* 4. FLOATING ELEMENTS (Abstract / Leaves / Crystals / Radial Blurs) */}
+      {/* 4. FLOATING ELEMENTS - GPU Accelerated */}
       <div className="absolute inset-0 z-[3]">
         {items.map((item) => (
             <div 
                 key={item.id}
-                className={`absolute ${item.id % 2 === 0 ? 'hidden md:block' : ''} will-change-transform`}
+                className={`absolute ${item.id % 2 === 0 ? 'hidden md:block' : ''} will-change-[transform]`}
                 style={{
                     top: item.top,
                     left: item.left,
-                    // Parallax Transform on Wrapper
-                    transform: `translate(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px))`
+                    // Force 3D transform for GPU layer promotion
+                    transform: `translate3d(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px), 0)`
                 }}
             >
-                {/* Animation Transform on Inner */}
                 <div 
                     className={`flex items-center justify-center ${
                       themeId === 'obsidian' ? 'animate-obsidian-float' : 
@@ -399,22 +289,18 @@ const AnimatedBackground = React.memo(({
                         color: (item as any).color || config.colors.accent, 
                         opacity: item.opacity,
                         transform: `rotate(${item.rotation || 0}deg)`,
-                        // Custom Blur handling for Midnight and others
                         filter: (item as any).blur ? `blur(${(item as any).blur}px)` : 
                                 item.shape === 'leaf' ? `blur(${item.depth * 1.5}px)` : 
-                                // OBSIDIAN: Sharp, clean lines. No blur.
                                 item.shape.startsWith('obsidian-') ? 'blur(0px)' : 
                                 (item.depth === 1 ? 'blur(3px)' : 'blur(0px)'),
                     }}
                 >
-                    {/* Shapes */}
                     {item.shape === 'leaf' && (
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
                             <path d="M12 2C12 2 20 8 20 16C20 20.4 16.4 24 12 24C7.6 24 4 20.4 4 16C4 8 12 2 12 2Z" fill="currentColor" />
                         </svg>
                     )}
                     
-                    {/* OBSIDIAN: Bipyramid Wireframe with 2.5D Perspective */}
                     {item.shape === 'obsidian-bipyramid' && (
                          <svg 
                             viewBox="0 0 24 24" 
@@ -424,47 +310,21 @@ const AnimatedBackground = React.memo(({
                             strokeLinejoin="round" 
                             className={`w-full h-full ${(item as any).glow ? 'drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]' : ''}`}
                          >
-                             {/* Back Edges (Internal Structure) - Faint to simulate transparency */}
-                             <path 
-                                d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" 
-                                strokeWidth="0.2" 
-                                className="opacity-30"
-                             />
-                             
-                             {/* Perimeter - Defining the silhouette */}
-                             <path 
-                                d="M12 2 L21 12 L12 22 L3 12 Z" 
-                                strokeWidth={(item as any).strokeWidth || 0.5} 
-                             />
-                             
-                             {/* Front Edges (Visible Facets) - Sharper and brighter */}
-                             <path 
-                                d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" 
-                                strokeWidth={(item as any).strokeWidth || 0.5}
-                             />
-
-                             {/* Optional: Subtle Fill for volume on front faces */}
+                             <path d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" strokeWidth="0.2" className="opacity-30" />
+                             <path d="M12 2 L21 12 L12 22 L3 12 Z" strokeWidth={(item as any).strokeWidth || 0.5} />
+                             <path d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" strokeWidth={(item as any).strokeWidth || 0.5} />
                              {(item as any).fill && (
-                                <path 
-                                    d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" 
-                                    fill="currentColor" 
-                                    fillOpacity="0.03" 
-                                    stroke="none"
-                                />
+                                <path d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" fill="currentColor" fillOpacity="0.03" stroke="none" />
                              )}
                          </svg>
                     )}
 
-                    {/* Standard Shapes / Midnight Circles */}
+                    {/* Simple Shapes */}
                     {item.shape === 'circle' && <div className="w-full h-full rounded-full bg-current" style={{ opacity: themeId === 'midnight' ? 1 : 0.4 }} />}
                     {item.shape === 'ring' && <div className="w-full h-full rounded-full border-[3px] border-current opacity-50" />}
                     {item.shape === 'squircle' && <div className="w-full h-full rounded-[2rem] border-[3px] border-current opacity-40" />}
                     {item.shape === 'square' && <div className="w-full h-full border-[3px] border-current rounded-3xl opacity-50" />}
-                    {item.shape === 'triangle' && (
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full opacity-40">
-                            <path d="M12 2L2 22h20L12 2z" />
-                        </svg>
-                    )}
+                    {item.shape === 'triangle' && <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full opacity-40"><path d="M12 2L2 22h20L12 2z" /></svg>}
                     {item.shape === 'plus' && (
                         <div className="w-full h-full relative opacity-50">
                             <div className="absolute top-1/2 left-0 w-full h-[4px] bg-current -translate-y-1/2 rounded-full" />
@@ -481,7 +341,6 @@ const AnimatedBackground = React.memo(({
         ))}
       </div>
 
-      {/* 5. VIGNETTE */}
       <div 
         className="absolute inset-0 z-[4] pointer-events-none transition-colors duration-500"
         style={{
@@ -502,59 +361,18 @@ const TABS = [
   { id: 'analytics', label: 'Stats', icon: BarChart3 },
 ];
 
+// ... TOUR_STEPS ...
 const TOUR_STEPS: TutorialStep[] = [
-  { 
-    view: 'daily', 
-    targetId: 'trackly-logo',
-    title: 'Welcome to Trackly', 
-    description: 'Your command center for academic excellence. This guided tour will show you how to maximize your study efficiency.', 
-    icon: LayoutDashboard 
-  },
-  { 
-    view: 'daily', 
-    targetId: 'dashboard-subjects',
-    title: 'Track Subjects', 
-    description: 'These pods are your daily drivers. Click on Physics, Chemistry, or Maths to log your sessions and track syllabus progress.', 
-    icon: Atom 
-  },
-  { 
-    view: 'planner', 
-    targetId: 'planner-container',
-    title: 'Strategic Planning', 
-    description: 'Never miss a revision deadline. Use the Planner to schedule tasks for the week or month ahead.', 
-    icon: CalendarIcon 
-  },
-  { 
-    view: 'focus', 
-    targetId: 'timer-container',
-    title: 'Deep Focus Timer', 
-    description: 'Enter flow state with our Pomodoro-style timer. Enable Brown Noise for isolation and link sessions to specific tasks.', 
-    icon: Timer 
-  },
-  { 
-    view: 'tests', 
-    targetId: 'test-log-container',
-    title: 'Test Analysis', 
-    description: 'Log your mock test scores here. Record not just your marks, but your temperament and specific mistake patterns.', 
-    icon: PenTool 
-  },
-  { 
-    view: 'analytics', 
-    targetId: 'analytics-container',
-    title: 'Smart Analytics', 
-    description: 'Trackly identifies if you are struggling with Concepts, Formulas, or Calculation errors over time.', 
-    icon: BarChart3 
-  },
-  {
-    view: 'daily',
-    targetId: 'settings-btn',
-    title: 'Themes & Controls',
-    description: 'Open Settings to customize your experience with themes like Obsidian or Forest. You can also toggle Animations here for better performance on older devices.',
-    icon: Settings
-  }
+  { view: 'daily', targetId: 'trackly-logo', title: 'Welcome to Trackly', description: 'Your command center for academic excellence. This guided tour will show you how to maximize your study efficiency.', icon: LayoutDashboard },
+  { view: 'daily', targetId: 'dashboard-subjects', title: 'Track Subjects', description: 'These pods are your daily drivers. Click on Physics, Chemistry, or Maths to log your sessions and track syllabus progress.', icon: Atom },
+  { view: 'planner', targetId: 'planner-container', title: 'Strategic Planning', description: 'Never miss a revision deadline. Use the Planner to schedule tasks for the week or month ahead.', icon: CalendarIcon },
+  { view: 'focus', targetId: 'timer-container', title: 'Deep Focus Timer', description: 'Enter flow state with our Pomodoro-style timer. Enable Brown Noise for isolation and link sessions to specific tasks.', icon: Timer },
+  { view: 'tests', targetId: 'test-log-container', title: 'Test Analysis', description: 'Log your mock test scores here. Record not just your marks, but your temperament and specific mistake patterns.', icon: PenTool },
+  { view: 'analytics', targetId: 'analytics-container', title: 'Smart Analytics', description: 'Trackly identifies if you are struggling with Concepts, Formulas, or Calculation errors over time.', icon: BarChart3 },
+  { view: 'daily', targetId: 'settings-btn', title: 'Themes & Controls', description: 'Open Settings to customize your experience with themes like Obsidian or Forest. You can also toggle Animations here for better performance on older devices.', icon: Settings }
 ];
 
-const Sidebar = ({ 
+const Sidebar = React.memo(({ 
     view, 
     setView, 
     onOpenSettings, 
@@ -574,8 +392,6 @@ const Sidebar = ({
     >
       <div className={`h-20 flex items-center relative shrink-0 ${isCollapsed ? 'justify-center px-0 w-full' : 'justify-between px-6'}`}>
         <TracklyLogo collapsed={isCollapsed} id="trackly-logo" />
-        
-        {/* Toggle Button */}
         <button 
            onClick={toggleCollapsed}
            className={`absolute top-1/2 -translate-y-1/2 -right-3 z-50 w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-full text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all shadow-sm hover:shadow-md hover:scale-110 active:scale-95`}
@@ -635,7 +451,7 @@ const Sidebar = ({
       </div>
     </aside>
   );
-};
+});
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('daily');
@@ -657,6 +473,44 @@ const App: React.FC = () => {
   // Tutorial State
   const [isTutorialActive, setIsTutorialActive] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+
+  // Ref for global mouse tracking (Performance Optimization)
+  const appContainerRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef<number>();
+
+  // Efficient Mouse Tracking attached to the main container
+  // This avoids invalidating layout of document.documentElement
+  useEffect(() => {
+    if (!animationsEnabled) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+        if (requestRef.current) return;
+        requestRef.current = requestAnimationFrame(() => {
+            if (appContainerRef.current) {
+                const { innerWidth: w, innerHeight: h } = window;
+                const x = e.clientX;
+                const y = e.clientY;
+                // Center origin
+                const xOffset = (w / 2 - x);
+                const yOffset = (h / 2 - y);
+
+                // Update CSS variables scoped to the app container
+                // This triggers composite layer updates only for children using these vars
+                appContainerRef.current.style.setProperty('--mouse-x', `${x}px`);
+                appContainerRef.current.style.setProperty('--mouse-y', `${y}px`);
+                appContainerRef.current.style.setProperty('--off-x', `${xOffset}`);
+                appContainerRef.current.style.setProperty('--off-y', `${yOffset}`);
+            }
+            requestRef.current = undefined;
+        });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [animationsEnabled]);
 
   // Load Settings
   useEffect(() => {
@@ -681,13 +535,13 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
 
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
       setSidebarCollapsed(prev => {
           const next = !prev;
           localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(next));
           return next;
       });
-  };
+  }, []);
 
   // Load Data
   useEffect(() => {
@@ -762,23 +616,16 @@ const App: React.FC = () => {
 
   const themeConfig = THEME_CONFIG[theme];
 
-  return (
-    <div className={`min-h-screen font-sans overflow-x-hidden relative flex flex-col transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}>
-      
-      {/* Dynamic Theme Styles Injection - The "Skinning" Engine */}
-      <style>{`
+  // Memoize Dynamic Styles to prevent recalculation
+  const dynamicStyles = useMemo(() => `
         :root {
           --theme-accent: ${themeConfig.colors.accent};
           --theme-accent-glow: ${themeConfig.colors.accentGlow};
           --theme-card-bg: ${themeConfig.colors.card};
           --theme-text-main: ${themeConfig.colors.text};
-          /* Stronger contrast for subtext in light mode */
-          --theme-text-sub: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.5)' : '#334155'}; /* Slate-700 in light mode */
+          --theme-text-sub: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.5)' : '#334155'};
         }
         
-        /* --- GLOBAL COLOR MAPPING --- */
-
-        /* 1. Map all Indigo Utility Classes to Theme Accent */
         .text-indigo-50, .text-indigo-100, .text-indigo-200, .text-indigo-300, .text-indigo-400, .text-indigo-500, .text-indigo-600, .text-indigo-700, .text-indigo-800, .text-indigo-900 {
             color: var(--theme-accent) !important;
         }
@@ -795,48 +642,37 @@ const App: React.FC = () => {
             box-shadow: 0 10px 15px -3px ${themeConfig.colors.accent}40 !important;
         }
 
-        /* 2. TEXT NORMALIZATION (Crucial for visibility) */
-        /* Forces standard Tailwind text classes to use theme-aware colors */
         .text-slate-900, .text-gray-900, .text-zinc-900, .text-neutral-900 {
             color: var(--theme-text-main) !important;
         }
-        /* Mapped Subtext */
         .text-slate-500, .text-gray-500, .text-zinc-500, .text-neutral-500 {
             color: var(--theme-text-sub) !important;
         }
-        /* In light mode, ensure 'slate-400' is darker for readability */
         ${themeConfig.mode === 'light' ? `
-            .text-slate-300 { color: #94a3b8 !important; } /* Becomes Slate 400 */
-            .text-slate-400, .text-gray-400 { color: #475569 !important; } /* Becomes Slate 600 */
-            .text-slate-600 { color: #1e293b !important; } /* Becomes Slate 800 */
+            .text-slate-300 { color: #94a3b8 !important; } 
+            .text-slate-400, .text-gray-400 { color: #475569 !important; }
+            .text-slate-600 { color: #1e293b !important; } 
             .placeholder\\:text-slate-400::placeholder { color: #64748b !important; }
         ` : ''}
 
-        /* 3. Card & Glass Effect Overrides */
-        
-        /* Light Mode Cards: Higher Opacity White + Border */
         .bg-white\\/60, .bg-white\\/70, .bg-white\\/80, .bg-white\\/50 {
              background-color: ${themeConfig.mode === 'light' ? 'rgba(255,255,255,0.95)' : themeConfig.colors.card + '99'} !important;
              border-color: ${themeConfig.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)'} !important;
              box-shadow: ${themeConfig.mode === 'light' ? '0 8px 16px -4px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)' : 'none'} !important;
         }
         
-        /* Dark Mode Cards */
         .dark .bg-slate-900\\/40, .dark .bg-slate-900\\/50, .dark .bg-slate-900\\/60, .dark .bg-slate-900\\/80 {
             background-color: ${themeConfig.colors.card}99 !important;
         }
 
-        /* 4. Gradient Overrides */
         .from-indigo-400, .from-indigo-500, .from-indigo-600 { --tw-gradient-from: var(--theme-accent) !important; }
         .to-indigo-400, .to-indigo-500, .to-indigo-600 { --tw-gradient-to: var(--theme-accent) !important; }
 
-        /* 5. Input Field Visibility */
         input, select, textarea {
             background-color: ${themeConfig.mode === 'dark' ? 'rgba(0,0,0,0.2)' : '#ffffff'} !important;
             border-color: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.1)' : '#cbd5e1'} !important;
             color: ${themeConfig.colors.text} !important;
         }
-        /* Fix focus ring color */
         input:focus, select:focus, textarea:focus {
             border-color: var(--theme-accent) !important;
             box-shadow: 0 0 0 1px var(--theme-accent) !important;
@@ -846,24 +682,20 @@ const App: React.FC = () => {
             background-color: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'} !important;
         }
 
-        /* 6. Planner Toggle & Button Specifics */
         .dark .dark\\:bg-indigo-600 { background-color: var(--theme-accent) !important; }
         .dark .dark\\:text-white { color: #ffffff !important; }
         
-        /* 7. Scrollbars */
         ::-webkit-scrollbar-thumb {
             background-color: ${themeConfig.colors.accent}66 !important;
             border-radius: 10px;
         }
         ::-webkit-scrollbar-track { background: transparent; }
 
-        /* 8. Selection Color */
         ::selection {
           background-color: ${themeConfig.colors.accent}4d; 
           color: white;
         }
 
-        /* 9. Obsidian Theme Custom Animation */
         @keyframes obsidian-float {
             0%, 100% { transform: translate3d(0,0,0) rotate(0deg); }
             50% { transform: translate3d(0, -15px, 0) rotate(2deg); }
@@ -871,26 +703,16 @@ const App: React.FC = () => {
         .animate-obsidian-float {
              animation: obsidian-float 8s ease-in-out infinite;
         }
+  `, [themeConfig]);
 
-        ${theme === 'midnight' ? `
-            /* Layer 4: Card Shadow Micro-Parallax for Midnight Theme */
-            /* 
-               Uses mouse position CSS vars from documentElement.
-               Calculates a small offset (0.5-1px range) based on mouse position from center.
-               Direction follows cursor (positive multiplier on negative off-x = positive offset).
-            */
-            .shadow-xl, .shadow-2xl {
-                transition: box-shadow 0.1s ease-out;
-                box-shadow: 
-                    calc(var(--off-x) * -0.002px) 
-                    calc(var(--off-y) * -0.002px) 
-                    25px rgba(0,0,0,0.5) !important;
-            }
-        ` : ''}
-      `}</style>
+  return (
+    <div 
+        ref={appContainerRef}
+        className={`min-h-screen font-sans overflow-x-hidden relative flex flex-col transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}
+    >
+      <style>{dynamicStyles}</style>
 
       <AnimatedBackground 
-        enabled={animationsEnabled} 
         themeId={theme} 
         showAurora={showAurora}
       />
