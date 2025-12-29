@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { Activity, Target, Trophy, Clock, Brain, TrendingUp, Zap, Atom, Calculator, BarChart2 } from 'lucide-react';
+import { Activity, Target, Trophy, Clock, Brain, TrendingUp, Zap, Atom, Calculator, BarChart2, Grid } from 'lucide-react';
 import { Session, TestResult } from '../types';
 import { Card } from './Card';
-import { MISTAKE_TYPES } from '../constants';
+import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
 
 // Helper for local date string YYYY-MM-DD
 const getLocalDate = (d = new Date()) => {
@@ -112,6 +112,88 @@ const SubjectProficiency = ({ sessions }: { sessions: Session[] }) => {
       })}
     </div>
   );
+};
+
+// New Syllabus Heatmap Component
+const SyllabusHeatmap = ({ sessions }: { sessions: Session[] }) => {
+  return (
+    <div className="mt-8 space-y-6">
+      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
+         <Grid size={14} /> Topic Mastery Heatmap
+      </h3>
+      <div className="grid grid-cols-1 gap-6">
+         {Object.entries(JEE_SYLLABUS).map(([subject, topics]) => (
+            <div key={subject} className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-slate-200 dark:border-white/5">
+                <div className="flex items-center gap-2 mb-4">
+                    <span className={`w-2 h-2 rounded-full ${
+                        subject === 'Physics' ? 'bg-blue-500' : subject === 'Chemistry' ? 'bg-orange-500' : 'bg-rose-500'
+                    }`} />
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">{subject}</h4>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                    {topics.map(topic => {
+                        const topicSessions = sessions.filter(s => s.subject === subject && s.topic === topic);
+                        const attempted = topicSessions.reduce((acc, s) => acc + s.attempted, 0);
+                        const correct = topicSessions.reduce((acc, s) => acc + s.correct, 0);
+                        const accuracy = attempted > 0 ? (correct / attempted) : 0;
+                        
+                        // Determine Color based on Proficiency
+                        let bgClass = "bg-slate-200 dark:bg-white/5 text-slate-400 dark:text-slate-600"; // Untouched
+                        
+                        if (attempted > 0) {
+                            if (attempted < 20 || accuracy < 0.3) {
+                                bgClass = "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30";
+                            } else if (attempted < 50 || accuracy < 0.7) {
+                                bgClass = "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30";
+                            } else {
+                                bgClass = "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30";
+                            }
+                        }
+
+                        return (
+                            <div 
+                              key={topic} 
+                              className={`
+                                relative group cursor-pointer h-8 px-3 rounded-lg flex items-center justify-center transition-all hover:scale-105
+                                ${bgClass}
+                              `}
+                              title={`${topic}: ${attempted} Qs (${Math.round(accuracy * 100)}%)`}
+                            >
+                                <span className="text-[9px] font-bold uppercase truncate max-w-[100px]">{topic.split(' ').slice(0, 2).join(' ')}</span>
+                                
+                                {/* Hover Stats Tooltip */}
+                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 text-white p-2 rounded-xl text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none shadow-xl border border-white/10">
+                                    <p className="font-bold mb-0.5">{topic}</p>
+                                    <p className="opacity-70">{attempted} Attempted • {Math.round(accuracy * 100)}% Acc</p>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+         ))}
+      </div>
+      {/* Legend */}
+      <div className="flex justify-center gap-6 mt-4">
+         <div className="flex items-center gap-2">
+             <div className="w-3 h-3 rounded bg-slate-200 dark:bg-white/5" />
+             <span className="text-[10px] uppercase font-bold text-slate-400">Untouched</span>
+         </div>
+         <div className="flex items-center gap-2">
+             <div className="w-3 h-3 rounded bg-rose-500/20 border border-rose-500/30" />
+             <span className="text-[10px] uppercase font-bold text-slate-400">Needs Work</span>
+         </div>
+         <div className="flex items-center gap-2">
+             <div className="w-3 h-3 rounded bg-amber-500/20 border border-amber-500/30" />
+             <span className="text-[10px] uppercase font-bold text-slate-400">Improving</span>
+         </div>
+         <div className="flex items-center gap-2">
+             <div className="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-500/30" />
+             <span className="text-[10px] uppercase font-bold text-slate-400">Mastered</span>
+         </div>
+      </div>
+    </div>
+  )
 };
 
 export const Analytics: React.FC<AnalyticsProps> = ({ sessions, tests }) => {
@@ -259,8 +341,11 @@ export const Analytics: React.FC<AnalyticsProps> = ({ sessions, tests }) => {
               </div>
             </Card>
          </div>
-
       </div>
+      
+      {/* Syllabus Heatmap Section */}
+      <SyllabusHeatmap sessions={sessions} />
+      
     </div>
   );
 };
