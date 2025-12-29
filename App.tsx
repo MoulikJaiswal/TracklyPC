@@ -66,20 +66,25 @@ const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean
 
 const AnimatedBackground = React.memo(({ 
     themeId,
-    showAurora
+    showAurora,
+    parallaxEnabled,
+    showParticles
 }: { 
     themeId: ThemeId,
-    showAurora: boolean
+    showAurora: boolean,
+    parallaxEnabled: boolean,
+    showParticles: boolean
 }) => {
   const config = THEME_CONFIG[themeId];
   
   const items = useMemo(() => {
+    if (!showParticles) return [];
+
     // --- MIDNIGHT QUIET THEME OVERHAUL ---
     if (themeId === 'midnight') {
         const midnightItems: any[] = [];
         
         // 1. Distant Star Field - Optimized count and properties
-        // Reduced count slightly for performance, removed expensive box-shadows on distant stars
         for(let i=0; i<35; i++) {
             const size = Math.random() * 0.15 + 0.05; 
             const depth = Math.random() * 3 + 1; 
@@ -173,7 +178,7 @@ const AnimatedBackground = React.memo(({
         duration: 40 + (item.id * 2),
         delay: -(item.id * 5)
     }));
-  }, [themeId]); 
+  }, [themeId, showParticles]); 
 
   return (
     <div 
@@ -266,93 +271,97 @@ const AnimatedBackground = React.memo(({
       )}
 
       {/* Floating Elements / Star Trails */}
-      <div className="absolute inset-0 z-[3] overflow-hidden">
-        {items.map((item) => (
-            <div 
-                key={item.id}
-                className={`absolute ${typeof item.id === 'number' && item.id % 2 === 0 ? 'hidden md:block' : ''} will-change-transform`}
-                style={{
-                    top: item.top,
-                    left: item.left,
-                    // GPU Parallax Transform
-                    transform: `translate3d(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px), 0)`,
-                    backfaceVisibility: 'hidden'
-                }}
-            >
+      {showParticles && (
+        <div className="absolute inset-0 z-[3] overflow-hidden">
+            {items.map((item) => (
                 <div 
-                    className={`flex items-center justify-center ${
-                      themeId === 'obsidian' ? 'animate-obsidian-float' : 
-                      !['forest', 'midnight'].includes(themeId) ? 'animate-float-gentle' : ''
-                    }`}
+                    key={item.id}
+                    className={`absolute ${typeof item.id === 'number' && item.id % 2 === 0 ? 'hidden md:block' : ''} will-change-transform`}
                     style={{
-                        width: (item as any).width || `${item.size}rem`,
-                        height: (item as any).height || `${item.size}rem`,
-                        animationDuration: `${item.duration}s`,
-                        animationDelay: `${item.delay}s`,
-                        color: (item as any).color || config.colors.accent, 
-                        opacity: item.opacity,
-                        transform: `rotate(${item.rotation || 0}deg)`,
-                        // Reduce blur filters for better performance, use opacity for depth perception where possible
-                        filter: (item as any).blur ? `blur(${(item as any).blur}px)` : 
-                                item.shape === 'leaf' ? `blur(${Math.min(item.depth * 1, 3)}px)` : 
-                                item.shape.startsWith('obsidian-') ? 'blur(0px)' : 
-                                (item.depth === 1 ? 'blur(2px)' : 'blur(0px)'),
-                        willChange: 'transform'
+                        top: item.top,
+                        left: item.left,
+                        // GPU Parallax Transform - Conditionally Applied
+                        transform: parallaxEnabled 
+                            ? `translate3d(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px), 0)`
+                            : 'translate3d(0,0,0)',
+                        backfaceVisibility: 'hidden'
                     }}
                 >
-                    {/* SVG Shapes */}
-                    {item.shape === 'leaf' && (
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-                            <path d="M12 2C12 2 20 8 20 16C20 20.4 16.4 24 12 24C7.6 24 4 20.4 4 16C4 8 12 2 12 2Z" fill="currentColor" />
-                        </svg>
-                    )}
-                    
-                    {item.shape === 'obsidian-bipyramid' && (
-                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" className={`w-full h-full ${(item as any).glow ? 'drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]' : ''}`}>
-                             <path d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" strokeWidth="0.2" className="opacity-30" />
-                             <path d="M12 2 L21 12 L12 22 L3 12 Z" strokeWidth={(item as any).strokeWidth || 0.5} />
-                             <path d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" strokeWidth={(item as any).strokeWidth || 0.5} />
-                             {(item as any).fill && <path d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" fill="currentColor" fillOpacity="0.03" stroke="none" />}
-                         </svg>
-                    )}
+                    <div 
+                        className={`flex items-center justify-center ${
+                        themeId === 'obsidian' ? 'animate-obsidian-float' : 
+                        !['forest', 'midnight'].includes(themeId) ? 'animate-float-gentle' : ''
+                        }`}
+                        style={{
+                            width: (item as any).width || `${item.size}rem`,
+                            height: (item as any).height || `${item.size}rem`,
+                            animationDuration: `${item.duration}s`,
+                            animationDelay: `${item.delay}s`,
+                            color: (item as any).color || config.colors.accent, 
+                            opacity: item.opacity,
+                            transform: `rotate(${item.rotation || 0}deg)`,
+                            // Reduce blur filters for better performance, use opacity for depth perception where possible
+                            filter: (item as any).blur ? `blur(${(item as any).blur}px)` : 
+                                    item.shape === 'leaf' ? `blur(${Math.min(item.depth * 1, 3)}px)` : 
+                                    item.shape.startsWith('obsidian-') ? 'blur(0px)' : 
+                                    (item.depth === 1 ? 'blur(2px)' : 'blur(0px)'),
+                            willChange: 'transform'
+                        }}
+                    >
+                        {/* SVG Shapes */}
+                        {item.shape === 'leaf' && (
+                            <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                                <path d="M12 2C12 2 20 8 20 16C20 20.4 16.4 24 12 24C7.6 24 4 20.4 4 16C4 8 12 2 12 2Z" fill="currentColor" />
+                            </svg>
+                        )}
+                        
+                        {item.shape === 'obsidian-bipyramid' && (
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" className={`w-full h-full ${(item as any).glow ? 'drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]' : ''}`}>
+                                <path d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" strokeWidth="0.2" className="opacity-30" />
+                                <path d="M12 2 L21 12 L12 22 L3 12 Z" strokeWidth={(item as any).strokeWidth || 0.5} />
+                                <path d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" strokeWidth={(item as any).strokeWidth || 0.5} />
+                                {(item as any).fill && <path d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" fill="currentColor" fillOpacity="0.03" stroke="none" />}
+                            </svg>
+                        )}
 
-                    {/* MIDNIGHT: Star Point */}
-                    {item.shape === 'star-point' && (
-                        <div 
-                            className="w-full h-full rounded-full bg-white"
-                            style={{
-                                // Only apply shadow to bright stars to reduce paint cost
-                                boxShadow: (item as any).isBright ? '0 0 4px 1px rgba(255,255,255,0.4)' : 'none'
-                            }}
-                        />
-                    )}
+                        {/* MIDNIGHT: Star Point */}
+                        {item.shape === 'star-point' && (
+                            <div 
+                                className="w-full h-full rounded-full bg-white"
+                                style={{
+                                    // Only apply shadow to bright stars to reduce paint cost
+                                    boxShadow: (item as any).isBright ? '0 0 4px 1px rgba(255,255,255,0.4)' : 'none'
+                                }}
+                            />
+                        )}
 
-                    {/* MIDNIGHT: Shooting Star */}
-                    {item.shape === 'shooting-star' && (
-                         <div className="w-[100px] h-[2px] bg-gradient-to-r from-transparent via-indigo-200 to-transparent rotate-[-35deg] opacity-20" />
-                    )}
+                        {/* MIDNIGHT: Shooting Star */}
+                        {item.shape === 'shooting-star' && (
+                            <div className="w-[100px] h-[2px] bg-gradient-to-r from-transparent via-indigo-200 to-transparent rotate-[-35deg] opacity-20" />
+                        )}
 
-                    {/* Standard Geometric Shapes */}
-                    {item.shape === 'circle' && <div className="w-full h-full rounded-full bg-current" style={{ opacity: themeId === 'midnight' ? 1 : 0.4 }} />}
-                    {item.shape === 'ring' && <div className="w-full h-full rounded-full border-[3px] border-current opacity-50" />}
-                    {item.shape === 'squircle' && <div className="w-full h-full rounded-[2rem] border-[3px] border-current opacity-40" />}
-                    {item.shape === 'square' && <div className="w-full h-full border-[3px] border-current rounded-3xl opacity-50" />}
-                    {item.shape === 'triangle' && <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full opacity-40"><path d="M12 2L2 22h20L12 2z" /></svg>}
-                    {item.shape === 'plus' && (
-                        <div className="w-full h-full relative opacity-50">
-                            <div className="absolute top-1/2 left-0 w-full h-[4px] bg-current -translate-y-1/2 rounded-full" />
-                            <div className="absolute left-1/2 top-0 h-full w-[4px] bg-current -translate-x-1/2 rounded-full" />
-                        </div>
-                    )}
-                    {item.shape === 'grid' && (
-                        <div className="w-full h-full grid grid-cols-3 gap-2 opacity-40 p-1">
-                             {[...Array(9)].map((_, k) => <div key={k} className="bg-current rounded-full w-full h-full" />)}
-                        </div>
-                    )}
+                        {/* Standard Geometric Shapes */}
+                        {item.shape === 'circle' && <div className="w-full h-full rounded-full bg-current" style={{ opacity: themeId === 'midnight' ? 1 : 0.4 }} />}
+                        {item.shape === 'ring' && <div className="w-full h-full rounded-full border-[3px] border-current opacity-50" />}
+                        {item.shape === 'squircle' && <div className="w-full h-full rounded-[2rem] border-[3px] border-current opacity-40" />}
+                        {item.shape === 'square' && <div className="w-full h-full border-[3px] border-current rounded-3xl opacity-50" />}
+                        {item.shape === 'triangle' && <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full opacity-40"><path d="M12 2L2 22h20L12 2z" /></svg>}
+                        {item.shape === 'plus' && (
+                            <div className="w-full h-full relative opacity-50">
+                                <div className="absolute top-1/2 left-0 w-full h-[4px] bg-current -translate-y-1/2 rounded-full" />
+                                <div className="absolute left-1/2 top-0 h-full w-[4px] bg-current -translate-x-1/2 rounded-full" />
+                            </div>
+                        )}
+                        {item.shape === 'grid' && (
+                            <div className="w-full h-full grid grid-cols-3 gap-2 opacity-40 p-1">
+                                {[...Array(9)].map((_, k) => <div key={k} className="bg-current rounded-full w-full h-full" />)}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-        ))}
-      </div>
+            ))}
+        </div>
+      )}
 
       <div 
         className="absolute inset-0 z-[4] pointer-events-none transition-colors duration-500"
@@ -378,11 +387,11 @@ const TABS = [
 const TOUR_STEPS: TutorialStep[] = [
   { view: 'daily', targetId: 'trackly-logo', title: 'Welcome to Trackly', description: 'Your command center for academic excellence. This guided tour will show you how to maximize your study efficiency.', icon: LayoutDashboard },
   { view: 'daily', targetId: 'dashboard-subjects', title: 'Track Subjects', description: 'These pods are your daily drivers. Click on Physics, Chemistry, or Maths to log your sessions and track syllabus progress.', icon: Atom },
-  { view: 'planner', targetId: 'planner-container', title: 'Strategic Planning', description: 'Never miss a revision deadline. Use the Planner to schedule tasks for the week or month ahead.', icon: CalendarIcon },
-  { view: 'focus', targetId: 'timer-container', title: 'Deep Focus Timer', description: 'Enter flow state with our Pomodoro-style timer. Enable Brown Noise for isolation and link sessions to specific tasks.', icon: Timer },
+  { view: 'planner', targetId: 'planner-container', title: 'Strategic Planning', description: 'Use the Planner to schedule tasks for the week or month ahead. Switch views to see your entire month at a glance.', icon: CalendarIcon },
+  { view: 'focus', targetId: 'timer-container', title: 'Deep Focus Timer', description: 'Select a specific task from your planner to work on. Enable Brown Noise for isolation and track your flow state.', icon: Timer },
   { view: 'tests', targetId: 'test-log-container', title: 'Test Analysis', description: 'Log your mock test scores here. Record not just your marks, but your temperament and specific mistake patterns.', icon: PenTool },
-  { view: 'analytics', targetId: 'analytics-container', title: 'Smart Analytics', description: 'Trackly identifies if you are struggling with Concepts, Formulas, or Calculation errors over time.', icon: BarChart3 },
-  { view: 'daily', targetId: 'settings-btn', title: 'Themes & Controls', description: 'Open Settings to customize your experience with themes like Obsidian or Forest. You can also toggle Animations here for better performance on older devices.', icon: Settings }
+  { view: 'analytics', targetId: 'analytics-container', title: 'Smart Analytics', description: 'Visualize your syllabus mastery with the new Topic Heatmap. See exactly which chapters are green (mastered) or red (needs work).', icon: BarChart3 },
+  { view: 'daily', targetId: 'settings-btn', title: 'Themes & Controls', description: 'Customize your workspace. Switch themes, toggle Parallax Effects and Background Elements, or enable High Performance mode.', icon: Settings }
 ];
 
 const Sidebar = React.memo(({ 
@@ -480,6 +489,10 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeId>('default-dark');
   const [showAurora, setShowAurora] = useState(true);
   
+  // New Visual Settings
+  const [parallaxEnabled, setParallaxEnabled] = useState(true);
+  const [showParticles, setShowParticles] = useState(true);
+  
   // UI State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -492,7 +505,8 @@ const App: React.FC = () => {
   const requestRef = useRef<number>();
 
   useEffect(() => {
-    if (!animationsEnabled) return;
+    // Only track mouse if animations AND parallax are enabled
+    if (!animationsEnabled || !parallaxEnabled) return;
 
     const handleMouseMove = (e: MouseEvent) => {
         if (requestRef.current) return;
@@ -520,7 +534,7 @@ const App: React.FC = () => {
         window.removeEventListener('mousemove', handleMouseMove);
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [animationsEnabled]);
+  }, [animationsEnabled, parallaxEnabled]);
 
   // Load Settings
   useEffect(() => {
@@ -528,11 +542,15 @@ const App: React.FC = () => {
     const savedTheme = localStorage.getItem('zenith_theme_id');
     const savedSidebar = localStorage.getItem('zenith_sidebar_collapsed');
     const savedAurora = localStorage.getItem('zenith_aurora');
+    const savedParallax = localStorage.getItem('zenith_parallax');
+    const savedParticles = localStorage.getItem('zenith_particles');
     
     if (savedAnim !== null) setAnimationsEnabled(JSON.parse(savedAnim));
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
     if (savedSidebar !== null) setSidebarCollapsed(JSON.parse(savedSidebar));
     if (savedAurora !== null) setShowAurora(JSON.parse(savedAurora));
+    if (savedParallax !== null) setParallaxEnabled(JSON.parse(savedParallax));
+    if (savedParticles !== null) setShowParticles(JSON.parse(savedParticles));
   }, []);
 
   // Persist & Apply Settings
@@ -544,6 +562,8 @@ const App: React.FC = () => {
 
   useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
+  useEffect(() => { localStorage.setItem('zenith_parallax', JSON.stringify(parallaxEnabled)); }, [parallaxEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_particles', JSON.stringify(showParticles)); }, [showParticles]);
 
   const toggleSidebar = useCallback(() => {
       setSidebarCollapsed(prev => {
@@ -722,6 +742,8 @@ const App: React.FC = () => {
       <AnimatedBackground 
         themeId={theme} 
         showAurora={showAurora}
+        parallaxEnabled={parallaxEnabled}
+        showParticles={showParticles}
       />
       
       {/* Desktop Sidebar */}
@@ -829,6 +851,10 @@ const App: React.FC = () => {
         onStartTutorial={startTutorial}
         showAurora={showAurora}
         toggleAurora={() => setShowAurora(!showAurora)}
+        parallaxEnabled={parallaxEnabled}
+        toggleParallax={() => setParallaxEnabled(!parallaxEnabled)}
+        showParticles={showParticles}
+        toggleParticles={() => setShowParticles(!showParticles)}
       />
     </div>
   );

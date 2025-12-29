@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Zap, ZapOff, CheckCircle2, Map, Globe, MousePointer2, Sparkles } from 'lucide-react';
+import { X, Zap, ZapOff, CheckCircle2, Map, Globe, MousePointer2, Sparkles, Layers } from 'lucide-react';
 import { Card } from './Card';
 import { ThemeId } from '../types';
 import { THEME_CONFIG } from '../constants';
@@ -14,6 +14,10 @@ interface SettingsModalProps {
   onStartTutorial: () => void;
   showAurora: boolean;
   toggleAurora: () => void;
+  parallaxEnabled: boolean;
+  toggleParallax: () => void;
+  showParticles: boolean;
+  toggleParticles: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -25,7 +29,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setTheme,
   onStartTutorial,
   showAurora,
-  toggleAurora
+  toggleAurora,
+  parallaxEnabled,
+  toggleParallax,
+  showParticles,
+  toggleParticles
 }) => {
   if (!isOpen) return null;
 
@@ -84,6 +92,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className={`w-10 h-5 rounded-full relative transition-colors ${showAurora ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                       <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showAurora ? 'left-6' : 'left-1'}`} />
+                  </div>
+                </button>
+
+                {/* Particles Toggle */}
+                <button 
+                  onClick={toggleParticles}
+                  className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${showParticles ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <Layers size={18} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">Background Elements</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
+                        Stars, shapes & floating objects
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${showParticles ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showParticles ? 'left-6' : 'left-1'}`} />
+                  </div>
+                </button>
+
+                {/* Parallax Toggle */}
+                <button 
+                  onClick={toggleParallax}
+                  disabled={!showParticles}
+                  className={`w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 transition-colors ${!showParticles ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${parallaxEnabled && showParticles ? 'bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <MousePointer2 size={18} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">Parallax Effect</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
+                        Depth movement on mouse hover
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${parallaxEnabled && showParticles ? 'bg-pink-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${parallaxEnabled && showParticles ? 'left-6' : 'left-1'}`} />
                   </div>
                 </button>
              </div>
