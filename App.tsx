@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { 
   Activity, 
   Calendar as CalendarIcon, 
@@ -76,6 +77,36 @@ const AnimatedBackground = React.memo(({
     showParticles: boolean
 }) => {
   const config = THEME_CONFIG[themeId];
+  const containerRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef<number>();
+
+  // ISOLATED MOUSE TRACKING: Only update styles on this specific background layer
+  useEffect(() => {
+    if (!parallaxEnabled) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+        if (requestRef.current) return;
+        requestRef.current = requestAnimationFrame(() => {
+            if (containerRef.current) {
+                const { innerWidth: w, innerHeight: h } = window;
+                // Calculate center offset
+                const xOffset = (w / 2 - e.clientX);
+                const yOffset = (h / 2 - e.clientY);
+                
+                // Directly update properties on this element only
+                containerRef.current.style.setProperty('--off-x', `${xOffset}`);
+                containerRef.current.style.setProperty('--off-y', `${yOffset}`);
+            }
+            requestRef.current = undefined;
+        });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [parallaxEnabled]);
   
   const items = useMemo(() => {
     if (!showParticles) return [];
@@ -84,8 +115,8 @@ const AnimatedBackground = React.memo(({
     if (themeId === 'midnight') {
         const midnightItems: any[] = [];
         
-        // 1. Distant Star Field - Optimized count and properties
-        for(let i=0; i<35; i++) {
+        // Optimized count: Reduced star count for better FPS
+        for(let i=0; i<25; i++) {
             const size = Math.random() * 0.15 + 0.05; 
             const depth = Math.random() * 3 + 1; 
             const isBright = Math.random() > 0.8;
@@ -98,12 +129,11 @@ const AnimatedBackground = React.memo(({
                 opacity: Math.random() * 0.5 + 0.1,
                 parallaxFactor: depth * 0.005, 
                 animationDelay: Math.random() * 5,
-                animationDuration: Math.random() * 3 + 3, // Slower animation is cheaper
-                isBright // Only bright stars get shadow
+                animationDuration: Math.random() * 3 + 3,
+                isBright
             });
         }
 
-        // 2. Shooting Star (Occasional)
         midnightItems.push({
             id: 'shooting-star-1',
             top: '20%',
@@ -125,8 +155,6 @@ const AnimatedBackground = React.memo(({
             { id: 4, top: '-10%', left: '60%', size: 28, shape: 'leaf', depth: 2, rotation: 160, opacity: 0.05 },
             { id: 5, top: '35%', left: '15%', size: 12, shape: 'leaf', depth: 3, rotation: 15, opacity: 0.08 },
             { id: 6, top: '20%', left: '85%', size: 15, shape: 'leaf', depth: 3, rotation: -10, opacity: 0.08 },
-            { id: 7, top: '75%', left: '65%', size: 18, shape: 'leaf', depth: 3, rotation: 80, opacity: 0.08 },
-            { id: 8, top: '58%', left: '22%', size: 9, shape: 'leaf', depth: 3, rotation: -45, opacity: 0.09 },
         ].map(item => ({
             ...item,
             parallaxFactor: item.depth * 0.005, 
@@ -135,24 +163,7 @@ const AnimatedBackground = React.memo(({
         }));
     }
 
-    // --- OBSIDIAN THEME ---
-    if (themeId === 'obsidian') {
-      return [
-        { id: 1, top: '70%', left: '5%', size: 55, shape: 'obsidian-bipyramid', depth: 1, rotation: -15, opacity: 0.02, strokeWidth: 0.3, glow: false },
-        { id: 2, top: '-15%', left: '75%', size: 65, shape: 'obsidian-bipyramid', depth: 1, rotation: 165, opacity: 0.02, strokeWidth: 0.3, glow: false },
-        { id: 3, top: '45%', left: '88%', size: 22, shape: 'obsidian-bipyramid', depth: 2, rotation: 25, opacity: 0.04, strokeWidth: 0.5, glow: false },
-        { id: 4, top: '15%', left: '15%', size: 18, shape: 'obsidian-bipyramid', depth: 2.5, rotation: 45, opacity: 0.05, strokeWidth: 0.5, glow: true },
-        { id: 5, top: '25%', left: '60%', size: 12, shape: 'obsidian-bipyramid', depth: 3, rotation: -10, opacity: 0.08, strokeWidth: 0.8, glow: true, fill: true },
-        { id: 6, top: '85%', left: '40%', size: 14, shape: 'obsidian-bipyramid', depth: 4, rotation: -35, opacity: 0.07, strokeWidth: 0.8, glow: true },
-      ].map(item => ({
-        ...item,
-        parallaxFactor: item.depth * -0.01,
-        duration: 50 + (item.id * 5),
-        delay: -(item.id * 10)
-      }));
-    }
-
-    // --- DEFAULT GEOMETRIC ---
+    // --- DEFAULT GEOMETRIC (Reduced Count) ---
     return [
         { id: 1, top: '8%', left: '5%', size: 16, shape: 'ring', depth: 1, opacity: 0.03, rotation: 0 },
         { id: 2, top: '75%', left: '85%', size: 20, shape: 'squircle', depth: 1, opacity: 0.03, rotation: 15 },
@@ -165,13 +176,6 @@ const AnimatedBackground = React.memo(({
         { id: 9, top: '20%', left: '35%', size: 3, shape: 'circle', depth: 2, opacity: 0.05, rotation: 0 },
         { id: 10, top: '22%', left: '20%', size: 2, shape: 'squircle', depth: 3, opacity: 0.12, rotation: 30 },
         { id: 11, top: '60%', left: '88%', size: 2.5, shape: 'circle', depth: 3, opacity: 0.12, rotation: 0 },
-        { id: 12, top: '88%', left: '65%', size: 1.5, shape: 'triangle', depth: 3, opacity: 0.15, rotation: -15 },
-        { id: 13, top: '12%', left: '35%', size: 1.2, shape: 'plus', depth: 3, opacity: 0.15, rotation: 45 },
-        { id: 14, top: '45%', left: '15%', size: 1, shape: 'circle', depth: 3, opacity: 0.1, rotation: 0 },
-        { id: 15, top: '70%', left: '80%', size: 1.5, shape: 'grid', depth: 3, opacity: 0.1, rotation: 20 },
-        { id: 16, top: '35%', left: '75%', size: 1.8, shape: 'ring', depth: 3, opacity: 0.12, rotation: 0 },
-        { id: 17, top: '10%', left: '90%', size: 0.5, shape: 'circle', depth: 3, opacity: 0.2, rotation: 0 },
-        { id: 18, top: '90%', left: '5%', size: 0.5, shape: 'circle', depth: 3, opacity: 0.2, rotation: 0 },
     ].map(item => ({
         ...item,
         parallaxFactor: item.depth * 0.08, 
@@ -182,11 +186,15 @@ const AnimatedBackground = React.memo(({
 
   return (
     <div 
+        ref={containerRef}
         className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" 
         style={{ 
             backgroundColor: config.colors.bg,
             contain: 'strict',
-            transform: 'translateZ(0)' // Force GPU promotion for container
+            transform: 'translateZ(0)',
+            // Initialize vars
+            '--off-x': 0,
+            '--off-y': 0
         } as React.CSSProperties}
     >
       
@@ -209,7 +217,8 @@ const AnimatedBackground = React.memo(({
                 className="absolute bottom-[-10%] left-[-10%] right-[-10%] h-[40%] z-[1] opacity-30"
                 style={{
                     background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-                    filter: 'blur(40px)', // Reduced from 60px
+                    // Using standard opacity fade instead of heavy blur
+                    opacity: 0.2,
                     transform: 'translateZ(0)'
                 }}
             />
@@ -243,11 +252,13 @@ const AnimatedBackground = React.memo(({
 
       {/* Aurora (Disabled for Midnight) */}
       {showAurora && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
-        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(60px)', transform: 'translateZ(0)' }}>
+        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ transform: 'translateZ(0)' }}>
             <div 
                className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
                    transform: `translate3d(calc(var(--off-x) * 0.05 * 1px), calc(var(--off-y) * 0.05 * 1px), 0)`,
+                   // Use blur sparingly
+                   filter: 'blur(40px)'
                }} 
             >
                 <div 
@@ -260,6 +271,7 @@ const AnimatedBackground = React.memo(({
                className="absolute bottom-[-45%] right-[-10%] w-[60vw] h-[60vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
                    transform: `translate3d(calc(var(--off-x) * 0.08 * 1px), calc(var(--off-y) * 0.08 * 1px), 0)`,
+                   filter: 'blur(40px)'
                }} 
             >
                  <div 
@@ -300,11 +312,8 @@ const AnimatedBackground = React.memo(({
                             color: (item as any).color || config.colors.accent, 
                             opacity: item.opacity,
                             transform: `rotate(${item.rotation || 0}deg)`,
-                            // Reduce blur filters for better performance, use opacity for depth perception where possible
-                            filter: (item as any).blur ? `blur(${(item as any).blur}px)` : 
-                                    item.shape === 'leaf' ? `blur(${Math.min(item.depth * 1, 3)}px)` : 
-                                    item.shape.startsWith('obsidian-') ? 'blur(0px)' : 
-                                    (item.depth === 1 ? 'blur(2px)' : 'blur(0px)'),
+                            // REMOVED BLUR FILTERS for performance
+                            filter: 'none',
                             willChange: 'transform'
                         }}
                     >
@@ -316,7 +325,7 @@ const AnimatedBackground = React.memo(({
                         )}
                         
                         {item.shape === 'obsidian-bipyramid' && (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" className={`w-full h-full ${(item as any).glow ? 'drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]' : ''}`}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" className={`w-full h-full`}>
                                 <path d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" strokeWidth="0.2" className="opacity-30" />
                                 <path d="M12 2 L21 12 L12 22 L3 12 Z" strokeWidth={(item as any).strokeWidth || 0.5} />
                                 <path d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" strokeWidth={(item as any).strokeWidth || 0.5} />
@@ -328,10 +337,6 @@ const AnimatedBackground = React.memo(({
                         {item.shape === 'star-point' && (
                             <div 
                                 className="w-full h-full rounded-full bg-white"
-                                style={{
-                                    // Only apply shadow to bright stars to reduce paint cost
-                                    boxShadow: (item as any).isBright ? '0 0 4px 1px rgba(255,255,255,0.4)' : 'none'
-                                }}
                             />
                         )}
 
@@ -475,6 +480,24 @@ const Sidebar = React.memo(({
   );
 });
 
+// Optimized slide variants
+const slideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 50 : -50, // Reduced distance for faster feel
+    opacity: 0,
+  }),
+  center: {
+    zIndex: 1,
+    x: 0,
+    opacity: 1,
+  },
+  exit: (direction: number) => ({
+    zIndex: 0,
+    x: direction < 0 ? 50 : -50, // Reduced distance
+    opacity: 0,
+  }),
+};
+
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('daily');
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -493,6 +516,10 @@ const App: React.FC = () => {
   const [parallaxEnabled, setParallaxEnabled] = useState(true);
   const [showParticles, setShowParticles] = useState(true);
   
+  // Animation Tuning State - UPDATED DEFAULTS
+  const [swipeStiffness, setSwipeStiffness] = useState(6000); 
+  const [swipeDamping, setSwipeDamping] = useState(300);    
+  
   // UI State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -501,45 +528,12 @@ const App: React.FC = () => {
   const [tutorialStep, setTutorialStep] = useState(0);
 
   // Swipe Navigation State
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number, y: number } | null>(null);
+  
+  // Slide Transition State
+  const [direction, setDirection] = useState(0); // -1 for left, 1 for right
   const minSwipeDistance = 50;
-
-  // Ref for global mouse tracking (Performance Optimization)
-  const appContainerRef = useRef<HTMLDivElement>(null);
-  const requestRef = useRef<number>();
-
-  useEffect(() => {
-    // Only track mouse if animations AND parallax are enabled
-    if (!animationsEnabled || !parallaxEnabled) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-        if (requestRef.current) return;
-        requestRef.current = requestAnimationFrame(() => {
-            if (appContainerRef.current) {
-                const { innerWidth: w, innerHeight: h } = window;
-                const x = e.clientX;
-                const y = e.clientY;
-                // Center origin
-                const xOffset = (w / 2 - x);
-                const yOffset = (h / 2 - y);
-
-                // Update CSS variables scoped to the app container
-                appContainerRef.current.style.setProperty('--mouse-x', `${x}px`);
-                appContainerRef.current.style.setProperty('--mouse-y', `${y}px`);
-                appContainerRef.current.style.setProperty('--off-x', `${xOffset}`);
-                appContainerRef.current.style.setProperty('--off-y', `${yOffset}`);
-            }
-            requestRef.current = undefined;
-        });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    };
-  }, [animationsEnabled, parallaxEnabled]);
 
   // Load Settings
   useEffect(() => {
@@ -549,6 +543,8 @@ const App: React.FC = () => {
     const savedAurora = localStorage.getItem('zenith_aurora');
     const savedParallax = localStorage.getItem('zenith_parallax');
     const savedParticles = localStorage.getItem('zenith_particles');
+    const savedStiffness = localStorage.getItem('zenith_swipe_stiffness');
+    const savedDamping = localStorage.getItem('zenith_swipe_damping');
     
     if (savedAnim !== null) setAnimationsEnabled(JSON.parse(savedAnim));
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
@@ -556,6 +552,8 @@ const App: React.FC = () => {
     if (savedAurora !== null) setShowAurora(JSON.parse(savedAurora));
     if (savedParallax !== null) setParallaxEnabled(JSON.parse(savedParallax));
     if (savedParticles !== null) setShowParticles(JSON.parse(savedParticles));
+    if (savedStiffness !== null) setSwipeStiffness(Number(savedStiffness));
+    if (savedDamping !== null) setSwipeDamping(Number(savedDamping));
   }, []);
 
   // Persist & Apply Settings
@@ -569,6 +567,8 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
   useEffect(() => { localStorage.setItem('zenith_parallax', JSON.stringify(parallaxEnabled)); }, [parallaxEnabled]);
   useEffect(() => { localStorage.setItem('zenith_particles', JSON.stringify(showParticles)); }, [showParticles]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_stiffness', String(swipeStiffness)); }, [swipeStiffness]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_damping', String(swipeDamping)); }, [swipeDamping]);
 
   const toggleSidebar = useCallback(() => {
       setSidebarCollapsed(prev => {
@@ -627,6 +627,19 @@ const App: React.FC = () => {
     setTargets(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // View Navigation with Animation Direction Logic
+  const changeView = useCallback((newView: ViewType) => {
+     if (view === newView) return;
+     const currentIdx = TABS.findIndex(t => t.id === view);
+     const newIdx = TABS.findIndex(t => t.id === newView);
+     
+     // Determine slide direction based on index order
+     setDirection(newIdx > currentIdx ? 1 : -1);
+     
+     setView(newView);
+     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [view]);
+
   const startTutorial = () => {
     setIsTutorialActive(true);
     setTutorialStep(0);
@@ -647,31 +660,39 @@ const App: React.FC = () => {
     }
   };
 
-  // Swipe Navigation Handlers
+  // Improved Swipe Navigation Handlers
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null); // Reset
-    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
   }
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
   }
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
+    
+    const xDistance = touchStart.x - touchEnd.x;
+    const yDistance = touchStart.y - touchEnd.y;
+    
+    // Ignore vertical swipes (likely scrolling)
+    if (Math.abs(yDistance) > Math.abs(xDistance)) return;
+
+    const isLeftSwipe = xDistance > minSwipeDistance;
+    const isRightSwipe = xDistance < -minSwipeDistance;
 
     if (isLeftSwipe || isRightSwipe) {
       const currentIndex = TABS.findIndex(t => t.id === view);
       if (isLeftSwipe && currentIndex < TABS.length - 1) {
-         setView(TABS[currentIndex + 1].id as ViewType);
+         changeView(TABS[currentIndex + 1].id as ViewType);
       }
       if (isRightSwipe && currentIndex > 0) {
-         setView(TABS[currentIndex - 1].id as ViewType);
+         changeView(TABS[currentIndex - 1].id as ViewType);
       }
     }
+    setTouchStart(null);
+    setTouchEnd(null);
   }
 
   const themeConfig = THEME_CONFIG[theme];
@@ -685,6 +706,7 @@ const App: React.FC = () => {
           --theme-text-sub: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.5)' : '#334155'};
         }
         
+        /* ... existing styles ... */
         .text-indigo-50, .text-indigo-100, .text-indigo-200, .text-indigo-300, .text-indigo-400, .text-indigo-500, .text-indigo-600, .text-indigo-700, .text-indigo-800, .text-indigo-900 {
             color: var(--theme-accent) !important;
         }
@@ -766,7 +788,6 @@ const App: React.FC = () => {
 
   return (
     <div 
-        ref={appContainerRef}
         className={`min-h-screen font-sans overflow-x-hidden relative flex flex-col transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}
     >
       <style>{dynamicStyles}</style>
@@ -781,7 +802,7 @@ const App: React.FC = () => {
       {/* Desktop Sidebar */}
       <Sidebar 
           view={view} 
-          setView={setView} 
+          setView={changeView} 
           onOpenSettings={() => setIsSettingsOpen(true)} 
           isCollapsed={sidebarCollapsed}
           toggleCollapsed={toggleSidebar}
@@ -797,47 +818,63 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main 
-          className={`relative z-10 flex-grow p-4 md:p-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
+          className={`relative z-10 flex-grow p-4 md:p-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
       >
-        <div className="max-w-7xl mx-auto w-full">
-          {view === 'daily' && (
-              <Dashboard 
-                  sessions={sessions}
-                  targets={targets}
-                  quote={QUOTES[quoteIdx]}
-                  onDelete={handleDeleteSession}
-                  goals={goals}
-                  setGoals={setGoals}
-                  onSaveSession={handleSaveSession}
-              />
-          )}
-          {view === 'planner' && (
-              <Planner 
-                  targets={targets}
-                  onAdd={handleSaveTarget}
-                  onToggle={handleUpdateTarget}
-                  onDelete={handleDeleteTarget}
-              />
-          )}
-          {view === 'focus' && (
-              <div className="min-h-[80vh] flex flex-col justify-center">
-                <FocusTimer targets={targets} />
-              </div>
-          )}
-          {view === 'tests' && (
-              <TestLog 
-                  tests={tests}
-                  targets={targets} 
-                  onSave={handleSaveTest}
-                  onDelete={handleDeleteTest}
-              />
-          )}
-          {view === 'analytics' && (
-              <Analytics sessions={sessions} tests={tests} />
-          )}
+        <div className="max-w-7xl mx-auto w-full relative">
+           <AnimatePresence initial={false} mode='wait' custom={direction}>
+             <motion.div
+                key={view}
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "spring", stiffness: swipeStiffness, damping: swipeDamping, mass: 0.8 },
+                  opacity: { duration: 0.15 }
+                }}
+                className="w-full"
+             >
+              {view === 'daily' && (
+                  <Dashboard 
+                      sessions={sessions}
+                      targets={targets}
+                      quote={QUOTES[quoteIdx]}
+                      onDelete={handleDeleteSession}
+                      goals={goals}
+                      setGoals={setGoals}
+                      onSaveSession={handleSaveSession}
+                  />
+              )}
+              {view === 'planner' && (
+                  <Planner 
+                      targets={targets}
+                      onAdd={handleSaveTarget}
+                      onToggle={handleUpdateTarget}
+                      onDelete={handleDeleteTarget}
+                  />
+              )}
+              {view === 'focus' && (
+                  <div className="min-h-[80vh] flex flex-col justify-center">
+                    <FocusTimer targets={targets} />
+                  </div>
+              )}
+              {view === 'tests' && (
+                  <TestLog 
+                      tests={tests}
+                      targets={targets} 
+                      onSave={handleSaveTest}
+                      onDelete={handleDeleteTest}
+                  />
+              )}
+              {view === 'analytics' && (
+                  <Analytics sessions={sessions} tests={tests} />
+              )}
+             </motion.div>
+           </AnimatePresence>
         </div>
       </main>
 
@@ -855,7 +892,7 @@ const App: React.FC = () => {
               return (
                 <button
                     key={tab.id}
-                    onClick={() => setView(tab.id as ViewType)}
+                    onClick={() => changeView(tab.id as ViewType)}
                     className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${isActive ? 'text-indigo-600 dark:text-indigo-400 scale-105' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
                 >
                     <div className={`p-1.5 rounded-xl transition-all duration-300 ${isActive ? 'bg-indigo-100 dark:bg-indigo-500/20' : 'bg-transparent'}`}>
@@ -892,6 +929,10 @@ const App: React.FC = () => {
         toggleParallax={() => setParallaxEnabled(!parallaxEnabled)}
         showParticles={showParticles}
         toggleParticles={() => setShowParticles(!showParticles)}
+        swipeStiffness={swipeStiffness}
+        setSwipeStiffness={setSwipeStiffness}
+        swipeDamping={swipeDamping}
+        setSwipeDamping={setSwipeDamping}
       />
     </div>
   );

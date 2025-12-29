@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Plus, X, Trash2, Trophy, Clock, AlertCircle, Calendar } from 'lucide-react';
 import { TestResult, Target } from '../types';
 import { Card } from './Card';
@@ -19,7 +19,7 @@ interface TestLogProps {
   onDelete: (id: string) => void;
 }
 
-export const TestLog: React.FC<TestLogProps> = ({ tests, targets = [], onSave, onDelete }) => {
+export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSave, onDelete }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState<Omit<TestResult, 'id' | 'timestamp'>>({
     name: '',
@@ -223,4 +223,4 @@ export const TestLog: React.FC<TestLogProps> = ({ tests, targets = [], onSave, o
       )}
     </div>
   );
-};
+});

@@ -29,12 +29,23 @@ interface DashboardProps {
 
 const ActivityHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
   const days = useMemo(() => {
+    // Optimized: Create lookup map first
+    const dateCounts: Record<string, number> = {};
+    sessions.forEach(s => {
+        const d = getLocalDateFromTimestamp(s.timestamp);
+        // Assuming we count number of sessions (pods) logged. 
+        // If we want questions, we'd add s.attempted.
+        // Dashboard tooltip says "Questions" but logic used length. 
+        // Switching to length for consistency with existing visual, but optimized.
+        dateCounts[d] = (dateCounts[d] || 0) + 1;
+    });
+
     const d = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const str = getLocalDate(date);
-      const count = sessions.filter(s => getLocalDateFromTimestamp(s.timestamp) === str).length;
+      const count = dateCounts[str] || 0;
       d.push({ date: str, count, dayName: date.toLocaleDateString('en-US', { weekday: 'narrow' }) });
     }
     return d;
@@ -53,7 +64,7 @@ const ActivityHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
           >
              {/* Desktop Tooltip */}
              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none hidden md:block whitespace-nowrap z-20">
-                {day.count} Questions
+                {day.count} Sessions
              </div>
           </div>
           <span className="text-[9px] md:text-xs font-bold text-slate-400 dark:text-slate-600 uppercase tracking-wider">{day.dayName}</span>
@@ -449,7 +460,7 @@ const SubjectDetailModal = memo(({
   );
 });
 
-export const Dashboard: React.FC<DashboardProps> = ({ 
+export const Dashboard: React.FC<DashboardProps> = memo(({ 
   sessions, 
   targets, 
   quote, 
@@ -459,7 +470,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSaveSession 
 }) => {
   const todayStr = getLocalDate();
-  const todaysSessions = sessions.filter(s => getLocalDateFromTimestamp(s.timestamp) === todayStr);
+  
+  // Memoize filtered sessions to prevent re-calc unless sessions change
+  const todaysSessions = useMemo(() => 
+    sessions.filter(s => getLocalDateFromTimestamp(s.timestamp) === todayStr),
+  [sessions, todayStr]);
   
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
@@ -472,7 +487,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
     };
   }, [todaysSessions]);
 
-  const pendingTargets = targets.filter(t => t.date === todayStr && !t.completed).slice(0, 3); // Increased to 3 for desktop
+  const pendingTargets = useMemo(() => 
+    targets.filter(t => t.date === todayStr && !t.completed).slice(0, 3), 
+  [targets, todayStr]);
 
   return (
     <>
@@ -631,4 +648,4 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
     </>
   );
-};
+});

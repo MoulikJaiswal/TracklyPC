@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { 
   Play, 
   Pause, 
@@ -34,7 +34,7 @@ const getLocalDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-export const FocusTimer: React.FC<FocusTimerProps> = ({ targets = [] }) => {
+export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => {
   const [mode, setMode] = useState<TimerMode>('focus');
   const [selectedSubject, setSelectedSubject] = useState<keyof typeof JEE_SYLLABUS>('Physics');
   
@@ -231,7 +231,11 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ targets = [] }) => {
   return (
     <>
       {/* Standard UI */}
-      <div id="timer-container" className="w-full max-w-xl mx-auto min-h-[600px] flex flex-col items-center justify-center relative animate-in fade-in duration-700">
+      <div 
+        id="timer-container" 
+        className="w-full max-w-xl mx-auto min-h-[600px] flex flex-col items-center justify-center relative animate-in fade-in duration-700"
+        style={{ contentVisibility: 'auto', contain: 'layout style' }}
+      >
         
         {/* 1. Top Section: Mode Selector & Context */}
         <div className="w-full flex flex-col items-center gap-6 mb-8 md:mb-10 z-10">
@@ -349,17 +353,28 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ targets = [] }) => {
         {/* 2. Middle Section: The Timer Ring (Responsive) */}
         <div className="relative mb-12 group">
           
-          {/* Back glow */}
-          <div className={`
-            absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vw] max-w-[280px] max-h-[280px] rounded-full blur-[80px] transition-all duration-1000
-            ${isActive ? `${theme.bg} opacity-20` : 'bg-slate-500 opacity-5'}
-          `} />
+          {/* OPTIMIZED Back glow: Use radial-gradient instead of blur filter for better performance */}
+          <div 
+            className={`
+                absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vw] max-w-[280px] max-h-[280px] rounded-full
+                transition-all duration-1000
+            `}
+            style={{
+                background: isActive 
+                    ? `radial-gradient(circle, ${theme.stops[0]}40 0%, transparent 70%)` 
+                    : 'radial-gradient(circle, rgba(148, 163, 184, 0.1) 0%, transparent 70%)',
+                opacity: 0.8,
+                transform: 'translate3d(-50%, -50%, 0)',
+                willChange: 'opacity, transform' // GPU Hint
+            }} 
+          />
 
           {/* Responsive Container */}
           <div className="relative w-[75vw] h-[75vw] max-w-[320px] max-h-[320px] flex items-center justify-center">
               <svg 
-                  className="w-full h-full transform -rotate-90 drop-shadow-2xl"
+                  className="w-full h-full transform -rotate-90"
                   viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
+                  style={{ willChange: 'transform' }}
               >
                   {/* Defs for gradients */}
                   <defs>
@@ -377,7 +392,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ targets = [] }) => {
                       style={{ cx: viewBoxSize/2, cy: viewBoxSize/2 }}
                   />
 
-                  {/* Progress Arc */}
+                  {/* Progress Arc - Performance Optimized: No Filters */}
                   <circle 
                       cx="50%" cy="50%" r={radius} 
                       stroke="url(#progressGradient)"
@@ -389,7 +404,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ targets = [] }) => {
                       className="transition-all duration-1000 ease-linear"
                       style={{ 
                           cx: viewBoxSize/2, cy: viewBoxSize/2,
-                          filter: `drop-shadow(0 0 8px ${theme.stops[0]})`,
+                          // REMOVED heavy filters (drop-shadow) for smooth 60fps swipe
                           transition: isActive ? 'stroke-dashoffset 1s linear' : 'stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                       }}
                   />
@@ -400,7 +415,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ targets = [] }) => {
                   <span className={`
                       text-6xl md:text-7xl font-display font-medium tracking-tight tabular-nums transition-colors duration-300 select-none
                       ${isActive ? 'text-slate-900 dark:text-white' : 'text-slate-400'}
-                  `}>
+                  `} style={{ transform: 'translateZ(0)' }}>
                       {formatTime(timeLeft)}
                   </span>
                   
@@ -517,4 +532,4 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({ targets = [] }) => {
       </div>
     </>
   );
-};
+});

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Plus, Trash2, CheckCircle2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Target, Trophy, List } from 'lucide-react';
 import { Target as TargetType } from '../types';
 import { Card } from './Card';
@@ -18,7 +18,7 @@ interface PlannerProps {
   onDelete: (id: string) => void;
 }
 
-export const Planner: React.FC<PlannerProps> = ({ targets, onAdd, onToggle, onDelete }) => {
+export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle, onDelete }) => {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date()); // For month navigation
@@ -311,4 +311,4 @@ export const Planner: React.FC<PlannerProps> = ({ targets, onAdd, onToggle, onDe
       </div>
     </div>
   );
-};
+});

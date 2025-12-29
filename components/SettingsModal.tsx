@@ -18,6 +18,10 @@ interface SettingsModalProps {
   toggleParallax: () => void;
   showParticles: boolean;
   toggleParticles: () => void;
+  swipeStiffness: number;
+  setSwipeStiffness: (val: number) => void;
+  swipeDamping: number;
+  setSwipeDamping: (val: number) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -33,7 +37,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   parallaxEnabled,
   toggleParallax,
   showParticles,
-  toggleParticles
+  toggleParticles,
+  swipeStiffness,
+  setSwipeStiffness,
+  swipeDamping,
+  setSwipeDamping
 }) => {
   if (!isOpen) return null;
 
@@ -68,6 +76,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              >
                <Map size={14} /> Start Tour
              </button>
+          </div>
+
+          {/* Animation Tuning Section */}
+          <div className="space-y-3">
+             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Animation Tuning</label>
+             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-xl space-y-4">
+                
+                {/* Stiffness Slider */}
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">Swipe Speed (Stiffness)</span>
+                        <span className="text-xs font-mono font-bold text-indigo-500">{swipeStiffness}</span>
+                    </div>
+                    <input 
+                        type="range" 
+                        min="50" 
+                        max="8000" 
+                        step="50"
+                        value={swipeStiffness}
+                        onChange={(e) => setSwipeStiffness(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                    />
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        Higher = Faster/Snappier. Lower = Slower/Softer. (Default: 600)
+                    </p>
+                </div>
+
+                {/* Damping Slider */}
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">Bounce Control (Damping)</span>
+                        <span className="text-xs font-mono font-bold text-emerald-500">{swipeDamping}</span>
+                    </div>
+                    <input 
+                        type="range" 
+                        min="5" 
+                        max="500" 
+                        step="5"
+                        value={swipeDamping}
+                        onChange={(e) => setSwipeDamping(Number(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                    />
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        Lower = More Bounce. Higher = Less Bounce. (Default: 40)
+                    </p>
+                </div>
+
+             </div>
           </div>
 
           {/* Visual Preferences */}

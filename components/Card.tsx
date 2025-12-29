@@ -25,7 +25,9 @@ export const Card: React.FC<CardProps> = React.memo(({ children, className = '',
     style={{ 
       animation: `fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) ${delay}s backwards`,
       // Enforce layer creation for GPU compositing of backdrop filters
-      transform: 'translateZ(0)'
+      transform: 'translateZ(0)',
+      // Optimize layout performance by isolating container
+      contain: 'layout style'
     }}
   >
     {children}
@@ -44,7 +46,8 @@ export const FloatingCard: React.FC<CardProps> = React.memo(({ children, classNa
     `}
     style={{ 
       animation: `float 6s ease-in-out infinite ${delay}s, fadeIn 1s ease-out ${delay}s backwards`,
-      transform: 'translateZ(0)'
+      transform: 'translateZ(0)',
+      contain: 'layout style'
     }}
   >
     {children}
