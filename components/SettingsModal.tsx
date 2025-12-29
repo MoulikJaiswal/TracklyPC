@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Zap, ZapOff, CheckCircle2, Map } from 'lucide-react';
+import { X, Zap, ZapOff, CheckCircle2, Map, Globe, MousePointer2, Sparkles } from 'lucide-react';
 import { Card } from './Card';
 import { ThemeId } from '../types';
 import { THEME_CONFIG } from '../constants';
@@ -12,6 +12,10 @@ interface SettingsModalProps {
   theme: ThemeId;
   setTheme: (theme: ThemeId) => void;
   onStartTutorial: () => void;
+  showCursorGlow: boolean;
+  toggleCursorGlow: () => void;
+  showAurora: boolean;
+  toggleAurora: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -21,7 +25,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   toggleAnimations,
   theme,
   setTheme,
-  onStartTutorial
+  onStartTutorial,
+  showCursorGlow,
+  toggleCursorGlow,
+  showAurora,
+  toggleAurora
 }) => {
   if (!isOpen) return null;
 
@@ -58,7 +66,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              </button>
           </div>
 
-          {/* Appearance Section */}
+          {/* Visual Preferences */}
+          <div className="space-y-3">
+             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Visual Effects</label>
+             <div className="grid grid-cols-1 gap-3">
+                {/* Aurora Toggle */}
+                <button 
+                  onClick={toggleAurora}
+                  className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${showAurora ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <Sparkles size={18} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">Aurora Background</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
+                        Ambient colors & gradients
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${showAurora ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showAurora ? 'left-6' : 'left-1'}`} />
+                  </div>
+                </button>
+
+                {/* Cursor Glow Toggle */}
+                <button 
+                  onClick={toggleCursorGlow}
+                  className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${showCursorGlow ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <MousePointer2 size={18} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">Cursor Spotlight</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
+                        Interactive mouse follow light
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${showCursorGlow ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showCursorGlow ? 'left-6' : 'left-1'}`} />
+                  </div>
+                </button>
+             </div>
+          </div>
+
+          {/* Theme Section */}
           <div className="space-y-3">
              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Theme & Atmosphere</label>
              <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
@@ -97,38 +153,42 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              </div>
           </div>
 
-          {/* Accessibility Section */}
+          {/* Optimization Section */}
           <div className="space-y-3">
              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Optimization</label>
-             <button 
-               onClick={toggleAnimations}
-               className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-             >
-               <div className="flex items-center gap-3">
-                 <div className={`p-2 rounded-lg ${animationsEnabled ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'}`}>
-                    {animationsEnabled ? <Zap size={18} /> : <ZapOff size={18} />}
-                 </div>
-                 <div className="text-left">
-                   <p className="text-sm font-bold text-slate-900 dark:text-white">High Performance</p>
-                   <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
-                     {animationsEnabled ? 'Standard Mode' : 'Max FPS / Low Battery'}
-                   </p>
-                 </div>
-               </div>
-               <div className={`w-10 h-5 rounded-full relative transition-colors ${animationsEnabled ? 'bg-slate-300 dark:bg-slate-600' : 'bg-emerald-500'}`}>
-                  <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${animationsEnabled ? 'left-1' : 'left-6'}`} />
-               </div>
-             </button>
+             <div className="space-y-3">
+                {/* High Performance Toggle */}
+                <button 
+                  onClick={toggleAnimations}
+                  className="w-full flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${animationsEnabled ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'}`}>
+                        {animationsEnabled ? <Zap size={18} /> : <ZapOff size={18} />}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">High Performance</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
+                        {animationsEnabled ? 'Standard Mode' : 'Max FPS / Low Battery'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${animationsEnabled ? 'bg-slate-300 dark:bg-slate-600' : 'bg-emerald-500'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${animationsEnabled ? 'left-1' : 'left-6'}`} />
+                  </div>
+                </button>
+             </div>
+
              {!animationsEnabled && (
                 <p className="text-[10px] text-amber-500/80 text-center font-bold tracking-wide">
-                   Reduced motion, disabled blur & shadows
+                   Reduced motion automatically disables complex effects
                 </p>
              )}
           </div>
         </div>
         
         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-white/5 text-center shrink-0">
-          <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Trackly v1.2.0</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Trackly v1.3.1</p>
         </div>
       </Card>
     </div>

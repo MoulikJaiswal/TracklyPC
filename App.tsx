@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Activity, 
   Calendar as CalendarIcon, 
@@ -67,8 +67,41 @@ const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean
   );
 });
 
-const AnimatedBackground = React.memo(({ enabled, themeId }: { enabled: boolean, themeId: ThemeId }) => {
+const AnimatedBackground = React.memo(({ 
+    enabled, 
+    themeId,
+    showGlow,
+    showAurora
+}: { 
+    enabled: boolean, 
+    themeId: ThemeId,
+    showGlow: boolean,
+    showAurora: boolean
+}) => {
   const config = THEME_CONFIG[themeId];
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const requestRef = useRef<number>();
+
+  // Efficient Mouse Tracking for Parallax & Glow
+  useEffect(() => {
+    if (!enabled) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Throttle via requestAnimationFrame
+      if (requestRef.current) return;
+      
+      requestRef.current = requestAnimationFrame(() => {
+        setMousePos({ x: e.clientX, y: e.clientY });
+        requestRef.current = undefined;
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [enabled]);
   
   // Custom formulas/elements based on theme vibe
   const items = useMemo(() => {
@@ -77,174 +110,114 @@ const AnimatedBackground = React.memo(({ enabled, themeId }: { enabled: boolean,
         "PV = nRT", "∫ eˣ dx = eˣ", "x = (-b±√Δ)/2a", "F = ma"
     ];
 
-    if (themeId === 'forest') {
-        baseItems = ["●", "●", "•", "◦", "○", "•", "●", "•"]; // Fireflies
-    } else if (themeId === 'morning') {
-        baseItems = ["☁", "☼", "☁", "○", "•", "☁", "•", "○"]; // Clouds/Mist
-    } else if (themeId === 'void') {
-        baseItems = ["0", "1", "0", "1", "0", "1", "<>", "{}"]; // Matrix style
-    } else if (themeId === 'obsidian') {
-        baseItems = ["⬡", "□", "△", "⬡", "○", "□", "⬡", "△"]; // Geometric
-    } else if (themeId === 'earth') {
-        baseItems = ["~", "≈", "•", "◦", "•", "~", "≈", "•"]; // Dust/Wind
-    } else if (themeId === 'midnight') {
-        baseItems = ["☾", "✦", "★", "•", "✦", "☾", "★", "•"]; // Night sky
-    }
-
+    // Theme Specific Symbols
+    if (themeId === 'forest') baseItems = ["●", "•", "◦", "○", "•", "●"];
+    if (themeId === 'morning') baseItems = ["☁", "☼", "☁", "○", "•"];
+    if (themeId === 'void') baseItems = ["0", "1", "0", "1", "<>", "{}"];
+    
     return Array.from({ length: 15 }).map((_, i) => ({
         id: i,
         top: `${(i * 17) % 95}%`,
         left: `${(i * 23) % 95}%`,
-        duration: 35 + (i % 25), // Varied duration for complexity
+        duration: 35 + (i % 25),
         delay: -(i * 7),
         size: 0.7 + (i % 4) * 0.25,
         content: baseItems[i % baseItems.length],
-        hiddenOnMobile: i % 2 === 0
+        // Add parallax depth factor
+        parallaxFactor: (i % 3 + 1) * 0.02
     }));
   }, [themeId]);
 
-  const stars = useMemo(() => Array.from({ length: 8 }).map((_, i) => ({
-      id: i,
-      top: `${(i * 18) % 65}%`, 
-      left: `${(i * 13) % 40}%`, 
-      delay: `-${Math.abs((i * 5) % 15)}s`, 
-      duration: `${7 + (i % 4)}s` 
-  })), []);
-
-  // Stationary Planetary Elements (Visible in Dark Mode)
-  const planets = useMemo(() => {
-    if (config.mode === 'light') return [];
-
-    return [
-        // Large atmospheric planet top-right
-        {
-            id: 'planet-1',
-            width: '60vw',
-            height: '60vw',
-            maxWidth: '600px',
-            maxHeight: '600px',
-            top: '-20%',
-            right: '-10%',
-            bg: `radial-gradient(circle at 40% 40%, ${config.colors.accent}15, transparent 60%)`,
-            shadow: 'none'
-        },
-        // Smaller distinct planet middle-left
-        {
-            id: 'planet-2',
-            width: '120px',
-            height: '120px',
-            top: '25%',
-            left: '5%',
-            bg: `linear-gradient(135deg, ${config.colors.accent}25 0%, transparent 80%)`,
-            shadow: `inset 4px 4px 20px ${config.colors.accent}20`
-        },
-        // Tiny moon bottom-right
-        {
-            id: 'planet-3',
-            width: '60px',
-            height: '60px',
-            bottom: '15%',
-            right: '15%',
-            bg: `linear-gradient(135deg, ${config.colors.text}10 0%, transparent 80%)`,
-            shadow: `inset 2px 2px 10px ${config.colors.text}10`
-        }
-    ];
-  }, [config]);
-
   if (!enabled) return <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundColor: config.colors.bg }} />;
+
+  // Calculate Parallax Transforms
+  // We move background elements OPPOSITE to mouse direction
+  const xOffset = (window.innerWidth / 2 - mousePos.x);
+  const yOffset = (window.innerHeight / 2 - mousePos.y);
 
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" style={{ backgroundColor: config.colors.bg }}>
       
-      {/* Dynamic Background Gradients */}
-      {config.mode === 'light' ? (
-        <div className="absolute inset-0 opacity-100 transition-opacity duration-500 will-change-[opacity]">
-             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))]" style={{ backgroundImage: `radial-gradient(circle at top right, ${config.colors.accent}15, transparent)` }} />
-             <div className="absolute top-[-20%] right-[-10%] w-[80%] h-[80%] opacity-40 animate-nebula-pulse mix-blend-multiply gpu-accelerated" 
-                  style={{ background: `radial-gradient(circle, ${config.colors.accent}20 0%, transparent 70%)` }} />
-             <div className="absolute bottom-[-15%] left-[-20%] w-[90%] h-[90%] opacity-40 animate-nebula-pulse mix-blend-multiply gpu-accelerated" 
-                  style={{ animationDelay: '-5s', background: `radial-gradient(circle, ${config.colors.accentGlow}20 0%, transparent 70%)` }} />
-        </div>
-      ) : (
-        <div className="absolute inset-0 opacity-100 transition-opacity duration-500 will-change-[opacity]">
-             <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at top right, ${config.colors.accent}15, ${config.colors.bg}, #000000)` }} />
-             <div className="absolute inset-0" style={{ background: `radial-gradient(circle at bottom left, ${config.colors.accentGlow}10, transparent)` }} />
-             
-             {/* Stationary Planetary Elements - Static transforms, no animation needed */}
-             {planets.map((p) => (
-                 <div 
-                    key={p.id}
-                    className="absolute rounded-full opacity-100 pointer-events-none"
-                    style={{
-                        width: p.width,
-                        height: p.height,
-                        maxWidth: p.maxWidth,
-                        maxHeight: p.maxHeight,
-                        top: p.top,
-                        right: p.right,
-                        bottom: p.bottom,
-                        left: p.left,
-                        background: p.bg,
-                        boxShadow: p.shadow
-                    }}
-                 />
-             ))}
+      {/* 1. CINEMATIC GRAIN (Texture) */}
+      <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay"></div>
 
-             {/* Stars/Dust only for dark modes */}
-             <div className="absolute inset-0 opacity-30 animate-star-drift-slow gpu-accelerated" 
-                style={{ 
-                    backgroundImage: `radial-gradient(1px 1px at 10px 10px, white, transparent), radial-gradient(1px 1px at 40px 60px, white, transparent)`, 
-                    backgroundSize: '150px 150px' 
-                }} />
-
-            <div className="absolute top-[-20%] right-[-10%] w-[80%] h-[80%] opacity-30 animate-nebula-pulse mix-blend-screen gpu-accelerated"
-                 style={{ background: `radial-gradient(circle, ${config.colors.accent}26 0%, transparent 65%)` }} />
+      {/* 2. AURORA MESH GRADIENTS (The "Breathing" Blobs) */}
+      {showAurora && (
+        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(80px)' }}>
+            {/* Blob 1: Top Left (Accent Color) */}
+            <div 
+               className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] rounded-full animate-aurora-1 mix-blend-screen dark:mix-blend-screen"
+               style={{ 
+                   background: `radial-gradient(circle, ${config.colors.accent} 0%, transparent 70%)`,
+                   transform: `translate(${xOffset * 0.02}px, ${yOffset * 0.02}px)` // Subtle Parallax
+               }} 
+            />
             
-             <div className="absolute inset-0">
-                {themeId !== 'forest' && stars.map((star) => (
-                    <div 
-                        key={`shooting-star-${star.id}`}
-                        className="absolute h-[1px] w-[150px] bg-gradient-to-r from-transparent to-white opacity-0 animate-shooting-star gpu-accelerated"
-                        style={{
-                            top: star.top,
-                            left: star.left,
-                            animationDelay: star.delay,
-                            animationDuration: star.duration
-                        }}
-                    >
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-0.5 bg-white rounded-full shadow-[0_0_8px_2px_rgba(255,255,255,0.5)]" />
-                    </div>
-                ))}
-             </div>
+            {/* Blob 2: Bottom Right (Glow Color) */}
+            <div 
+               className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full animate-aurora-2 mix-blend-screen dark:mix-blend-screen"
+               style={{ 
+                   background: `radial-gradient(circle, ${config.colors.accentGlow} 0%, transparent 70%)`,
+                   transform: `translate(${xOffset * 0.03}px, ${yOffset * 0.03}px)` // Different speed
+               }} 
+            />
+            
+            {/* Blob 3: Center Drifter (Subtle Highlight) */}
+            <div 
+               className="absolute top-[20%] left-[30%] w-[40vw] h-[40vw] rounded-full animate-aurora-3 opacity-30 mix-blend-overlay"
+               style={{ 
+                   background: `radial-gradient(circle, ${config.mode === 'dark' ? '#ffffff' : config.colors.accent} 0%, transparent 60%)`,
+               }} 
+            />
         </div>
       )}
-      
-      {/* Floating Elements (Math, Particles, etc) */}
-      {items.map((item, i) => (
-        <div 
-          key={item.id}
-          className={`absolute font-mono whitespace-nowrap animate-float-gentle mix-blend-screen gpu-accelerated ${item.hiddenOnMobile ? 'hidden md:block' : ''} will-change-transform`}
-          style={{
-            top: item.top,
-            left: item.left,
-            fontSize: `${item.size}rem`,
-            animationDuration: `${item.duration}s`,
-            animationDelay: `${item.delay}s`,
-            color: config.mode === 'dark' ? `${config.colors.accent}30` : `${config.colors.accent}20`,
-            textShadow: config.mode === 'dark' ? `0 0 8px ${config.colors.accent}20` : 'none'
-          }}
-        >
-          {item.content}
-        </div>
-      ))}
 
-      {/* Vignette - Extremely subtle in light mode to prevent muddy look */}
+      {/* 3. MOUSE FOLLOW LIGHT (The "Spotlight") */}
+      {config.mode === 'dark' && showGlow && (
+          <div 
+            className="absolute z-[2] w-[300px] h-[300px] rounded-full pointer-events-none transition-opacity duration-500"
+            style={{
+                // Reduced opacity to ~12% and added blur for a softer, non-intrusive glow
+                background: `radial-gradient(circle, ${config.colors.accent}20 0%, transparent 70%)`,
+                left: mousePos.x,
+                top: mousePos.y,
+                filter: 'blur(30px)',
+                transform: 'translate(-50%, -50%)',
+                willChange: 'transform' // Optimize layout thrashing
+            }}
+          />
+      )}
+
+      {/* 4. FLOATING SYMBOLS (With Parallax) */}
+      <div className="absolute inset-0 z-[3]">
+        {items.map((item) => (
+            <div 
+            key={item.id}
+            className={`absolute font-mono whitespace-nowrap animate-float-gentle mix-blend-screen ${item.id % 2 === 0 ? 'hidden md:block' : ''}`}
+            style={{
+                top: item.top,
+                left: item.left,
+                fontSize: `${item.size}rem`,
+                animationDuration: `${item.duration}s`,
+                animationDelay: `${item.delay}s`,
+                color: config.mode === 'dark' ? `${config.colors.accent}30` : `${config.colors.accent}20`,
+                textShadow: config.mode === 'dark' ? `0 0 8px ${config.colors.accent}20` : 'none',
+                // Interactive Parallax Transform
+                transform: `translate(${xOffset * item.parallaxFactor}px, ${yOffset * item.parallaxFactor}px)`
+            }}
+            >
+            {item.content}
+            </div>
+        ))}
+      </div>
+
+      {/* 5. VIGNETTE (Focus focus) */}
       <div 
-        className="absolute inset-0 pointer-events-none transition-colors duration-500"
+        className="absolute inset-0 z-[4] pointer-events-none transition-colors duration-500"
         style={{
             background: config.mode === 'dark' 
-                ? 'radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 100%)' 
-                : 'radial-gradient(circle at center, transparent 40%, rgba(0,0,0,0.02) 100%)' 
+                ? 'radial-gradient(circle at center, transparent 20%, rgba(2, 6, 23, 0.4) 100%)' 
+                : 'radial-gradient(circle at center, transparent 40%, rgba(255,255,255,0.4) 100%)' 
         }}
       />
     </div>
@@ -406,6 +379,8 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [theme, setTheme] = useState<ThemeId>('default-dark');
+  const [showCursorGlow, setShowCursorGlow] = useState(true);
+  const [showAurora, setShowAurora] = useState(true);
   
   // UI State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -419,10 +394,14 @@ const App: React.FC = () => {
     const savedAnim = localStorage.getItem('zenith_animations');
     const savedTheme = localStorage.getItem('zenith_theme_id');
     const savedSidebar = localStorage.getItem('zenith_sidebar_collapsed');
+    const savedGlow = localStorage.getItem('zenith_glow');
+    const savedAurora = localStorage.getItem('zenith_aurora');
     
     if (savedAnim !== null) setAnimationsEnabled(JSON.parse(savedAnim));
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
     if (savedSidebar !== null) setSidebarCollapsed(JSON.parse(savedSidebar));
+    if (savedGlow !== null) setShowCursorGlow(JSON.parse(savedGlow));
+    if (savedAurora !== null) setShowAurora(JSON.parse(savedAurora));
   }, []);
 
   // Persist & Apply Settings
@@ -432,9 +411,9 @@ const App: React.FC = () => {
     else document.body.classList.remove('disable-animations');
   }, [animationsEnabled]);
 
-  useEffect(() => {
-    localStorage.setItem('zenith_theme_id', theme);
-  }, [theme]);
+  useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
+  useEffect(() => { localStorage.setItem('zenith_glow', JSON.stringify(showCursorGlow)); }, [showCursorGlow]);
+  useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
 
   const toggleSidebar = () => {
       setSidebarCollapsed(prev => {
@@ -619,7 +598,12 @@ const App: React.FC = () => {
         }
       `}</style>
 
-      <AnimatedBackground enabled={animationsEnabled} themeId={theme} />
+      <AnimatedBackground 
+        enabled={animationsEnabled} 
+        themeId={theme} 
+        showGlow={showCursorGlow}
+        showAurora={showAurora}
+      />
       
       {/* Desktop Sidebar */}
       <Sidebar 
@@ -724,6 +708,10 @@ const App: React.FC = () => {
         theme={theme}
         setTheme={setTheme}
         onStartTutorial={startTutorial}
+        showCursorGlow={showCursorGlow}
+        toggleCursorGlow={() => setShowCursorGlow(!showCursorGlow)}
+        showAurora={showAurora}
+        toggleAurora={() => setShowAurora(!showAurora)}
       />
     </div>
   );
