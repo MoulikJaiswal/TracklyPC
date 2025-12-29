@@ -70,76 +70,211 @@ const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean
 const AnimatedBackground = React.memo(({ 
     enabled, 
     themeId,
-    showGlow,
     showAurora
 }: { 
     enabled: boolean, 
     themeId: ThemeId,
-    showGlow: boolean,
     showAurora: boolean
 }) => {
   const config = THEME_CONFIG[themeId];
   const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>();
+  
+  // Cache window dimensions to avoid layout thrashing during mouse move
+  const dims = useRef({ w: typeof window !== 'undefined' ? window.innerWidth : 1000, h: typeof window !== 'undefined' ? window.innerHeight : 1000 });
 
-  // Efficient Mouse Tracking using CSS Variables to avoid React Re-renders
+  // Efficient Mouse Tracking using CSS Variables on ROOT for global access
   useEffect(() => {
     if (!enabled) return;
 
+    const handleResize = () => {
+        dims.current = { w: window.innerWidth, h: window.innerHeight };
+    };
+    
     const handleMouseMove = (e: MouseEvent) => {
       // Throttle via requestAnimationFrame
       if (requestRef.current) return;
       
       requestRef.current = requestAnimationFrame(() => {
-        if (containerRef.current) {
-            const x = e.clientX;
-            const y = e.clientY;
-            // Calculate offsets for parallax
-            const xOffset = (window.innerWidth / 2 - x);
-            const yOffset = (window.innerHeight / 2 - y);
+        const x = e.clientX;
+        const y = e.clientY;
+        
+        // Calculate offsets for parallax (origin at center)
+        const xOffset = (dims.current.w / 2 - x);
+        const yOffset = (dims.current.h / 2 - y);
 
-            // Directly update CSS variables on the container
-            // This bypasses React's render cycle completely for 60fps performance
-            containerRef.current.style.setProperty('--mouse-x', `${x}px`);
-            containerRef.current.style.setProperty('--mouse-y', `${y}px`);
-            containerRef.current.style.setProperty('--off-x', `${xOffset}`);
-            containerRef.current.style.setProperty('--off-y', `${yOffset}`);
-        }
+        // Update CSS variables on the ROOT element so shadows and other components can use them
+        document.documentElement.style.setProperty('--mouse-x', `${x}px`);
+        document.documentElement.style.setProperty('--mouse-y', `${y}px`);
+        document.documentElement.style.setProperty('--off-x', `${xOffset}`);
+        document.documentElement.style.setProperty('--off-y', `${yOffset}`);
+
         requestRef.current = undefined;
       });
     };
 
+    window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
+    
+    // Initialize dims
+    handleResize();
+
     return () => {
+        window.removeEventListener('resize', handleResize);
         window.removeEventListener('mousemove', handleMouseMove);
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, [enabled]);
   
-  // Custom formulas/elements based on theme vibe
   const items = useMemo(() => {
-    let baseItems = [
-        "E = mc²", "∇ · B = 0", "iℏ∂ψ/∂t = Ĥψ", "F = G(m₁m₂)/r²",
-        "PV = nRT", "∫ eˣ dx = eˣ", "x = (-b±√Δ)/2a", "F = ma"
-    ];
+    // Custom Logic for Lush Forest Theme
+    if (themeId === 'forest') {
+        return [
+            // Layer 1 (Back - Faint, Heavy, very little movement)
+            { id: 1, top: '-10%', left: '-10%', size: 45, shape: 'leaf', depth: 1, rotation: 135, opacity: 0.03 },
+            { id: 2, top: '50%', left: '90%', size: 35, shape: 'leaf', depth: 1, rotation: 45, opacity: 0.03 },
+            
+            // Layer 2 (Mid - Framing)
+            { id: 3, top: '85%', left: '5%', size: 25, shape: 'leaf', depth: 2, rotation: -25, opacity: 0.05 },
+            { id: 4, top: '-10%', left: '60%', size: 28, shape: 'leaf', depth: 2, rotation: 160, opacity: 0.05 },
 
-    // Theme Specific Symbols
-    if (themeId === 'forest') baseItems = ["●", "•", "◦", "○", "•", "●"];
-    if (themeId === 'morning') baseItems = ["☁", "☼", "☁", "○", "•"];
-    if (themeId === 'void') baseItems = ["0", "1", "0", "1", "<>", "{}"];
-    
-    return Array.from({ length: 15 }).map((_, i) => ({
-        id: i,
-        top: `${(i * 17) % 95}%`,
-        left: `${(i * 23) % 95}%`,
-        duration: 35 + (i % 25),
-        delay: -(i * 7),
-        size: 0.7 + (i % 4) * 0.25,
-        content: baseItems[i % baseItems.length],
-        // Add parallax depth factor
-        parallaxFactor: (i % 3 + 1) * 0.02
+            // Layer 3 (Front - slightly sharper but soft edges)
+            { id: 5, top: '35%', left: '15%', size: 12, shape: 'leaf', depth: 3, rotation: 15, opacity: 0.08 },
+            { id: 6, top: '20%', left: '85%', size: 15, shape: 'leaf', depth: 3, rotation: -10, opacity: 0.08 },
+            { id: 7, top: '75%', left: '65%', size: 18, shape: 'leaf', depth: 3, rotation: 80, opacity: 0.08 },
+            
+            // SPECIFIC USER REQUEST: Small leaf at pointer location
+            { id: 8, top: '58%', left: '22%', size: 9, shape: 'leaf', depth: 3, rotation: -45, opacity: 0.09 },
+        ].map(item => ({
+            ...item,
+            parallaxFactor: item.depth * 0.005, 
+            duration: 0, 
+            delay: 0
+        }));
+    }
+
+    // Custom Logic for Obsidian Focus Theme (Aesthetic Crystal Void)
+    // Refined composition: Less is more. Specific rotations to catch the eye.
+    if (themeId === 'obsidian') {
+      return [
+        // 1. The Anchor (Bottom Left Background)
+        // Large, very faint, grounding the composition.
+        { 
+            id: 1, top: '70%', left: '5%', size: 55, 
+            shape: 'obsidian-bipyramid', depth: 1, 
+            rotation: -15, opacity: 0.02, 
+            strokeWidth: 0.3, glow: false
+        },
+        // 2. The Ceiling (Top Right Background)
+        // Balances the Anchor.
+        { 
+            id: 2, top: '-15%', left: '75%', size: 65, 
+            shape: 'obsidian-bipyramid', depth: 1, 
+            rotation: 165, opacity: 0.02, 
+            strokeWidth: 0.3, glow: false 
+        },
+        // 3. Mid-Field Right
+        // Defining the mid-plane, slightly sharper.
+        { 
+            id: 3, top: '45%', left: '88%', size: 22, 
+            shape: 'obsidian-bipyramid', depth: 2, 
+            rotation: 25, opacity: 0.04, 
+            strokeWidth: 0.5, glow: false 
+        },
+        // 4. Mid-Field Left (Top)
+        { 
+            id: 4, top: '15%', left: '15%', size: 18, 
+            shape: 'obsidian-bipyramid', depth: 2.5, 
+            rotation: 45, opacity: 0.05, 
+            strokeWidth: 0.5, glow: true 
+        },
+        // 5. Focal Accent (Floating near center-right)
+        // The most distinct element.
+        { 
+            id: 5, top: '25%', left: '60%', size: 12, 
+            shape: 'obsidian-bipyramid', depth: 3, 
+            rotation: -10, opacity: 0.08, 
+            strokeWidth: 0.8, glow: true, fill: true
+        },
+        // 6. Foreground Detail (Bottom Center)
+        // Fast moving, creates depth.
+        { 
+            id: 6, top: '85%', left: '40%', size: 14, 
+            shape: 'obsidian-bipyramid', depth: 4, 
+            rotation: -35, opacity: 0.07, 
+            strokeWidth: 0.8, glow: true 
+        },
+      ].map(item => ({
+        ...item,
+        // Negative parallax: objects move opposite to cursor (heavier feel)
+        parallaxFactor: item.depth * -0.01,
+        // Long, slow animation cycles to avoid distraction
+        duration: 50 + (item.id * 5),
+        delay: -(item.id * 10)
+      }));
+    }
+
+    // Custom Logic for Midnight Quiet Theme
+    if (themeId === 'midnight') {
+        const layer2 = [
+            // Layer 2: Soft Radial Blurs (Negative Parallax: moves opposite cursor)
+            // Large, diffused, low contrast, indigo/blue-violet
+            { id: 1, top: '10%', left: '10%', size: 50, shape: 'circle', depth: 2, opacity: 0.12, color: '#4338ca' }, // Indigo-700
+            { id: 2, top: '80%', left: '85%', size: 40, shape: 'circle', depth: 2, opacity: 0.08, color: '#5b21b6' }, // Violet-800
+            { id: 3, top: '40%', left: '40%', size: 60, shape: 'circle', depth: 2, opacity: 0.05, color: '#312e81' }, // Indigo-900
+        ].map(item => ({
+            ...item,
+            parallaxFactor: -0.005, // 1.5-2px opposite cursor
+            duration: 0,
+            delay: 0,
+            blur: 100 // High blur for diffuse light effect
+        }));
+
+        const layer3 = [
+            // Layer 3: Background Glow Veil (Positive Parallax: moves with cursor)
+            // Soft glow behind main content
+            { id: 4, top: '50%', left: '50%', size: 90, shape: 'circle', depth: 3, opacity: 0.04, color: '#6366f1' } // Indigo-500
+        ].map(item => ({
+            ...item,
+            parallaxFactor: 0.003, // ~1px with cursor
+            duration: 0,
+            delay: 0,
+            blur: 120 // Extreme blur for veil effect
+        }));
+
+        return [...layer2, ...layer3];
+    }
+
+    // Default Abstract Geometric Logic
+    return [
+        { id: 1, top: '8%', left: '5%', size: 16, shape: 'ring', depth: 1, opacity: 0.03, rotation: 0 },
+        { id: 2, top: '75%', left: '85%', size: 20, shape: 'squircle', depth: 1, opacity: 0.03, rotation: 15 },
+        { id: 3, top: '5%', left: '55%', size: 8, shape: 'circle', depth: 1, opacity: 0.02, rotation: 0 },
+        { id: 4, top: '80%', left: '10%', size: 12, shape: 'square', depth: 1, opacity: 0.02, rotation: 45 },
+
+        { id: 5, top: '30%', left: '90%', size: 4, shape: 'triangle', depth: 2, opacity: 0.06, rotation: 160 },
+        { id: 6, top: '45%', left: '5%', size: 5, shape: 'grid', depth: 2, opacity: 0.06, rotation: 10 },
+        { id: 7, top: '15%', left: '80%', size: 3.5, shape: 'plus', depth: 2, opacity: 0.08, rotation: 0 },
+        { id: 8, top: '85%', left: '35%', size: 4, shape: 'ring', depth: 2, opacity: 0.06, rotation: 0 },
+        { id: 9, top: '20%', left: '35%', size: 3, shape: 'circle', depth: 2, opacity: 0.05, rotation: 0 },
+
+        { id: 10, top: '22%', left: '20%', size: 2, shape: 'squircle', depth: 3, opacity: 0.12, rotation: 30 },
+        { id: 11, top: '60%', left: '88%', size: 2.5, shape: 'circle', depth: 3, opacity: 0.12, rotation: 0 },
+        { id: 12, top: '88%', left: '65%', size: 1.5, shape: 'triangle', depth: 3, opacity: 0.15, rotation: -15 },
+        { id: 13, top: '12%', left: '35%', size: 1.2, shape: 'plus', depth: 3, opacity: 0.15, rotation: 45 },
+        { id: 14, top: '45%', left: '15%', size: 1, shape: 'circle', depth: 3, opacity: 0.1, rotation: 0 },
+        { id: 15, top: '70%', left: '80%', size: 1.5, shape: 'grid', depth: 3, opacity: 0.1, rotation: 20 },
+        { id: 16, top: '35%', left: '75%', size: 1.8, shape: 'ring', depth: 3, opacity: 0.12, rotation: 0 },
+        
+        { id: 17, top: '10%', left: '90%', size: 0.5, shape: 'circle', depth: 3, opacity: 0.2, rotation: 0 },
+        { id: 18, top: '90%', left: '5%', size: 0.5, shape: 'circle', depth: 3, opacity: 0.2, rotation: 0 },
+    ].map(item => ({
+        ...item,
+        parallaxFactor: item.depth * 0.08, 
+        duration: 40 + (item.id * 2),
+        delay: -(item.id * 5)
     }));
-  }, [themeId]);
+  }, [themeId]); 
 
   if (!enabled) return <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundColor: config.colors.bg }} />;
 
@@ -148,93 +283,205 @@ const AnimatedBackground = React.memo(({
         ref={containerRef}
         className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" 
         style={{ 
-            backgroundColor: config.colors.bg,
-            // Default values to prevent layout jump before first mouse move
-            '--mouse-x': '50vw',
-            '--mouse-y': '50vh',
-            '--off-x': '0',
-            '--off-y': '0'
+            backgroundColor: config.colors.bg
         } as React.CSSProperties}
     >
       
-      {/* 1. CINEMATIC GRAIN (Texture) */}
+      {/* 5. GRAIN / NOISE (Layer 5 - Static) */}
       <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay"></div>
 
-      {/* 2. AURORA MESH GRADIENTS (The "Breathing" Blobs) */}
-      {showAurora && (
+      {/* 2. SPECIFIC GRADIENTS */}
+      
+      {/* Forest: Moss to Olive */}
+      {themeId === 'forest' && (
+        <div 
+            className="absolute inset-0 z-[1] opacity-60" 
+            style={{ 
+                background: `radial-gradient(circle at 50% 120%, #3f6212 0%, transparent 60%), radial-gradient(circle at 50% -20%, #1a2e22 0%, transparent 60%)` 
+            }} 
+        />
+      )}
+
+      {/* Obsidian: Deep Atmospheric Void with Subtle Cyan Injection */}
+      {themeId === 'obsidian' && (
+        <div 
+            className="absolute inset-0 z-[1]" 
+            style={{ 
+                background: `
+                    radial-gradient(circle at 50% -10%, #0f172a 0%, #020617 45%, #000000 100%),
+                    radial-gradient(circle at 85% 25%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
+                    radial-gradient(circle at 15% 75%, rgba(8, 145, 178, 0.05) 0%, transparent 45%)
+                `
+            }} 
+        />
+      )}
+
+      {/* Midnight: Deep Navy to Near-Black (Layer 1 - Static) */}
+      {themeId === 'midnight' && (
+        <div 
+            className="absolute inset-0 z-[1]" 
+            style={{ 
+                background: `linear-gradient(to bottom, #1e1b4b 0%, #020617 100%)`, 
+                opacity: 0.95
+            }} 
+        />
+      )}
+
+      {/* 3. AURORA MESH GRADIENTS */}
+      {showAurora && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
         <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(80px)' }}>
-            {/* Blob 1: Top Left (Accent Color) */}
-            <div 
-               className="absolute top-[-25%] left-[-10%] w-[60vw] h-[60vw] rounded-full animate-aurora-1 mix-blend-screen dark:mix-blend-screen"
-               style={{ 
-                   background: `radial-gradient(circle, ${config.colors.accent} 0%, transparent 70%)`,
-                   // CSS Calc for Parallax using variables
-                   transform: `translate(calc(var(--off-x) * 0.02 * 1px), calc(var(--off-y) * 0.02 * 1px))`,
-                   willChange: 'transform'
-               }} 
-            />
             
-            {/* Blob 2: Bottom Right (Glow Color) */}
+            {/* Blob 1: Top Left */}
             <div 
-               className="absolute bottom-[-30%] right-[-10%] w-[50vw] h-[50vw] rounded-full animate-aurora-2 mix-blend-screen dark:mix-blend-screen"
+               className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
-                   background: `radial-gradient(circle, ${config.colors.accentGlow} 0%, transparent 70%)`,
-                   transform: `translate(calc(var(--off-x) * 0.03 * 1px), calc(var(--off-y) * 0.03 * 1px))`,
-                   willChange: 'transform'
+                   transform: `translate(calc(var(--off-x) * 0.05 * 1px), calc(var(--off-y) * 0.05 * 1px))`,
                }} 
-            />
+            >
+                <div 
+                    className="w-full h-full rounded-full animate-aurora-1"
+                    style={{ background: `radial-gradient(circle, ${config.colors.accent} 0%, transparent 70%)` }}
+                />
+            </div>
             
-            {/* Blob 3: Center Drifter (Subtle Highlight) */}
+            {/* Blob 2: Bottom Right */}
             <div 
-               className="absolute top-[20%] left-[30%] w-[40vw] h-[40vw] rounded-full animate-aurora-3 opacity-30 mix-blend-overlay"
+               className="absolute bottom-[-45%] right-[-10%] w-[60vw] h-[60vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
-                   background: `radial-gradient(circle, ${config.mode === 'dark' ? '#ffffff' : config.colors.accent} 0%, transparent 60%)`,
+                   transform: `translate(calc(var(--off-x) * 0.08 * 1px), calc(var(--off-y) * 0.08 * 1px))`,
                }} 
-            />
+            >
+                 <div 
+                    className="w-full h-full rounded-full animate-aurora-2"
+                    style={{ background: `radial-gradient(circle, ${config.colors.accentGlow} 0%, transparent 70%)` }}
+                />
+            </div>
+            
+            {/* Blob 3: Center Drifter */}
+            <div 
+                className="absolute top-[20%] left-[30%] w-[40vw] h-[40vw] opacity-30 mix-blend-overlay will-change-transform"
+                style={{
+                    transform: `translate(calc(var(--off-x) * 0.02 * 1px), calc(var(--off-y) * 0.02 * 1px))`
+                }}
+            >
+                 <div 
+                    className="w-full h-full rounded-full animate-aurora-3" 
+                    style={{ background: `radial-gradient(circle, ${config.mode === 'dark' ? '#ffffff' : config.colors.accent} 0%, transparent 60%)` }} 
+                 />
+            </div>
         </div>
       )}
 
-      {/* 3. MOUSE FOLLOW LIGHT (The "Spotlight") */}
-      {config.mode === 'dark' && showGlow && (
-          <div 
-            className="absolute z-[2] w-[300px] h-[300px] rounded-full pointer-events-none transition-opacity duration-500"
-            style={{
-                // Reduced opacity to ~12% and added blur for a softer, non-intrusive glow
-                background: `radial-gradient(circle, ${config.colors.accent}20 0%, transparent 70%)`,
-                left: 0,
-                top: 0,
-                filter: 'blur(30px)',
-                // Translate using CSS variables. Note: translate(-50%, -50%) centers it on the cursor.
-                transform: 'translate(calc(var(--mouse-x) - 50%), calc(var(--mouse-y) - 50%))',
-                willChange: 'transform' 
-            }}
-          />
-      )}
-
-      {/* 4. FLOATING SYMBOLS (With Parallax) */}
+      {/* 4. FLOATING ELEMENTS (Abstract / Leaves / Crystals / Radial Blurs) */}
       <div className="absolute inset-0 z-[3]">
         {items.map((item) => (
             <div 
-            key={item.id}
-            className={`absolute font-mono whitespace-nowrap animate-float-gentle mix-blend-screen ${item.id % 2 === 0 ? 'hidden md:block' : ''}`}
-            style={{
-                top: item.top,
-                left: item.left,
-                fontSize: `${item.size}rem`,
-                animationDuration: `${item.duration}s`,
-                animationDelay: `${item.delay}s`,
-                color: config.mode === 'dark' ? `${config.colors.accent}30` : `${config.colors.accent}20`,
-                textShadow: config.mode === 'dark' ? `0 0 8px ${config.colors.accent}20` : 'none',
-                // Interactive Parallax Transform via CSS Vars
-                transform: `translate(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px))`
-            }}
+                key={item.id}
+                className={`absolute ${item.id % 2 === 0 ? 'hidden md:block' : ''} will-change-transform`}
+                style={{
+                    top: item.top,
+                    left: item.left,
+                    // Parallax Transform on Wrapper
+                    transform: `translate(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px))`
+                }}
             >
-            {item.content}
+                {/* Animation Transform on Inner */}
+                <div 
+                    className={`flex items-center justify-center ${
+                      themeId === 'obsidian' ? 'animate-obsidian-float' : 
+                      !['forest', 'midnight'].includes(themeId) ? 'animate-float-gentle' : ''
+                    }`}
+                    style={{
+                        width: `${item.size}rem`,
+                        height: `${item.size}rem`,
+                        animationDuration: `${item.duration}s`,
+                        animationDelay: `${item.delay}s`,
+                        color: (item as any).color || config.colors.accent, 
+                        opacity: item.opacity,
+                        transform: `rotate(${item.rotation || 0}deg)`,
+                        // Custom Blur handling for Midnight and others
+                        filter: (item as any).blur ? `blur(${(item as any).blur}px)` : 
+                                item.shape === 'leaf' ? `blur(${item.depth * 1.5}px)` : 
+                                // OBSIDIAN: Sharp, clean lines. No blur.
+                                item.shape.startsWith('obsidian-') ? 'blur(0px)' : 
+                                (item.depth === 1 ? 'blur(3px)' : 'blur(0px)'),
+                    }}
+                >
+                    {/* Shapes */}
+                    {item.shape === 'leaf' && (
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+                            <path d="M12 2C12 2 20 8 20 16C20 20.4 16.4 24 12 24C7.6 24 4 20.4 4 16C4 8 12 2 12 2Z" fill="currentColor" />
+                        </svg>
+                    )}
+                    
+                    {/* OBSIDIAN: Bipyramid Wireframe with 2.5D Perspective */}
+                    {item.shape === 'obsidian-bipyramid' && (
+                         <svg 
+                            viewBox="0 0 24 24" 
+                            fill="none"
+                            stroke="currentColor" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                            className={`w-full h-full ${(item as any).glow ? 'drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]' : ''}`}
+                         >
+                             {/* Back Edges (Internal Structure) - Faint to simulate transparency */}
+                             <path 
+                                d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" 
+                                strokeWidth="0.2" 
+                                className="opacity-30"
+                             />
+                             
+                             {/* Perimeter - Defining the silhouette */}
+                             <path 
+                                d="M12 2 L21 12 L12 22 L3 12 Z" 
+                                strokeWidth={(item as any).strokeWidth || 0.5} 
+                             />
+                             
+                             {/* Front Edges (Visible Facets) - Sharper and brighter */}
+                             <path 
+                                d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" 
+                                strokeWidth={(item as any).strokeWidth || 0.5}
+                             />
+
+                             {/* Optional: Subtle Fill for volume on front faces */}
+                             {(item as any).fill && (
+                                <path 
+                                    d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" 
+                                    fill="currentColor" 
+                                    fillOpacity="0.03" 
+                                    stroke="none"
+                                />
+                             )}
+                         </svg>
+                    )}
+
+                    {/* Standard Shapes / Midnight Circles */}
+                    {item.shape === 'circle' && <div className="w-full h-full rounded-full bg-current" style={{ opacity: themeId === 'midnight' ? 1 : 0.4 }} />}
+                    {item.shape === 'ring' && <div className="w-full h-full rounded-full border-[3px] border-current opacity-50" />}
+                    {item.shape === 'squircle' && <div className="w-full h-full rounded-[2rem] border-[3px] border-current opacity-40" />}
+                    {item.shape === 'square' && <div className="w-full h-full border-[3px] border-current rounded-3xl opacity-50" />}
+                    {item.shape === 'triangle' && (
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full opacity-40">
+                            <path d="M12 2L2 22h20L12 2z" />
+                        </svg>
+                    )}
+                    {item.shape === 'plus' && (
+                        <div className="w-full h-full relative opacity-50">
+                            <div className="absolute top-1/2 left-0 w-full h-[4px] bg-current -translate-y-1/2 rounded-full" />
+                            <div className="absolute left-1/2 top-0 h-full w-[4px] bg-current -translate-x-1/2 rounded-full" />
+                        </div>
+                    )}
+                    {item.shape === 'grid' && (
+                        <div className="w-full h-full grid grid-cols-3 gap-2 opacity-40 p-1">
+                             {[...Array(9)].map((_, k) => <div key={k} className="bg-current rounded-full w-full h-full" />)}
+                        </div>
+                    )}
+                </div>
             </div>
         ))}
       </div>
 
-      {/* 5. VIGNETTE (Focus focus) */}
+      {/* 5. VIGNETTE */}
       <div 
         className="absolute inset-0 z-[4] pointer-events-none transition-colors duration-500"
         style={{
@@ -402,7 +649,6 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [theme, setTheme] = useState<ThemeId>('default-dark');
-  const [showCursorGlow, setShowCursorGlow] = useState(true);
   const [showAurora, setShowAurora] = useState(true);
   
   // UI State
@@ -417,13 +663,11 @@ const App: React.FC = () => {
     const savedAnim = localStorage.getItem('zenith_animations');
     const savedTheme = localStorage.getItem('zenith_theme_id');
     const savedSidebar = localStorage.getItem('zenith_sidebar_collapsed');
-    const savedGlow = localStorage.getItem('zenith_glow');
     const savedAurora = localStorage.getItem('zenith_aurora');
     
     if (savedAnim !== null) setAnimationsEnabled(JSON.parse(savedAnim));
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
     if (savedSidebar !== null) setSidebarCollapsed(JSON.parse(savedSidebar));
-    if (savedGlow !== null) setShowCursorGlow(JSON.parse(savedGlow));
     if (savedAurora !== null) setShowAurora(JSON.parse(savedAurora));
   }, []);
 
@@ -435,7 +679,6 @@ const App: React.FC = () => {
   }, [animationsEnabled]);
 
   useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
-  useEffect(() => { localStorage.setItem('zenith_glow', JSON.stringify(showCursorGlow)); }, [showCursorGlow]);
   useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
 
   const toggleSidebar = () => {
@@ -619,12 +862,36 @@ const App: React.FC = () => {
           background-color: ${themeConfig.colors.accent}4d; 
           color: white;
         }
+
+        /* 9. Obsidian Theme Custom Animation */
+        @keyframes obsidian-float {
+            0%, 100% { transform: translate3d(0,0,0) rotate(0deg); }
+            50% { transform: translate3d(0, -15px, 0) rotate(2deg); }
+        }
+        .animate-obsidian-float {
+             animation: obsidian-float 8s ease-in-out infinite;
+        }
+
+        ${theme === 'midnight' ? `
+            /* Layer 4: Card Shadow Micro-Parallax for Midnight Theme */
+            /* 
+               Uses mouse position CSS vars from documentElement.
+               Calculates a small offset (0.5-1px range) based on mouse position from center.
+               Direction follows cursor (positive multiplier on negative off-x = positive offset).
+            */
+            .shadow-xl, .shadow-2xl {
+                transition: box-shadow 0.1s ease-out;
+                box-shadow: 
+                    calc(var(--off-x) * -0.002px) 
+                    calc(var(--off-y) * -0.002px) 
+                    25px rgba(0,0,0,0.5) !important;
+            }
+        ` : ''}
       `}</style>
 
       <AnimatedBackground 
         enabled={animationsEnabled} 
         themeId={theme} 
-        showGlow={showCursorGlow}
         showAurora={showAurora}
       />
       
@@ -731,8 +998,6 @@ const App: React.FC = () => {
         theme={theme}
         setTheme={setTheme}
         onStartTutorial={startTutorial}
-        showCursorGlow={showCursorGlow}
-        toggleCursorGlow={() => setShowCursorGlow(!showCursorGlow)}
         showAurora={showAurora}
         toggleAurora={() => setShowAurora(!showAurora)}
       />

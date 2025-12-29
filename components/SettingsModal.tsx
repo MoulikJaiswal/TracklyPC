@@ -12,8 +12,6 @@ interface SettingsModalProps {
   theme: ThemeId;
   setTheme: (theme: ThemeId) => void;
   onStartTutorial: () => void;
-  showCursorGlow: boolean;
-  toggleCursorGlow: () => void;
   showAurora: boolean;
   toggleAurora: () => void;
 }
@@ -26,8 +24,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   theme,
   setTheme,
   onStartTutorial,
-  showCursorGlow,
-  toggleCursorGlow,
   showAurora,
   toggleAurora
 }) => {
@@ -88,27 +84,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className={`w-10 h-5 rounded-full relative transition-colors ${showAurora ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
                       <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showAurora ? 'left-6' : 'left-1'}`} />
-                  </div>
-                </button>
-
-                {/* Cursor Glow Toggle */}
-                <button 
-                  onClick={toggleCursorGlow}
-                  className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${showCursorGlow ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
-                        <MousePointer2 size={18} />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">Cursor Spotlight</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
-                        Interactive mouse follow light
-                      </p>
-                    </div>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full relative transition-colors ${showCursorGlow ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showCursorGlow ? 'left-6' : 'left-1'}`} />
                   </div>
                 </button>
              </div>
