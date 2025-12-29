@@ -79,10 +79,10 @@ const AnimatedBackground = React.memo(({
     showAurora: boolean
 }) => {
   const config = THEME_CONFIG[themeId];
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>();
 
-  // Efficient Mouse Tracking for Parallax & Glow
+  // Efficient Mouse Tracking using CSS Variables to avoid React Re-renders
   useEffect(() => {
     if (!enabled) return;
 
@@ -91,7 +91,20 @@ const AnimatedBackground = React.memo(({
       if (requestRef.current) return;
       
       requestRef.current = requestAnimationFrame(() => {
-        setMousePos({ x: e.clientX, y: e.clientY });
+        if (containerRef.current) {
+            const x = e.clientX;
+            const y = e.clientY;
+            // Calculate offsets for parallax
+            const xOffset = (window.innerWidth / 2 - x);
+            const yOffset = (window.innerHeight / 2 - y);
+
+            // Directly update CSS variables on the container
+            // This bypasses React's render cycle completely for 60fps performance
+            containerRef.current.style.setProperty('--mouse-x', `${x}px`);
+            containerRef.current.style.setProperty('--mouse-y', `${y}px`);
+            containerRef.current.style.setProperty('--off-x', `${xOffset}`);
+            containerRef.current.style.setProperty('--off-y', `${yOffset}`);
+        }
         requestRef.current = undefined;
       });
     };
@@ -130,13 +143,19 @@ const AnimatedBackground = React.memo(({
 
   if (!enabled) return <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundColor: config.colors.bg }} />;
 
-  // Calculate Parallax Transforms
-  // We move background elements OPPOSITE to mouse direction
-  const xOffset = (window.innerWidth / 2 - mousePos.x);
-  const yOffset = (window.innerHeight / 2 - mousePos.y);
-
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" style={{ backgroundColor: config.colors.bg }}>
+    <div 
+        ref={containerRef}
+        className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" 
+        style={{ 
+            backgroundColor: config.colors.bg,
+            // Default values to prevent layout jump before first mouse move
+            '--mouse-x': '50vw',
+            '--mouse-y': '50vh',
+            '--off-x': '0',
+            '--off-y': '0'
+        } as React.CSSProperties}
+    >
       
       {/* 1. CINEMATIC GRAIN (Texture) */}
       <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay"></div>
@@ -149,7 +168,9 @@ const AnimatedBackground = React.memo(({
                className="absolute top-[-25%] left-[-10%] w-[60vw] h-[60vw] rounded-full animate-aurora-1 mix-blend-screen dark:mix-blend-screen"
                style={{ 
                    background: `radial-gradient(circle, ${config.colors.accent} 0%, transparent 70%)`,
-                   transform: `translate(${xOffset * 0.02}px, ${yOffset * 0.02}px)` // Subtle Parallax
+                   // CSS Calc for Parallax using variables
+                   transform: `translate(calc(var(--off-x) * 0.02 * 1px), calc(var(--off-y) * 0.02 * 1px))`,
+                   willChange: 'transform'
                }} 
             />
             
@@ -158,7 +179,8 @@ const AnimatedBackground = React.memo(({
                className="absolute bottom-[-30%] right-[-10%] w-[50vw] h-[50vw] rounded-full animate-aurora-2 mix-blend-screen dark:mix-blend-screen"
                style={{ 
                    background: `radial-gradient(circle, ${config.colors.accentGlow} 0%, transparent 70%)`,
-                   transform: `translate(${xOffset * 0.03}px, ${yOffset * 0.03}px)` // Different speed
+                   transform: `translate(calc(var(--off-x) * 0.03 * 1px), calc(var(--off-y) * 0.03 * 1px))`,
+                   willChange: 'transform'
                }} 
             />
             
@@ -179,11 +201,12 @@ const AnimatedBackground = React.memo(({
             style={{
                 // Reduced opacity to ~12% and added blur for a softer, non-intrusive glow
                 background: `radial-gradient(circle, ${config.colors.accent}20 0%, transparent 70%)`,
-                left: mousePos.x,
-                top: mousePos.y,
+                left: 0,
+                top: 0,
                 filter: 'blur(30px)',
-                transform: 'translate(-50%, -50%)',
-                willChange: 'transform' // Optimize layout thrashing
+                // Translate using CSS variables. Note: translate(-50%, -50%) centers it on the cursor.
+                transform: 'translate(calc(var(--mouse-x) - 50%), calc(var(--mouse-y) - 50%))',
+                willChange: 'transform' 
             }}
           />
       )}
@@ -202,8 +225,8 @@ const AnimatedBackground = React.memo(({
                 animationDelay: `${item.delay}s`,
                 color: config.mode === 'dark' ? `${config.colors.accent}30` : `${config.colors.accent}20`,
                 textShadow: config.mode === 'dark' ? `0 0 8px ${config.colors.accent}20` : 'none',
-                // Interactive Parallax Transform
-                transform: `translate(${xOffset * item.parallaxFactor}px, ${yOffset * item.parallaxFactor}px)`
+                // Interactive Parallax Transform via CSS Vars
+                transform: `translate(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px))`
             }}
             >
             {item.content}
