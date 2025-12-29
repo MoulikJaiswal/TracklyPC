@@ -146,7 +146,7 @@ const AnimatedBackground = React.memo(({
         <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ filter: 'blur(80px)' }}>
             {/* Blob 1: Top Left (Accent Color) */}
             <div 
-               className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] rounded-full animate-aurora-1 mix-blend-screen dark:mix-blend-screen"
+               className="absolute top-[-25%] left-[-10%] w-[60vw] h-[60vw] rounded-full animate-aurora-1 mix-blend-screen dark:mix-blend-screen"
                style={{ 
                    background: `radial-gradient(circle, ${config.colors.accent} 0%, transparent 70%)`,
                    transform: `translate(${xOffset * 0.02}px, ${yOffset * 0.02}px)` // Subtle Parallax
@@ -155,7 +155,7 @@ const AnimatedBackground = React.memo(({
             
             {/* Blob 2: Bottom Right (Glow Color) */}
             <div 
-               className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full animate-aurora-2 mix-blend-screen dark:mix-blend-screen"
+               className="absolute bottom-[-30%] right-[-10%] w-[50vw] h-[50vw] rounded-full animate-aurora-2 mix-blend-screen dark:mix-blend-screen"
                style={{ 
                    background: `radial-gradient(circle, ${config.colors.accentGlow} 0%, transparent 70%)`,
                    transform: `translate(${xOffset * 0.03}px, ${yOffset * 0.03}px)` // Different speed
