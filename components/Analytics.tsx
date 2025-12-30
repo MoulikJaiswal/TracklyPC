@@ -1,19 +1,10 @@
 
-import React, { useMemo, useState, useEffect, memo } from 'react';
-import { Activity, Target, Trophy, Clock, Brain, TrendingUp, Zap, Atom, Calculator, BarChart2, Grid, Sparkles, Loader2, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
+import React, { useMemo, useState, memo } from 'react';
+import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid, Sparkles, Loader2, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Session, TestResult } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
 import { generateAnalysis } from '../services/geminiService';
-
-// Helper for local date string YYYY-MM-DD
-const getLocalDate = (d = new Date()) => {
-  if (isNaN(d.getTime())) return '1970-01-01'; // Fallback for invalid dates
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 interface AnalyticsProps {
   sessions: Session[];
@@ -37,7 +28,6 @@ const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
       sessions.forEach(s => {
           const sub = s.subject as keyof typeof acc;
           if (acc[sub]) {
-              // Ensure number types
               acc[sub].attempted += (Number(s.attempted) || 0);
               acc[sub].correct += (Number(s.correct) || 0);
           }
@@ -84,7 +74,6 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
     sessions.forEach(s => {
         const key = `${s.subject}|${s.topic}`;
         if (!stats[key]) stats[key] = { attempted: 0, correct: 0 };
-        // Ensure number types
         stats[key].attempted += (Number(s.attempted) || 0);
         stats[key].correct += (Number(s.correct) || 0);
     });
@@ -139,24 +128,6 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
             </div>
          ))}
       </div>
-      <div className="flex justify-center gap-6 mt-4">
-         <div className="flex items-center gap-2">
-             <div className="w-3 h-3 rounded bg-slate-200 dark:bg-white/5" />
-             <span className="text-[10px] uppercase font-bold text-slate-400">Untouched</span>
-         </div>
-         <div className="flex items-center gap-2">
-             <div className="w-3 h-3 rounded bg-rose-500/20 border border-rose-500/30" />
-             <span className="text-[10px] uppercase font-bold text-slate-400">Needs Work</span>
-         </div>
-         <div className="flex items-center gap-2">
-             <div className="w-3 h-3 rounded bg-amber-500/20 border border-amber-500/30" />
-             <span className="text-[10px] uppercase font-bold text-slate-400">Improving</span>
-         </div>
-         <div className="flex items-center gap-2">
-             <div className="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-500/30" />
-             <span className="text-[10px] uppercase font-bold text-slate-400">Mastered</span>
-         </div>
-      </div>
     </div>
   )
 });
@@ -166,7 +137,6 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const stats = useMemo(() => {
-    // Ensure numbers for aggregation
     const totalAttempted = sessions.reduce((acc, s) => acc + (Number(s.attempted) || 0), 0);
     const totalCorrect = sessions.reduce((acc, s) => acc + (Number(s.correct) || 0), 0);
     const avgAccuracy = totalAttempted > 0 ? (totalCorrect / totalAttempted) * 100 : 0;
@@ -192,15 +162,27 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
     setIsAnalyzing(true);
     try {
       const reportText = await generateAnalysis(sessions, tests);
+      
+      // Clean JSON string (remove markdown fences if present)
+      let cleanJson = reportText || '{}';
+      cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '').trim();
+      
       try {
-          const json = JSON.parse(reportText || '{}');
+          const json = JSON.parse(cleanJson);
           setAiReport(json);
       } catch (e) {
-          // Fallback if AI returns plain text despite schema
-          setAiReport({ analysis: reportText, bottleneckTitle: "General Analysis", temperament: "Analysis", actionPlan: [] });
+          console.error("JSON Parse Error", e);
+          // Fallback if parsing fails - Display raw text but cleaner
+          setAiReport({ 
+              bottleneckTitle: "Analysis Report", 
+              analysis: reportText.replace(/\*\*/g, ''), // Strip bold markers for cleaner raw text
+              temperament: "Review Required", 
+              actionPlan: ["Could not parse detailed plan. See analysis above."] 
+          });
       }
     } catch (e) {
       console.error(e);
+      setAiReport(null);
     } finally {
       setIsAnalyzing(false);
     }
@@ -209,7 +191,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
   return (
     <div id="analytics-container" className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
       
-      {/* Header Stats - Render Immediately */}
+      {/* Header Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="relative overflow-hidden group" delay={0.1}>
            <div className="absolute right-0 top-0 p-3 opacity-20 dark:opacity-5 group-hover:opacity-30 dark:group-hover:opacity-10 transition-opacity">
@@ -253,7 +235,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
 
       <div className="animate-in fade-in duration-500 space-y-6 md:space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-                {/* Left Col: Subjects */}
+                {/* Left Col: Subjects & AI Coach */}
                 <div className="lg:col-span-2 space-y-6 md:space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                         {/* Subject Breakdown */}
@@ -265,7 +247,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                         {/* AI Coach Insight */}
                         <div className="space-y-4">
                             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Gemini Coach</h3>
-                            <div className="p-6 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 relative overflow-hidden min-h-[300px] flex flex-col transform-gpu">
+                            <div className="p-6 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 relative overflow-hidden min-h-[320px] flex flex-col transform-gpu">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                                     <Sparkles size={80} className="text-indigo-900 dark:text-white" />
                                 </div>
@@ -319,9 +301,9 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="h-full flex flex-col items-center justify-center text-center py-8">
+                                        <div className="h-full flex flex-col items-center justify-center text-center py-8 px-4">
                                             <h4 className="text-lg font-bold text-indigo-900 dark:text-white mb-2">Performance Review</h4>
-                                            <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-6 max-w-[200px] leading-relaxed">
+                                            <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-6 max-w-[220px] leading-relaxed mx-auto">
                                                 Gemini analyzes your speed, accuracy, and mistake patterns to build a custom study plan.
                                             </p>
                                             <button 

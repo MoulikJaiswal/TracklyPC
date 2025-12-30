@@ -3,7 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Session, TestResult } from "../types";
 
 // Initialize the client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Ensure process.env.API_KEY is available. 
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 export const generateAnalysis = async (sessions: Session[], tests: TestResult[]) => {
   // Prepare data summary
@@ -33,30 +34,31 @@ export const generateAnalysis = async (sessions: Session[], tests: TestResult[])
     
     Task:
     Analyze the student's performance trends based on the data above.
-    1. Identify the single biggest bottleneck (e.g. "Weak Foundation in Physics", "Calculation Errors", "Test Anxiety").
-    2. Provide a brief but incisive analysis of their current state.
-    3. Analyze their test temperament if data exists, otherwise infer from mistake patterns (e.g. panic mistakes).
-    4. Provide exactly 3 strict, actionable steps for the next week.
     
-    Output Format: JSON
+    Output JSON Schema:
+    {
+      "bottleneckTitle": "Short title of the biggest weakness (e.g., 'Weak Calculus Foundation')",
+      "analysis": "2 concise sentences analyzing the trend and root cause.",
+      "temperament": "One word or short phrase describing their test mindset (e.g., 'Anxious', 'Steady').",
+      "actionPlan": ["Step 1", "Step 2", "Step 3"]
+    }
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            bottleneckTitle: { type: Type.STRING, description: "Title of the main weakness, e.g., 'Concept Gap'" },
-            analysis: { type: Type.STRING, description: "2-3 sentences analyzing the trend." },
-            temperament: { type: Type.STRING, description: "Analysis of test mindset." },
+            bottleneckTitle: { type: Type.STRING },
+            analysis: { type: Type.STRING },
+            temperament: { type: Type.STRING },
             actionPlan: {
               type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "3 specific actionable steps."
+              items: { type: Type.STRING }
             }
           }
         }
