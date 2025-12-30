@@ -11,6 +11,14 @@ const getLocalDate = (d = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+// Universal ID Generator (matches App.tsx implementation)
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
 interface PlannerProps {
   targets: TargetType[];
   onAdd: (target: TargetType) => void;
@@ -77,7 +85,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
   const handleAdd = () => {
     if (!newTargetText.trim()) return;
     onAdd({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       date: selectedDate,
       text: newTargetText,
       completed: false,
@@ -174,7 +182,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                             key={dateStr}
                             onClick={() => setSelectedDate(dateStr)}
                             className={`
-                            relative flex flex-col items-center justify-center py-6 rounded-2xl transition-all duration-300 group
+                            relative flex flex-col items-center justify-center py-6 rounded-2xl transition-[transform,background-color,color,box-shadow] duration-300 group
                             ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105 z-10' : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200'}
                             ${isToday && !isSelected ? 'ring-1 ring-indigo-500/50' : ''}
                             `}
@@ -217,7 +225,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                                     key={dateStr}
                                     onClick={() => setSelectedDate(dateStr)}
                                     className={`
-                                        h-12 md:h-16 rounded-xl flex flex-col items-center justify-center relative transition-all
+                                        h-12 md:h-16 rounded-xl flex flex-col items-center justify-center relative transition-[transform,background-color,color,box-shadow] duration-300
                                         ${isSelected ? 'bg-indigo-600 text-white shadow-md z-10' : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
                                         ${isToday && !isSelected ? 'border border-indigo-500/50 text-indigo-500' : ''}
                                     `}

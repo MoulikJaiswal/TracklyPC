@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
   Activity, 
@@ -15,17 +15,20 @@ import {
   CheckCircle2,
   Atom,
   Zap,
-  Calculator
+  Calculator,
+  Loader2
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
-import { Dashboard } from './components/Dashboard';
-import { FocusTimer } from './components/FocusTimer';
-import { Planner } from './components/Planner';
-import { TestLog } from './components/TestLog';
-import { Analytics } from './components/Analytics';
 import { SettingsModal } from './components/SettingsModal';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
+
+// Lazy Load Components for Performance Optimization
+const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
+const FocusTimer = lazy(() => import('./components/FocusTimer').then(module => ({ default: module.FocusTimer })));
+const Planner = lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
+const TestLog = lazy(() => import('./components/TestLog').then(module => ({ default: module.TestLog })));
+const Analytics = lazy(() => import('./components/Analytics').then(module => ({ default: module.Analytics })));
 
 // Helper for local date string YYYY-MM-DD
 const getLocalDate = (d = new Date()) => {
@@ -33,6 +36,25 @@ const getLocalDate = (d = new Date()) => {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+// Robust UUID Generator (Works in non-secure contexts unlike crypto.randomUUID)
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
+
+// Safe LocalStorage Parser
+const safeJSONParse = <T,>(key: string, fallback: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch (e) {
+    console.warn(`Failed to parse ${key} from localStorage, using fallback.`);
+    return fallback;
+  }
 };
 
 const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean, id?: string }) => {
@@ -69,12 +91,14 @@ const AnimatedBackground = React.memo(({
     themeId,
     showAurora,
     parallaxEnabled,
-    showParticles
+    showParticles,
+    highPerformanceMode
 }: { 
     themeId: ThemeId,
     showAurora: boolean,
     parallaxEnabled: boolean,
-    showParticles: boolean
+    showParticles: boolean,
+    highPerformanceMode: boolean
 }) => {
   const config = THEME_CONFIG[themeId];
   const containerRef = useRef<HTMLDivElement>(null);
@@ -109,7 +133,7 @@ const AnimatedBackground = React.memo(({
   }, [parallaxEnabled]);
   
   const items = useMemo(() => {
-    if (!showParticles) return [];
+    if (!showParticles || highPerformanceMode) return [];
 
     // --- MIDNIGHT QUIET THEME OVERHAUL ---
     if (themeId === 'midnight') {
@@ -182,7 +206,7 @@ const AnimatedBackground = React.memo(({
         duration: 40 + (item.id * 2),
         delay: -(item.id * 5)
     }));
-  }, [themeId, showParticles]); 
+  }, [themeId, showParticles, highPerformanceMode]); 
 
   return (
     <div 
@@ -198,8 +222,10 @@ const AnimatedBackground = React.memo(({
         } as React.CSSProperties}
     >
       
-      {/* Layer 5: Static Grain (Global) - Optimized */}
-      <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay" style={{ transform: 'translateZ(0)' }}></div>
+      {/* Layer 5: Static Grain (Global) - REMOVED in High Perf Mode to save compositing */}
+      {!highPerformanceMode && (
+         <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay" style={{ transform: 'translateZ(0)' }}></div>
+      )}
 
       {/* MIDNIGHT: Layer 1 - Deep Space Gradient */}
       {themeId === 'midnight' && (
@@ -212,16 +238,18 @@ const AnimatedBackground = React.memo(({
                     transform: 'translateZ(0)'
                 }} 
             />
-            {/* Subtle Horizon Glow - Reduced blur radius for performance */}
-            <div 
-                className="absolute bottom-[-10%] left-[-10%] right-[-10%] h-[40%] z-[1] opacity-30"
-                style={{
-                    background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-                    // Using standard opacity fade instead of heavy blur
-                    opacity: 0.2,
-                    transform: 'translateZ(0)'
-                }}
-            />
+            {/* Subtle Horizon Glow - Removed in High Perf */}
+            {!highPerformanceMode && (
+                <div 
+                    className="absolute bottom-[-10%] left-[-10%] right-[-10%] h-[40%] z-[1] opacity-30"
+                    style={{
+                        background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
+                        // Using standard opacity fade instead of heavy blur
+                        opacity: 0.2,
+                        transform: 'translateZ(0)'
+                    }}
+                />
+            )}
         </>
       )}
 
@@ -250,8 +278,8 @@ const AnimatedBackground = React.memo(({
         />
       )}
 
-      {/* Aurora (Disabled for Midnight) */}
-      {showAurora && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
+      {/* Aurora (Disabled for Midnight and High Perf) */}
+      {showAurora && !highPerformanceMode && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
         <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ transform: 'translateZ(0)' }}>
             <div 
                className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
@@ -283,7 +311,7 @@ const AnimatedBackground = React.memo(({
       )}
 
       {/* Floating Elements / Star Trails */}
-      {showParticles && (
+      {showParticles && !highPerformanceMode && (
         <div className="absolute inset-0 z-[3] overflow-hidden">
             {items.map((item) => (
                 <div 
@@ -498,6 +526,13 @@ const slideVariants = {
   }),
 };
 
+// Simple fade variants for when swipe is disabled
+const fadeVariants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1, x: 0 },
+  exit: { opacity: 0 },
+};
+
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('daily');
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -515,6 +550,7 @@ const App: React.FC = () => {
   // New Visual Settings
   const [parallaxEnabled, setParallaxEnabled] = useState(true);
   const [showParticles, setShowParticles] = useState(true);
+  const [swipeAnimationEnabled, setSwipeAnimationEnabled] = useState(true);
   
   // Animation Tuning State - UPDATED DEFAULTS
   const [swipeStiffness, setSwipeStiffness] = useState(6000); 
@@ -537,23 +573,16 @@ const App: React.FC = () => {
 
   // Load Settings
   useEffect(() => {
-    const savedAnim = localStorage.getItem('zenith_animations');
+    setAnimationsEnabled(safeJSONParse('zenith_animations', true));
     const savedTheme = localStorage.getItem('zenith_theme_id');
-    const savedSidebar = localStorage.getItem('zenith_sidebar_collapsed');
-    const savedAurora = localStorage.getItem('zenith_aurora');
-    const savedParallax = localStorage.getItem('zenith_parallax');
-    const savedParticles = localStorage.getItem('zenith_particles');
-    const savedStiffness = localStorage.getItem('zenith_swipe_stiffness');
-    const savedDamping = localStorage.getItem('zenith_swipe_damping');
-    
-    if (savedAnim !== null) setAnimationsEnabled(JSON.parse(savedAnim));
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
-    if (savedSidebar !== null) setSidebarCollapsed(JSON.parse(savedSidebar));
-    if (savedAurora !== null) setShowAurora(JSON.parse(savedAurora));
-    if (savedParallax !== null) setParallaxEnabled(JSON.parse(savedParallax));
-    if (savedParticles !== null) setShowParticles(JSON.parse(savedParticles));
-    if (savedStiffness !== null) setSwipeStiffness(Number(savedStiffness));
-    if (savedDamping !== null) setSwipeDamping(Number(savedDamping));
+    setSidebarCollapsed(safeJSONParse('zenith_sidebar_collapsed', false));
+    setShowAurora(safeJSONParse('zenith_aurora', true));
+    setParallaxEnabled(safeJSONParse('zenith_parallax', true));
+    setShowParticles(safeJSONParse('zenith_particles', true));
+    setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
+    setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)));
+    setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
   }, []);
 
   // Persist & Apply Settings
@@ -567,6 +596,7 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
   useEffect(() => { localStorage.setItem('zenith_parallax', JSON.stringify(parallaxEnabled)); }, [parallaxEnabled]);
   useEffect(() => { localStorage.setItem('zenith_particles', JSON.stringify(showParticles)); }, [showParticles]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_animation', JSON.stringify(swipeAnimationEnabled)); }, [swipeAnimationEnabled]);
   useEffect(() => { localStorage.setItem('zenith_swipe_stiffness', String(swipeStiffness)); }, [swipeStiffness]);
   useEffect(() => { localStorage.setItem('zenith_swipe_damping', String(swipeDamping)); }, [swipeDamping]);
 
@@ -578,17 +608,12 @@ const App: React.FC = () => {
       });
   }, []);
 
-  // Load Data
+  // Load Data with Safety
   useEffect(() => {
-    const savedSessions = localStorage.getItem('zenith_sessions');
-    const savedTests = localStorage.getItem('zenith_tests');
-    const savedTargets = localStorage.getItem('zenith_targets');
-    const savedGoals = localStorage.getItem('zenith_goals');
-
-    if (savedSessions) setSessions(JSON.parse(savedSessions));
-    if (savedTests) setTests(JSON.parse(savedTests));
-    if (savedTargets) setTargets(JSON.parse(savedTargets));
-    if (savedGoals) setGoals(JSON.parse(savedGoals));
+    setSessions(safeJSONParse('zenith_sessions', []));
+    setTests(safeJSONParse('zenith_tests', []));
+    setTargets(safeJSONParse('zenith_targets', []));
+    setGoals(safeJSONParse('zenith_goals', { Physics: 30, Chemistry: 30, Maths: 30 }));
   }, []);
 
   // Persistence Effects
@@ -598,7 +623,7 @@ const App: React.FC = () => {
   useEffect(() => { setTimeout(() => localStorage.setItem('zenith_goals', JSON.stringify(goals)), 500) }, [goals]);
 
   const handleSaveSession = useCallback((newSession: Omit<Session, 'id' | 'timestamp'>) => {
-    const session: Session = { ...newSession, id: crypto.randomUUID(), timestamp: Date.now() };
+    const session: Session = { ...newSession, id: generateUUID(), timestamp: Date.now() };
     setSessions(prev => [session, ...prev]);
   }, []);
 
@@ -607,7 +632,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleSaveTest = useCallback((newTest: Omit<TestResult, 'id' | 'timestamp'>) => {
-    const test: TestResult = { ...newTest, id: crypto.randomUUID(), timestamp: Date.now() };
+    const test: TestResult = { ...newTest, id: generateUUID(), timestamp: Date.now() };
     setTests(prev => [test, ...prev]);
   }, []);
 
@@ -786,6 +811,14 @@ const App: React.FC = () => {
         }
   `, [themeConfig]);
 
+  // Logic to override visual settings when High Perf mode is on
+  const effectiveShowAurora = animationsEnabled && showAurora;
+  const effectiveParallax = animationsEnabled && parallaxEnabled;
+  const effectiveShowParticles = animationsEnabled && showParticles;
+  
+  // We allow swipe even in High Perf mode if configured, but optimized via transition logic
+  const effectiveSwipe = swipeAnimationEnabled; 
+
   return (
     <div 
         className={`min-h-screen font-sans overflow-x-hidden relative flex flex-col transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}
@@ -794,9 +827,10 @@ const App: React.FC = () => {
 
       <AnimatedBackground 
         themeId={theme} 
-        showAurora={showAurora}
-        parallaxEnabled={parallaxEnabled}
-        showParticles={showParticles}
+        showAurora={effectiveShowAurora}
+        parallaxEnabled={effectiveParallax}
+        showParticles={effectiveShowParticles}
+        highPerformanceMode={!animationsEnabled}
       />
       
       {/* Desktop Sidebar */}
@@ -828,51 +862,65 @@ const App: React.FC = () => {
              <motion.div
                 key={view}
                 custom={direction}
-                variants={slideVariants}
+                variants={effectiveSwipe ? slideVariants : fadeVariants}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{
-                  x: { type: "spring", stiffness: swipeStiffness, damping: swipeDamping, mass: 0.8 },
-                  opacity: { duration: 0.15 }
-                }}
+                transition={effectiveSwipe ? (
+                  animationsEnabled ? {
+                    // High Quality Spring Physics
+                    x: { type: "spring", stiffness: swipeStiffness, damping: swipeDamping, mass: 0.8 },
+                    opacity: { duration: 0.15 }
+                  } : {
+                    // High Performance Simple Glide
+                    x: { type: "tween", ease: "circOut", duration: 0.2 },
+                    opacity: { duration: 0.2 }
+                  }
+                ) : { duration: animationsEnabled ? 0.2 : 0 }}
                 className="w-full"
              >
-              {view === 'daily' && (
-                  <Dashboard 
-                      sessions={sessions}
-                      targets={targets}
-                      quote={QUOTES[quoteIdx]}
-                      onDelete={handleDeleteSession}
-                      goals={goals}
-                      setGoals={setGoals}
-                      onSaveSession={handleSaveSession}
-                  />
-              )}
-              {view === 'planner' && (
-                  <Planner 
-                      targets={targets}
-                      onAdd={handleSaveTarget}
-                      onToggle={handleUpdateTarget}
-                      onDelete={handleDeleteTarget}
-                  />
-              )}
-              {view === 'focus' && (
-                  <div className="min-h-[80vh] flex flex-col justify-center">
-                    <FocusTimer targets={targets} />
-                  </div>
-              )}
-              {view === 'tests' && (
-                  <TestLog 
-                      tests={tests}
-                      targets={targets} 
-                      onSave={handleSaveTest}
-                      onDelete={handleDeleteTest}
-                  />
-              )}
-              {view === 'analytics' && (
-                  <Analytics sessions={sessions} tests={tests} />
-              )}
+                <Suspense fallback={
+                    <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-400">
+                        <Loader2 className="w-10 h-10 animate-spin mb-4 text-indigo-500" />
+                        <span className="text-xs font-bold uppercase tracking-widest">Loading View...</span>
+                    </div>
+                }>
+                  {view === 'daily' && (
+                      <Dashboard 
+                          sessions={sessions}
+                          targets={targets}
+                          quote={QUOTES[quoteIdx]}
+                          onDelete={handleDeleteSession}
+                          goals={goals}
+                          setGoals={setGoals}
+                          onSaveSession={handleSaveSession}
+                      />
+                  )}
+                  {view === 'planner' && (
+                      <Planner 
+                          targets={targets}
+                          onAdd={handleSaveTarget}
+                          onToggle={handleUpdateTarget}
+                          onDelete={handleDeleteTarget}
+                      />
+                  )}
+                  {view === 'focus' && (
+                      <div className="min-h-[80vh] flex flex-col justify-center">
+                        <FocusTimer targets={targets} />
+                      </div>
+                  )}
+                  {view === 'tests' && (
+                      <TestLog 
+                          tests={tests}
+                          targets={targets} 
+                          onSave={handleSaveTest}
+                          onDelete={handleDeleteTest}
+                      />
+                  )}
+                  {view === 'analytics' && (
+                      <Analytics sessions={sessions} tests={tests} />
+                  )}
+                </Suspense>
              </motion.div>
            </AnimatePresence>
         </div>
@@ -929,6 +977,8 @@ const App: React.FC = () => {
         toggleParallax={() => setParallaxEnabled(!parallaxEnabled)}
         showParticles={showParticles}
         toggleParticles={() => setShowParticles(!showParticles)}
+        swipeAnimationEnabled={swipeAnimationEnabled}
+        toggleSwipeAnimation={() => setSwipeAnimationEnabled(!swipeAnimationEnabled)}
         swipeStiffness={swipeStiffness}
         setSwipeStiffness={setSwipeStiffness}
         swipeDamping={swipeDamping}

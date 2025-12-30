@@ -35,6 +35,9 @@ const getLocalDate = () => {
 };
 
 export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => {
+  // Optimization: Defer heavy logic/data loading
+  const [isDataReady, setIsDataReady] = useState(false);
+
   const [mode, setMode] = useState<TimerMode>('focus');
   const [selectedSubject, setSelectedSubject] = useState<keyof typeof JEE_SYLLABUS>('Physics');
   
@@ -53,21 +56,44 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
   const timerRef = useRef<any>(null);
   const endTimeRef = useRef<number>(0);
   
-  // Audio Refs
+  // Audio Refs - Optimized for performance
   const audioContextRef = useRef<AudioContext | null>(null);
-  const brownNoiseNodeRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
 
+  // Defer heavy initialization to allow UI to mount instantly and animation to finish
   useEffect(() => {
-    const today = getLocalDate();
-    const savedStats = localStorage.getItem(`zenith_stats_${today}`);
-    if (savedStats) setTodayStats(JSON.parse(savedStats));
+    const t = setTimeout(() => {
+        setIsDataReady(true);
+        
+        // Load stats after delay
+        const today = getLocalDate();
+        const savedStats = localStorage.getItem(`zenith_stats_${today}`);
+        if (savedStats) setTodayStats(JSON.parse(savedStats));
+    }, 300);
+    return () => clearTimeout(t);
   }, []);
 
+  // Persist stats only when they change and data is ready
   useEffect(() => {
+    if (!isDataReady) return;
     const today = getLocalDate();
     localStorage.setItem(`zenith_stats_${today}`, JSON.stringify(todayStats));
-  }, [todayStats]);
+  }, [todayStats, isDataReady]);
+
+  // Cleanup Audio on Unmount
+  useEffect(() => {
+    return () => {
+      if (sourceNodeRef.current) {
+        try { sourceNodeRef.current.stop(); } catch(e){}
+        sourceNodeRef.current.disconnect();
+      }
+      if (gainNodeRef.current) gainNodeRef.current.disconnect();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
 
   const toggleAudio = () => {
     const shouldEnable = !soundEnabled;
@@ -80,37 +106,47 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
       const ctx = audioContextRef.current;
       if (ctx?.state === 'suspended') ctx.resume();
       
-      // Create Brown Noise buffer
-      const bufferSize = 4096;
-      const brownNoise = ctx!.createScriptProcessor(bufferSize, 1, 1);
-      brownNoise.onaudioprocess = (e) => {
-        const output = e.outputBuffer.getChannelData(0);
-        let lastOut = 0;
-        for (let i = 0; i < bufferSize; i++) {
-            const white = Math.random() * 2 - 1;
-            output[i] = (lastOut + (0.02 * white)) / 1.02;
-            lastOut = output[i];
-            output[i] *= 3.5;
-        }
-      };
+      const bufferSize = ctx!.sampleRate * 2; 
+      const buffer = ctx!.createBuffer(1, bufferSize, ctx!.sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      // Generate Brown Noise
+      let lastOut = 0;
+      for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          data[i] = (lastOut + (0.02 * white)) / 1.02;
+          lastOut = data[i];
+          data[i] *= 3.5; 
+      }
 
+      const source = ctx!.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      
       const gainNode = ctx!.createGain();
-      gainNode.gain.value = 0.05;
+      gainNode.gain.value = 0.05; 
       
-      brownNoise.connect(gainNode);
+      source.connect(gainNode);
       gainNode.connect(ctx!.destination);
+      source.start();
       
-      brownNoiseNodeRef.current = brownNoise;
+      sourceNodeRef.current = source;
       gainNodeRef.current = gainNode;
     } else {
-      brownNoiseNodeRef.current?.disconnect();
-      gainNodeRef.current?.disconnect();
+      if (sourceNodeRef.current) {
+        try { sourceNodeRef.current.stop(); } catch (e) {}
+        sourceNodeRef.current.disconnect();
+        sourceNodeRef.current = null;
+      }
+      if (gainNodeRef.current) {
+        gainNodeRef.current.disconnect();
+        gainNodeRef.current = null;
+      }
     }
   };
 
   const startTimer = () => {
     setIsActive(true);
-    // Set target end time based on current timeLeft
     endTimeRef.current = Date.now() + timeLeft * 1000;
   };
 
@@ -130,11 +166,9 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
           setTimeLeft(0);
           setIsActive(false);
           clearInterval(timerRef.current);
-          if (soundEnabled) toggleAudio();
-          // Here we could add a completion sound
+          if (soundEnabled) toggleAudio(); 
         } else {
           setTimeLeft(diff);
-          // Track stats only in focus mode
           if (mode === 'focus') {
              setTodayStats(prev => ({ ...prev, [selectedSubject]: prev[selectedSubject] + 1 }));
           }
@@ -182,10 +216,11 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
   ], []);
 
   const currentSubject = subjects.find(s => s.id === selectedSubject)!;
-  const activeTaskObj = targets.find(t => t.id === selectedTask);
-  const pendingTasks = targets.filter(t => !t.completed);
+  
+  // Memoized task data - deferred loading
+  const pendingTasks = useMemo(() => isDataReady ? targets.filter(t => !t.completed) : [], [targets, isDataReady]);
+  const activeTaskObj = useMemo(() => isDataReady ? targets.find(t => t.id === selectedTask) : undefined, [targets, selectedTask, isDataReady]);
 
-  // Theme configuration based on Mode
   const getTheme = () => {
     if (mode === 'focus') {
         return {
@@ -194,7 +229,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
             bg: currentSubject.bg,
             shadow: currentSubject.shadow,
             stops: [
-                selectedSubject === 'Physics' ? '#0891b2' : selectedSubject === 'Chemistry' ? '#fbbf24' : '#fb7185', // Darker Cyan for Physics
+                selectedSubject === 'Physics' ? '#0891b2' : selectedSubject === 'Chemistry' ? '#fbbf24' : '#fb7185',
                 selectedSubject === 'Physics' ? '#2563eb' : selectedSubject === 'Chemistry' ? '#f97316' : '#db2777'
             ]
         };
@@ -207,8 +242,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
             stops: ['#34d399', '#14b8a6']
         };
     } else {
-        // Long Break (Default Theme Color Mode)
-        // Uses CSS variables for stops to match the global theme accent
         return {
             gradient: 'from-indigo-500 to-indigo-600',
             color: 'text-indigo-500 dark:text-indigo-400',
@@ -221,7 +254,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
 
   const theme = getTheme();
 
-  // SVG Config - Responsive Radius
   const viewBoxSize = 260;
   const radius = 110; 
   const circumference = 2 * Math.PI * radius;
@@ -230,7 +262,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
 
   return (
     <>
-      {/* Standard UI */}
       <div 
         id="timer-container" 
         className="w-full max-w-xl mx-auto min-h-[600px] flex flex-col items-center justify-center relative animate-in fade-in duration-700"
@@ -292,7 +323,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                           <div className={`absolute inset-0 border ${s.border} rounded-full opacity-100 animate-in zoom-in-95 duration-300`} />
                           )}
                           
-                          {/* Wrapper to bring content forward */}
                           <div className="relative z-10 flex items-center gap-2">
                               <s.icon size={14} className={isSelected ? 'text-white dark:' + s.color : 'text-slate-400'} />
                               <span className={isSelected ? 'text-white dark:text-current' : ''}>{s.id}</span>
@@ -321,10 +351,11 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                               <ListTodo size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
                           )}
                           
+                          {/* Dropdown - Only functional when data is ready */}
                           <select 
                               value={selectedTask}
                               onChange={(e) => setSelectedTask(e.target.value)}
-                              disabled={isActive}
+                              disabled={isActive || !isDataReady}
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base"
                           >
                               <option value="">Select a Goal...</option>
@@ -332,7 +363,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                           </select>
 
                           <span className={`text-xs font-medium truncate ${activeTaskObj ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
-                              {activeTaskObj ? activeTaskObj.text : 'Select Focus Goal...'}
+                              {!isDataReady ? 'Loading Tasks...' : activeTaskObj ? activeTaskObj.text : 'Select Focus Goal...'}
                           </span>
                       </div>
                       <ChevronDown size={14} className="text-slate-400 dark:text-slate-600" />
@@ -340,7 +371,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
               </div>
           )}
 
-          {/* Break Message - Visible only in Break Modes */}
           {mode !== 'focus' && (
               <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
                   <p className="text-sm font-medium text-slate-600 dark:text-slate-300 italic text-center max-w-xs">
@@ -350,10 +380,9 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
           )}
         </div>
 
-        {/* 2. Middle Section: The Timer Ring (Responsive) */}
+        {/* 2. Middle Section: The Timer Ring */}
         <div className="relative mb-12 group">
           
-          {/* OPTIMIZED Back glow: Use radial-gradient instead of blur filter for better performance */}
           <div 
             className={`
                 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] h-[70vw] max-w-[280px] max-h-[280px] rounded-full
@@ -365,18 +394,16 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                     : 'radial-gradient(circle, rgba(148, 163, 184, 0.1) 0%, transparent 70%)',
                 opacity: 0.8,
                 transform: 'translate3d(-50%, -50%, 0)',
-                willChange: 'opacity, transform' // GPU Hint
+                willChange: 'opacity, transform' 
             }} 
           />
 
-          {/* Responsive Container */}
           <div className="relative w-[75vw] h-[75vw] max-w-[320px] max-h-[320px] flex items-center justify-center">
               <svg 
                   className="w-full h-full transform -rotate-90"
                   viewBox={`0 0 ${viewBoxSize} ${viewBoxSize}`}
                   style={{ willChange: 'transform' }}
               >
-                  {/* Defs for gradients */}
                   <defs>
                       <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                           <stop offset="0%" stopColor={theme.stops[0]} />
@@ -384,7 +411,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                       </linearGradient>
                   </defs>
 
-                  {/* Background Track */}
                   <circle 
                       cx="50%" cy="50%" r={radius} 
                       className="stroke-slate-200 dark:stroke-slate-800/50 fill-none" 
@@ -392,7 +418,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                       style={{ cx: viewBoxSize/2, cy: viewBoxSize/2 }}
                   />
 
-                  {/* Progress Arc - Performance Optimized: No Filters */}
                   <circle 
                       cx="50%" cy="50%" r={radius} 
                       stroke="url(#progressGradient)"
@@ -404,13 +429,11 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                       className="transition-all duration-1000 ease-linear"
                       style={{ 
                           cx: viewBoxSize/2, cy: viewBoxSize/2,
-                          // REMOVED heavy filters (drop-shadow) for smooth 60fps swipe
                           transition: isActive ? 'stroke-dashoffset 1s linear' : 'stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                       }}
                   />
               </svg>
 
-              {/* Content Inside Ring */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className={`
                       text-6xl md:text-7xl font-display font-medium tracking-tight tabular-nums transition-colors duration-300 select-none
@@ -431,10 +454,9 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
           </div>
         </div>
 
-        {/* 3. Bottom Section: Controls Dock */}
+        {/* 3. Bottom Section: Controls */}
         <div className="flex items-center gap-6 p-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/70 dark:hover:bg-slate-900/70 hover:border-slate-300 dark:hover:border-white/10 hover:shadow-indigo-500/5">
           
-          {/* Sound Toggle */}
           <button 
             onClick={toggleAudio}
             className={`
@@ -446,7 +468,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
             <Waves size={18} className={soundEnabled ? 'animate-pulse' : ''} />
           </button>
 
-          {/* Main Play/Pause */}
           <button 
             onClick={() => isActive ? pauseTimer() : startTimer()}
             className={`
@@ -459,7 +480,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
             {isActive ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
           </button>
 
-          {/* Settings Toggle */}
           <div className="relative">
             <button 
               onClick={() => setShowSettings(!showSettings)}
@@ -471,12 +491,10 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
               {showSettings ? <X size={18} /> : <Settings2 size={18} />}
             </button>
 
-            {/* Settings Popup */}
             {showSettings && (
               <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-72 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl animate-in slide-in-from-bottom-2 fade-in duration-200 z-50">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 text-center">Timer Configuration</h4>
                   
-                  {/* Focus Duration */}
                   <div className="mb-4">
                       <div className="flex justify-between items-center mb-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Focus</span>
@@ -490,7 +508,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                       />
                   </div>
 
-                  {/* Short Break Duration */}
                   <div className="mb-4">
                       <div className="flex justify-between items-center mb-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Short Break</span>
@@ -504,7 +521,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                       />
                   </div>
 
-                  {/* Long Break Duration */}
                   <div className="mb-4">
                       <div className="flex justify-between items-center mb-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Long Break</span>
@@ -526,9 +542,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
               </div>
             )}
           </div>
-
         </div>
-
       </div>
     </>
   );

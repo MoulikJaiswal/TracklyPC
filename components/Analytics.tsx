@@ -6,6 +6,7 @@ import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
 
 // Helper for local date string YYYY-MM-DD
 const getLocalDate = (d = new Date()) => {
+  if (isNaN(d.getTime())) return '1970-01-01'; // Fallback for invalid dates
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -21,60 +22,6 @@ interface AnalyticsProps {
   sessions: Session[];
   tests: TestResult[];
 }
-
-const WeeklyActivityChart = memo(({ sessions }: { sessions: Session[] }) => {
-  const data = useMemo(() => {
-    const activityMap: Record<string, number> = {};
-    sessions.forEach(s => {
-        const dateStr = getLocalDateFromTimestamp(s.timestamp);
-        activityMap[dateStr] = (activityMap[dateStr] || 0) + s.attempted;
-    });
-
-    const days = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const dateStr = getLocalDate(d);
-      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
-      days.push({ 
-          label: dayLabel, 
-          value: activityMap[dateStr] || 0, 
-          date: dateStr 
-      });
-    }
-    return days;
-  }, [sessions]);
-
-  const maxValue = Math.max(...data.map(d => d.value), 10);
-
-  return (
-    <div className="flex items-end justify-between h-48 w-full gap-2 pt-4">
-      {data.map((d, i) => {
-        const heightPercent = (d.value / maxValue);
-        const isToday = i === 6;
-        return (
-          <div key={d.date} className="flex flex-col items-center gap-2 flex-1 group">
-             <div className="relative w-full flex justify-center h-full items-end">
-                <div className="absolute -top-8 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                   {d.value} Qs
-                </div>
-                <div 
-                   className={`w-full max-w-[24px] md:max-w-[40px] rounded-t-lg transition-transform duration-700 ease-out relative overflow-hidden origin-bottom will-change-transform ${isToday ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-800 group-hover:bg-indigo-500/50'}`}
-                   style={{ height: '100%', transform: `scaleY(${Math.max(heightPercent, 0.04)})` }}
-                >
-                   <div className="absolute inset-0 bg-gradient-to-t from-black/5 dark:from-black/20 to-transparent"></div>
-                </div>
-             </div>
-             <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
-               {d.label}
-             </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-});
 
 const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
   const subjects = useMemo(() => [
@@ -93,8 +40,9 @@ const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
       sessions.forEach(s => {
           const sub = s.subject as keyof typeof acc;
           if (acc[sub]) {
-              acc[sub].attempted += s.attempted;
-              acc[sub].correct += s.correct;
+              // Ensure number types
+              acc[sub].attempted += (Number(s.attempted) || 0);
+              acc[sub].correct += (Number(s.correct) || 0);
           }
       });
       return acc;
@@ -139,8 +87,9 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
     sessions.forEach(s => {
         const key = `${s.subject}|${s.topic}`;
         if (!stats[key]) stats[key] = { attempted: 0, correct: 0 };
-        stats[key].attempted += s.attempted;
-        stats[key].correct += s.correct;
+        // Ensure number types
+        stats[key].attempted += (Number(s.attempted) || 0);
+        stats[key].correct += (Number(s.correct) || 0);
     });
     return stats;
   }, [sessions]);
@@ -216,25 +165,18 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
 });
 
 export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) => {
-  // PROGRESSIVE RENDERING: 
-  // 1. Calculate and show Summary Stats immediately (Calculation is fast O(N)).
-  // 2. Defer Charts/Heatmap by 250ms to allow route transition to complete smoothly.
-  const [chartsReady, setChartsReady] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setChartsReady(true), 250);
-    return () => clearTimeout(timer);
-  }, []);
-
+  // Removed artificial delay ("buffer") to show content immediately
+  
   const stats = useMemo(() => {
-    const totalAttempted = sessions.reduce((acc, s) => acc + (s.attempted || 0), 0);
-    const totalCorrect = sessions.reduce((acc, s) => acc + (s.correct || 0), 0);
+    // Ensure numbers for aggregation
+    const totalAttempted = sessions.reduce((acc, s) => acc + (Number(s.attempted) || 0), 0);
+    const totalCorrect = sessions.reduce((acc, s) => acc + (Number(s.correct) || 0), 0);
     const avgAccuracy = totalAttempted > 0 ? (totalCorrect / totalAttempted) * 100 : 0;
 
     const mistakeDistribution: Record<string, number> = {};
     sessions.forEach(s => {
         Object.entries(s.mistakes).forEach(([key, val]) => {
-            mistakeDistribution[key] = (mistakeDistribution[key] || 0) + ((val as number) || 0);
+            mistakeDistribution[key] = (mistakeDistribution[key] || 0) + (Number(val) || 0);
         });
     });
 
@@ -288,22 +230,10 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
         </Card>
       </div>
 
-      {/* Heavy Charts - Deferred */}
-      {chartsReady ? (
-        <div className="animate-in fade-in duration-500 space-y-6 md:space-y-8">
+      <div className="animate-in fade-in duration-500 space-y-6 md:space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-                {/* Left Col: Weekly Activity & Subjects */}
+                {/* Left Col: Subjects */}
                 <div className="lg:col-span-2 space-y-6 md:space-y-8">
-                    <Card className="bg-white/60 dark:bg-slate-900/60 p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 dark:text-white flex items-center gap-2">
-                        <BarChart2 size={16} className="text-indigo-500 dark:text-indigo-400" /> Weekly Activity
-                        </h3>
-                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Questions per day</span>
-                    </div>
-                    <WeeklyActivityChart sessions={sessions} />
-                    </Card>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                     {/* Subject Breakdown */}
                     <div className="space-y-4">
@@ -374,26 +304,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
             
             {/* Syllabus Heatmap Section */}
             <SyllabusHeatmap sessions={sessions} />
-        </div>
-      ) : (
-        /* Lightweight Skeleton Loader for Charts */
-        <div className="animate-pulse space-y-6 md:space-y-8 mt-6">
-             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-                 <div className="lg:col-span-2 space-y-6">
-                     <div className="h-64 bg-slate-200/50 dark:bg-white/5 rounded-3xl" />
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                         <div className="h-48 bg-slate-200/50 dark:bg-white/5 rounded-3xl" />
-                         <div className="h-48 bg-slate-200/50 dark:bg-white/5 rounded-3xl" />
-                     </div>
-                 </div>
-                 <div className="lg:col-span-1 h-full">
-                     <div className="h-full min-h-[400px] bg-slate-200/50 dark:bg-white/5 rounded-3xl" />
-                 </div>
-             </div>
-             <div className="h-96 bg-slate-200/50 dark:bg-white/5 rounded-3xl" />
-        </div>
-      )}
-      
+      </div>
     </div>
   );
 });

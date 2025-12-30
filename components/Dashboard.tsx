@@ -1,4 +1,4 @@
-import React, { useMemo, useState, memo } from 'react';
+import React, { useMemo, useState, memo, useCallback } from 'react';
 import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History } from 'lucide-react';
 import { Session, Target, MistakeCounts } from '../types';
 import { Card } from './Card';
@@ -23,7 +23,7 @@ interface DashboardProps {
   quote: { text: string; author: string };
   onDelete: (id: string) => void;
   goals: { Physics: number; Chemistry: number; Maths: number };
-  setGoals: (goals: { Physics: number; Chemistry: number; Maths: number }) => void;
+  setGoals: React.Dispatch<React.SetStateAction<{ Physics: number; Chemistry: number; Maths: number }>>;
   onSaveSession: (session: Omit<Session, 'id' | 'timestamp'>) => void;
 }
 
@@ -33,10 +33,6 @@ const ActivityHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
     const dateCounts: Record<string, number> = {};
     sessions.forEach(s => {
         const d = getLocalDateFromTimestamp(s.timestamp);
-        // Assuming we count number of sessions (pods) logged. 
-        // If we want questions, we'd add s.attempted.
-        // Dashboard tooltip says "Questions" but logic used length. 
-        // Switching to length for consistency with existing visual, but optimized.
         dateCounts[d] = (dateCounts[d] || 0) + 1;
     });
 
@@ -129,7 +125,7 @@ const SubjectPod = memo(({
         if ((e.target as HTMLElement).closest('.goal-input')) return;
         onClick();
       }}
-      className="relative overflow-hidden rounded-[2rem] border border-slate-200 dark:border-white/5 p-5 md:p-6 flex flex-col justify-between min-h-[160px] md:min-h-[220px] group cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:border-slate-300 dark:hover:border-white/20 active:scale-95 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md transform-gpu will-change-transform"
+      className="relative overflow-hidden rounded-[2rem] border border-slate-200 dark:border-white/5 p-5 md:p-6 flex flex-col justify-between min-h-[160px] md:min-h-[220px] group cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:border-slate-300 dark:hover:border-white/20 active:scale-95 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md transform-gpu will-change-transform transition-[transform,box-shadow,border-color,background-color] duration-300"
       style={{ transform: 'translateZ(0)' }}
     >
       {/* Hover Glow Layer - Absolute positioning for smooth opacity transition (GPU accelerated) */}
@@ -491,6 +487,16 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
     targets.filter(t => t.date === todayStr && !t.completed).slice(0, 3), 
   [targets, todayStr]);
 
+  // Optimized Handlers: Wrapped in useCallback to ensure referential stability.
+  // This prevents the heavy SubjectPod components from re-rendering when parent re-renders but goals are same.
+  const handlePhysicsGoal = useCallback((val: number) => setGoals(g => ({...g, Physics: val})), [setGoals]);
+  const handleChemGoal = useCallback((val: number) => setGoals(g => ({...g, Chemistry: val})), [setGoals]);
+  const handleMathsGoal = useCallback((val: number) => setGoals(g => ({...g, Maths: val})), [setGoals]);
+
+  const openPhysics = useCallback(() => setSelectedSubject('Physics'), []);
+  const openChem = useCallback(() => setSelectedSubject('Chemistry'), []);
+  const openMaths = useCallback(() => setSelectedSubject('Maths'), []);
+
   return (
     <>
       <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500">
@@ -529,27 +535,27 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
             icon={Atom} 
             count={stats.Physics} 
             target={goals.Physics}
-            onGoalChange={(val) => setGoals({...goals, Physics: val})}
+            onGoalChange={handlePhysicsGoal}
             themeColor="blue"
-            onClick={() => setSelectedSubject('Physics')}
+            onClick={openPhysics}
           />
           <SubjectPod 
             subject="Chemistry" 
             icon={Zap} 
             count={stats.Chemistry} 
             target={goals.Chemistry} 
-            onGoalChange={(val) => setGoals({...goals, Chemistry: val})}
+            onGoalChange={handleChemGoal}
             themeColor="orange"
-            onClick={() => setSelectedSubject('Chemistry')}
+            onClick={openChem}
           />
           <SubjectPod 
             subject="Maths" 
             icon={Calculator} 
             count={stats.Maths} 
             target={goals.Maths} 
-            onGoalChange={(val) => setGoals({...goals, Maths: val})}
+            onGoalChange={handleMathsGoal}
             themeColor="rose"
-            onClick={() => setSelectedSubject('Maths')}
+            onClick={openMaths}
           />
         </div>
 

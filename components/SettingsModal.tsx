@@ -18,6 +18,8 @@ interface SettingsModalProps {
   toggleParallax: () => void;
   showParticles: boolean;
   toggleParticles: () => void;
+  swipeAnimationEnabled: boolean;
+  toggleSwipeAnimation: () => void;
   swipeStiffness: number;
   setSwipeStiffness: (val: number) => void;
   swipeDamping: number;
@@ -38,6 +40,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   toggleParallax,
   showParticles,
   toggleParticles,
+  swipeAnimationEnabled,
+  toggleSwipeAnimation,
   swipeStiffness,
   setSwipeStiffness,
   swipeDamping,
@@ -47,7 +51,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <Card className="w-full max-w-lg bg-white dark:bg-[#0f172a] border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
+      <Card className="w-full max-w-lg bg-white dark:bg-[#0f172a] border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col [&>div.z-10]:flex [&>div.z-10]:flex-col [&>div.z-10]:h-full [&>div.z-10]:overflow-hidden">
         <div className="flex justify-between items-center mb-6 shrink-0">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             Settings
@@ -60,7 +64,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        <div className="space-y-6 overflow-y-auto pr-2 pb-4">
+        <div className="space-y-6 overflow-y-auto pr-2 pb-4 flex-1 min-h-0">
           {/* Tutorial Section */}
           <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl flex items-center justify-between">
              <div>
@@ -83,52 +87,82 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Animation Tuning</label>
              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-xl space-y-4">
                 
-                {/* Stiffness Slider */}
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">Swipe Speed (Stiffness)</span>
-                        <span className="text-xs font-mono font-bold text-indigo-500">{swipeStiffness}</span>
+                {/* Swipe Toggle */}
+                <button
+                  onClick={toggleSwipeAnimation}
+                  className="w-full flex items-center justify-between p-2 -ml-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/5 transition-colors"
+                >
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">Swipe Transitions</span>
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${swipeAnimationEnabled ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${swipeAnimationEnabled ? 'left-6' : 'left-1'}`} />
                     </div>
-                    <input 
-                        type="range" 
-                        min="50" 
-                        max="8000" 
-                        step="50"
-                        value={swipeStiffness}
-                        onChange={(e) => setSwipeStiffness(Number(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-500"
-                    />
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Higher = Faster/Snappier. Lower = Slower/Softer. (Default: 600)
-                    </p>
-                </div>
+                </button>
+                
+                {/* Sliders (Only visible in Standard Mode) */}
+                {animationsEnabled && (
+                  <>
+                    <div className="h-px bg-slate-200 dark:bg-white/5 w-full" />
 
-                {/* Damping Slider */}
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">Bounce Control (Damping)</span>
-                        <span className="text-xs font-mono font-bold text-emerald-500">{swipeDamping}</span>
+                    <div className={`space-y-4 transition-opacity ${!swipeAnimationEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                        {/* Stiffness Slider */}
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">Swipe Speed (Stiffness)</span>
+                                <span className="text-xs font-mono font-bold text-indigo-500">{swipeStiffness}</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="50" 
+                                max="8000" 
+                                step="50"
+                                value={swipeStiffness}
+                                onChange={(e) => setSwipeStiffness(Number(e.target.value))}
+                                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                            />
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                                Higher = Faster/Snappier. Lower = Slower/Softer. (Default: 600)
+                            </p>
+                        </div>
+
+                        {/* Damping Slider */}
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">Bounce Control (Damping)</span>
+                                <span className="text-xs font-mono font-bold text-emerald-500">{swipeDamping}</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="5" 
+                                max="500" 
+                                step="5"
+                                value={swipeDamping}
+                                onChange={(e) => setSwipeDamping(Number(e.target.value))}
+                                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                            />
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                                Lower = More Bounce. Higher = Less Bounce. (Default: 40)
+                            </p>
+                        </div>
                     </div>
-                    <input 
-                        type="range" 
-                        min="5" 
-                        max="500" 
-                        step="5"
-                        value={swipeDamping}
-                        onChange={(e) => setSwipeDamping(Number(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
-                    />
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Lower = More Bounce. Higher = Less Bounce. (Default: 40)
-                    </p>
-                </div>
-
+                  </>
+                )}
+                
+                {!animationsEnabled && swipeAnimationEnabled && (
+                   <div className="pt-1">
+                      <p className="text-[10px] text-indigo-500/80 dark:text-indigo-400/80 italic font-medium text-center bg-indigo-50 dark:bg-indigo-500/10 p-2 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
+                         Simple glide transition active in High Performance mode.
+                      </p>
+                   </div>
+                )}
              </div>
           </div>
 
-          {/* Visual Preferences */}
-          <div className="space-y-3">
-             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Visual Effects</label>
+          {/* Visual Preferences - Disabled in High Perf Mode */}
+          <div className={`space-y-3 transition-all duration-300 ${!animationsEnabled ? 'opacity-40 grayscale pointer-events-none select-none' : ''}`}>
+             <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Visual Effects</label>
+                {!animationsEnabled && <span className="text-[9px] font-bold uppercase tracking-wider text-amber-500">Disabled by High Perf</span>}
+             </div>
              <div className="grid grid-cols-1 gap-3">
                 {/* Aurora Toggle */}
                 <button 
