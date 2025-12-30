@@ -96,7 +96,7 @@ const AnimatedBackground = React.memo(({
 }) => {
   const config = THEME_CONFIG[themeId];
   const containerRef = useRef<HTMLDivElement>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (!parallaxEnabled) return;
@@ -547,6 +547,11 @@ const App: React.FC = () => {
   
   const [swipeStiffness, setSwipeStiffness] = useState(6000); 
   const [swipeDamping, setSwipeDamping] = useState(300);    
+
+  // Audio Settings
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundPitch, setSoundPitch] = useState(600);
+  const [soundVolume, setSoundVolume] = useState(0.5);
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isTutorialActive, setIsTutorialActive] = useState(false);
@@ -556,6 +561,44 @@ const App: React.FC = () => {
   const [touchEnd, setTouchEnd] = useState<{ x: number, y: number } | null>(null);
   const [direction, setDirection] = useState(0);
   const minSwipeDistance = 50;
+
+  // Audio Context Ref
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Global Click Sound Effect
+  useEffect(() => {
+    const handleClick = () => {
+       if (!soundEnabled) return;
+
+       // Initialize Audio Context on first interaction
+       if (!audioCtxRef.current) {
+          audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+       }
+       const ctx = audioCtxRef.current;
+       if (ctx.state === 'suspended') ctx.resume();
+
+       const osc = ctx.createOscillator();
+       const gain = ctx.createGain();
+       
+       osc.connect(gain);
+       gain.connect(ctx.destination);
+
+       osc.type = 'sine';
+       osc.frequency.setValueAtTime(soundPitch, ctx.currentTime);
+
+       // Envelope for a "click" or "pop" sound
+       // Start at 0, quick attack to volume, then decay
+       gain.gain.setValueAtTime(0, ctx.currentTime);
+       gain.gain.linearRampToValueAtTime(soundVolume * 0.5, ctx.currentTime + 0.005); // Attack
+       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08); // Decay
+
+       osc.start(ctx.currentTime);
+       osc.stop(ctx.currentTime + 0.08);
+    };
+
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, [soundEnabled, soundPitch, soundVolume]);
 
   // 1. Auth Listener
   useEffect(() => {
@@ -634,6 +677,11 @@ const App: React.FC = () => {
     setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
     setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)));
     setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
+    
+    // Audio Settings Load
+    setSoundEnabled(safeJSONParse('zenith_sound_enabled', true));
+    setSoundPitch(Number(safeJSONParse('zenith_sound_pitch', 600)));
+    setSoundVolume(Number(safeJSONParse('zenith_sound_volume', 0.5)));
   }, []);
 
   // Persist Settings
@@ -650,6 +698,11 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('zenith_swipe_animation', JSON.stringify(swipeAnimationEnabled)); }, [swipeAnimationEnabled]);
   useEffect(() => { localStorage.setItem('zenith_swipe_stiffness', String(swipeStiffness)); }, [swipeStiffness]);
   useEffect(() => { localStorage.setItem('zenith_swipe_damping', String(swipeDamping)); }, [swipeDamping]);
+  
+  // Persist Audio Settings
+  useEffect(() => { localStorage.setItem('zenith_sound_enabled', JSON.stringify(soundEnabled)); }, [soundEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_sound_pitch', String(soundPitch)); }, [soundPitch]);
+  useEffect(() => { localStorage.setItem('zenith_sound_volume', String(soundVolume)); }, [soundVolume]);
 
   const toggleSidebar = useCallback(() => {
       setSidebarCollapsed(prev => {
@@ -1140,6 +1193,13 @@ const App: React.FC = () => {
         setSwipeStiffness={setSwipeStiffness}
         swipeDamping={swipeDamping}
         setSwipeDamping={setSwipeDamping}
+        
+        soundEnabled={soundEnabled}
+        toggleSound={() => setSoundEnabled(!soundEnabled)}
+        soundPitch={soundPitch}
+        setSoundPitch={setSoundPitch}
+        soundVolume={soundVolume}
+        setSoundVolume={setSoundVolume}
       />
     </div>
   );

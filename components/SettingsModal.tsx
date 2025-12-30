@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Zap, ZapOff, CheckCircle2, Map, Globe, MousePointer2, Sparkles, Layers } from 'lucide-react';
+import { X, Zap, ZapOff, CheckCircle2, Map, Globe, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Music } from 'lucide-react';
 import { Card } from './Card';
 import { ThemeId } from '../types';
 import { THEME_CONFIG } from '../constants';
@@ -24,6 +24,14 @@ interface SettingsModalProps {
   setSwipeStiffness: (val: number) => void;
   swipeDamping: number;
   setSwipeDamping: (val: number) => void;
+  
+  // Sound Props
+  soundEnabled: boolean;
+  toggleSound: () => void;
+  soundPitch: number;
+  setSoundPitch: (val: number) => void;
+  soundVolume: number;
+  setSoundVolume: (val: number) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -45,7 +53,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   swipeStiffness,
   setSwipeStiffness,
   swipeDamping,
-  setSwipeDamping
+  setSwipeDamping,
+  
+  soundEnabled,
+  toggleSound,
+  soundPitch,
+  setSoundPitch,
+  soundVolume,
+  setSoundVolume
 }) => {
   if (!isOpen) return null;
 
@@ -80,6 +95,70 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              >
                <Map size={14} /> Start Tour
              </button>
+          </div>
+
+          {/* Sound Settings */}
+          <div className="space-y-3">
+             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Audio Feedback</label>
+             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-xl space-y-4">
+                <button
+                  onClick={toggleSound}
+                  className="w-full flex items-center justify-between p-2 -ml-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/5 transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-lg ${soundEnabled ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                        </div>
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">Click Sounds</span>
+                    </div>
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${soundEnabled ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${soundEnabled ? 'left-6' : 'left-1'}`} />
+                    </div>
+                </button>
+
+                {soundEnabled && (
+                  <div className="space-y-4 pl-1 animate-in slide-in-from-top-2 fade-in duration-300">
+                      <div className="h-px bg-slate-200 dark:bg-white/5 w-full" />
+                      
+                      {/* Pitch Slider */}
+                      <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">Pitch (Tone)</span>
+                                <span className="text-xs font-mono font-bold text-indigo-500">{soundPitch}Hz</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="200" 
+                                max="1200" 
+                                step="50"
+                                value={soundPitch}
+                                onChange={(e) => setSoundPitch(Number(e.target.value))}
+                                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                            />
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                                Low = Thud. High = Click.
+                            </p>
+                      </div>
+
+                      {/* Volume / Softness Slider */}
+                      <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white">Volume / Softness</span>
+                                <span className="text-xs font-mono font-bold text-emerald-500">{Math.round(soundVolume * 100)}%</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="0.1" 
+                                max="1.0" 
+                                step="0.1"
+                                value={soundVolume}
+                                onChange={(e) => setSoundVolume(Number(e.target.value))}
+                                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                            />
+                      </div>
+                  </div>
+                )}
+             </div>
           </div>
 
           {/* Animation Tuning Section */}
