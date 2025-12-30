@@ -16,7 +16,8 @@ import {
   LogOut,
   ShieldCheck,
   WifiOff,
-  ShoppingBag
+  ShoppingBag,
+  Download
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
@@ -386,7 +387,9 @@ const Sidebar = React.memo(({
     user,
     isGuest,
     onLogin,
-    onLogout
+    onLogout,
+    deferredPrompt,
+    onInstall
 }: { 
     view: ViewType, 
     setView: (v: ViewType) => void, 
@@ -396,7 +399,9 @@ const Sidebar = React.memo(({
     user: User | null,
     isGuest: boolean,
     onLogin: () => void,
-    onLogout: () => void
+    onLogout: () => void,
+    deferredPrompt: any,
+    onInstall: () => void
 }) => {
   return (
     <aside 
@@ -483,7 +488,20 @@ const Sidebar = React.memo(({
           )}
       </div>
 
-      <div className="p-4 border-t border-slate-200 dark:border-white/5 w-full">
+      <div className="p-4 border-t border-slate-200 dark:border-white/5 w-full space-y-2">
+        {/* Install Button (Only visible if prompt available) */}
+        {deferredPrompt && (
+            <button 
+              onClick={onInstall}
+              className={`w-full flex items-center px-3 py-3 rounded-xl text-indigo-500 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all group ${isCollapsed ? 'justify-center gap-0' : 'gap-3'}`}
+            >
+               <div className="p-2 rounded-xl flex-shrink-0">
+                 <Download size={20} />
+               </div>
+               <span className={`text-sm font-bold transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Install App</span>
+            </button>
+        )}
+
         <button 
           id="settings-btn"
           onClick={onOpenSettings}
@@ -563,9 +581,31 @@ const App: React.FC = () => {
   const [touchEnd, setTouchEnd] = useState<{ x: number, y: number } | null>(null);
   const [direction, setDirection] = useState(0);
   const minSwipeDistance = 50;
+  
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   // Audio Context Ref
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Capture Install Prompt
+  useEffect(() => {
+    const handler = (e: any) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+          setDeferredPrompt(null);
+      }
+  };
 
   // Global Click Sound Effect
   useEffect(() => {
@@ -1058,6 +1098,8 @@ const App: React.FC = () => {
           isGuest={isGuest}
           onLogin={handleLogin}
           onLogout={handleLogout}
+          deferredPrompt={deferredPrompt}
+          onInstall={handleInstallClick}
       />
 
       {/* Mobile Header */}

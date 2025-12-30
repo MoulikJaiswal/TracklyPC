@@ -1,73 +1,88 @@
-import { GoogleGenAI, Type } from "@google/genai";
+
 import { Session, TestResult } from "../types";
 
+// Local Analysis Engine - No API Key Required
 export const generateAnalysis = async (sessions: Session[], tests: TestResult[]) => {
-  const apiKey = process.env.API_KEY;
+  // Simulate "thinking" delay for better UX
+  await new Promise(resolve => setTimeout(resolve, 1500));
 
-  // Initialize client only when needed to avoid startup crashes
-  // Guidelines: API key must be obtained from process.env.API_KEY
-  const ai = new GoogleGenAI({ apiKey });
+  // 1. Calculate Subject Performance
+  const subjectStats: Record<string, { total: number, correct: number }> = {
+    Physics: { total: 0, correct: 0 },
+    Chemistry: { total: 0, correct: 0 },
+    Maths: { total: 0, correct: 0 }
+  };
 
-  // Prepare data summary
-  const totalQs = sessions.reduce((acc, s) => acc + s.attempted, 0);
-  const subjectBreakdown = sessions.reduce((acc, s) => {
-    acc[s.subject] = (acc[s.subject] || 0) + s.attempted;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const mistakeSummary = sessions.reduce((acc, s) => {
-    Object.entries(s.mistakes).forEach(([type, count]) => {
-      acc[type] = (acc[type] || 0) + (count || 0);
-    });
-    return acc;
-  }, {} as Record<string, number>);
-
-  const recentTests = tests.slice(0, 3).map(t => `${t.name}: ${t.marks}/${t.total} (${t.temperament})`).join(', ');
-
-  const prompt = `
-    Role: You are an elite JEE (Joint Entrance Exam) tutor and data analyst using Trackly.
-    
-    Data:
-    - Total Questions Solved: ${totalQs}
-    - Subject Distribution: ${JSON.stringify(subjectBreakdown)}
-    - Mistake Patterns: ${JSON.stringify(mistakeSummary)}
-    - Recent Tests: ${recentTests || "No tests taken yet"}
-    
-    Task:
-    Analyze the student's performance trends based on the data above.
-    
-    Output JSON Schema:
-    {
-      "bottleneckTitle": "Short title of the biggest weakness (e.g., 'Weak Calculus Foundation')",
-      "analysis": "2 concise sentences analyzing the trend and root cause.",
-      "temperament": "One word or short phrase describing their test mindset (e.g., 'Anxious', 'Steady').",
-      "actionPlan": ["Step 1", "Step 2", "Step 3"]
+  sessions.forEach(s => {
+    if (subjectStats[s.subject]) {
+      subjectStats[s.subject].total += (s.attempted || 0);
+      subjectStats[s.subject].correct += (s.correct || 0);
     }
-  `;
+  });
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            bottleneckTitle: { type: Type.STRING },
-            analysis: { type: Type.STRING },
-            temperament: { type: Type.STRING },
-            actionPlan: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          }
-        }
+  // 2. Identify Weakest Subject
+  let weakestSubject = 'Physics';
+  let minAccuracy = 101;
+  let totalSolved = 0;
+
+  Object.entries(subjectStats).forEach(([subj, stats]) => {
+    totalSolved += stats.total;
+    if (stats.total > 0) {
+      const acc = (stats.correct / stats.total) * 100;
+      if (acc < minAccuracy) {
+        minAccuracy = acc;
+        weakestSubject = subj;
       }
+    }
+  });
+
+  // 3. Identify Top Mistake Pattern
+  const mistakeCounts: Record<string, number> = {};
+  sessions.forEach(s => {
+    Object.entries(s.mistakes).forEach(([type, count]) => {
+      mistakeCounts[type] = (mistakeCounts[type] || 0) + (count || 0);
     });
-    return response.text;
-  } catch (error) {
-    console.error("AI Analysis Failed:", error);
-    throw error;
+  });
+  
+  // Sort mistakes by frequency
+  const topMistakes = Object.entries(mistakeCounts).sort((a, b) => b[1] - a[1]);
+  const topMistakeName = topMistakes.length > 0 ? topMistakes[0][0] : null;
+
+  // 4. Generate Heuristic Response
+  let bottleneckTitle = "Great Start!";
+  let analysis = "Keep logging more sessions to get detailed insights.";
+  let actionPlan = [
+    "Log at least 3 sessions per subject.",
+    "Tag your mistakes honestly.",
+    "Set a daily goal in the dashboard."
+  ];
+
+  if (totalSolved > 10) {
+    bottleneckTitle = `Focus on ${weakestSubject}`;
+    
+    let mistakeText = "accuracy needs improvement";
+    if (topMistakeName === 'concept') mistakeText = "conceptual gaps are the main issue";
+    if (topMistakeName === 'calc') mistakeText = "calculation errors are frequent";
+    if (topMistakeName === 'panic') mistakeText = "time pressure is affecting scores";
+    if (topMistakeName === 'formula') mistakeText = "formula recall is a bottleneck";
+
+    analysis = `Your ${weakestSubject} accuracy is ${Math.round(minAccuracy)}%, which is your current lowest. Data indicates that ${mistakeText}.`;
+
+    actionPlan = [
+      `Dedicate your next 2 study blocks specifically to ${weakestSubject}.`,
+      topMistakeName === 'concept' ? `Review ${weakestSubject} theory before solving problems.` : `Practice 20 ${weakestSubject} questions with a focus on accuracy over speed.`,
+      `Analyze your next test to see if ${topMistakeName || 'general'} errors persist.`
+    ];
   }
+
+  const temperament = tests.length > 0 ? tests[0].temperament : "Building Consistency";
+
+  const response = {
+    bottleneckTitle,
+    analysis,
+    temperament,
+    actionPlan
+  };
+
+  return JSON.stringify(response);
 };

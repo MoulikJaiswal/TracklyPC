@@ -166,30 +166,21 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
     try {
       const reportText = await generateAnalysis(sessions, tests);
       
-      // Clean JSON string (remove markdown fences if present)
-      let cleanJson = reportText || '{}';
-      cleanJson = cleanJson.replace(/```json/g, '').replace(/```/g, '').trim();
-      
       try {
-          const json = JSON.parse(cleanJson);
+          const json = JSON.parse(reportText);
           setAiReport(json);
       } catch (e) {
           console.error("JSON Parse Error", e);
           setAiReport({ 
               bottleneckTitle: "Analysis Report", 
-              analysis: reportText.replace(/\*\*/g, ''), 
+              analysis: reportText, 
               temperament: "Review Required", 
-              actionPlan: ["Could not parse detailed plan. See analysis above."] 
+              actionPlan: ["Analysis generated. Check details above."] 
           });
       }
     } catch (e: any) {
       console.error(e);
-      // Friendly error handling for missing API keys
-      if (e.message && e.message.includes("API Key")) {
-        setError("API Key Missing. Add VITE_GEMINI_API_KEY to your .env file.");
-      } else {
-        setError("Failed to generate analysis. Please try again later.");
-      }
+      setError("Failed to generate analysis. Please try again later.");
       setAiReport(null);
     } finally {
       setIsAnalyzing(false);
@@ -254,7 +245,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
 
                         {/* AI Coach Insight */}
                         <div className="space-y-4">
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Gemini Coach</h3>
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Performance Coach</h3>
                             <div className="p-6 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 relative overflow-hidden min-h-[320px] flex flex-col transform-gpu">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                                     <Sparkles size={80} className="text-indigo-900 dark:text-white" />
@@ -265,8 +256,8 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                                         <div className="h-full flex flex-col items-center justify-center gap-4 text-indigo-600 dark:text-indigo-300 py-10">
                                             <Loader2 size={32} className="animate-spin" />
                                             <div className="text-center">
-                                                <span className="text-xs font-bold uppercase tracking-widest block mb-1">Analyzing Patterns</span>
-                                                <span className="text-[10px] text-indigo-400 dark:text-indigo-500 uppercase font-bold tracking-widest">Studying {sessions.length} sessions...</span>
+                                                <span className="text-xs font-bold uppercase tracking-widest block mb-1">Crunching Data</span>
+                                                <span className="text-[10px] text-indigo-400 dark:text-indigo-500 uppercase font-bold tracking-widest">Analyzing {sessions.length} sessions...</span>
                                             </div>
                                         </div>
                                     ) : error ? (
@@ -274,7 +265,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                                             <div className="p-3 bg-rose-100 dark:bg-rose-500/20 rounded-full mb-3 text-rose-500">
                                                 <Lock size={20} />
                                             </div>
-                                            <h4 className="text-sm font-bold text-rose-900 dark:text-white mb-2">Configuration Error</h4>
+                                            <h4 className="text-sm font-bold text-rose-900 dark:text-white mb-2">Analysis Error</h4>
                                             <p className="text-xs text-rose-700 dark:text-rose-300 mb-6 max-w-[250px] leading-relaxed mx-auto">
                                                 {error}
                                             </p>
@@ -328,7 +319,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                                         <div className="h-full flex flex-col items-center justify-center text-center py-8 px-4">
                                             <h4 className="text-lg font-bold text-indigo-900 dark:text-white mb-2">Performance Review</h4>
                                             <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-6 max-w-[220px] leading-relaxed mx-auto">
-                                                Gemini analyzes your speed, accuracy, and mistake patterns to build a custom study plan.
+                                                Trackly analyzes your speed, accuracy, and mistake patterns to build a custom study plan.
                                             </p>
                                             <button 
                                                 onClick={handleGenerateReport}
@@ -344,7 +335,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                                     <div className="mt-6 pt-4 border-t border-indigo-200 dark:border-white/5 flex justify-between items-center">
                                         <div className="flex items-center gap-2 text-indigo-500/60 dark:text-indigo-400/60">
                                             <Zap size={12} />
-                                            <span className="text-[9px] uppercase font-bold tracking-widest">Gemini 2.0 Flash</span>
+                                            <span className="text-[9px] uppercase font-bold tracking-widest">Trackly AI Engine (Local)</span>
                                         </div>
                                         <button 
                                             onClick={handleGenerateReport}

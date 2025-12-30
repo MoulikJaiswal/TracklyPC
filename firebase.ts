@@ -1,6 +1,7 @@
+
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -19,3 +20,17 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Enable Offline Persistence
+// This allows the app to work with cached data if the network is lost
+try {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+        console.log('Persistence failed: Multiple tabs open');
+    } else if (err.code == 'unimplemented') {
+        console.log('Persistence failed: Browser not supported');
+    }
+  });
+} catch (e) {
+  console.log("Persistence initialization error", e);
+}

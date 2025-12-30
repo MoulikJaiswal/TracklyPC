@@ -1,4 +1,5 @@
-import React, { useState, useMemo, memo } from 'react';
+
+import React, { useState, useMemo, memo, useRef } from 'react';
 import { Plus, Trash2, CheckCircle2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Target, Trophy, List } from 'lucide-react';
 import { Target as TargetType } from '../types';
 import { Card } from './Card';
@@ -32,6 +33,9 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date()); // For month navigation
   const [newTargetText, setNewTargetText] = useState('');
   const [isTest, setIsTest] = useState(false);
+  
+  // Ref for the task input to handle auto-focus
+  const taskInputRef = useRef<HTMLInputElement>(null);
 
   const todayStr = getLocalDate();
 
@@ -96,6 +100,14 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
     setIsTest(false);
   };
 
+  const handleDateClick = (dateStr: string) => {
+    setSelectedDate(dateStr);
+    // Auto-focus the input when a date is selected for better UX
+    setTimeout(() => {
+        taskInputRef.current?.focus();
+    }, 10);
+  };
+
   const dayTargets = targets.filter(t => t.date === selectedDate);
   const monthName = currentMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -124,6 +136,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
              onClick={() => {
                  setSelectedDate(todayStr);
                  setCurrentMonthDate(new Date());
+                 handleDateClick(todayStr);
              }}
              className="px-6 py-3 bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-2xl hover:bg-indigo-600 hover:text-white transition-colors shrink-0"
            >
@@ -180,10 +193,13 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                         return (
                         <button 
                             key={dateStr}
-                            onClick={() => setSelectedDate(dateStr)}
+                            onClick={() => handleDateClick(dateStr)}
                             className={`
-                            relative flex flex-col items-center justify-center py-6 rounded-2xl transition-[transform,background-color,color,box-shadow] duration-300 group
-                            ${isSelected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105 z-10' : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200'}
+                            relative flex flex-col items-center justify-center py-6 rounded-2xl transition-all duration-300 group
+                            ${isSelected 
+                                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-110 z-10 ring-4 ring-indigo-50 dark:ring-indigo-500/20' 
+                                : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200'
+                            }
                             ${isToday && !isSelected ? 'ring-1 ring-indigo-500/50' : ''}
                             `}
                         >
@@ -223,10 +239,13 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                             return (
                                 <button
                                     key={dateStr}
-                                    onClick={() => setSelectedDate(dateStr)}
+                                    onClick={() => handleDateClick(dateStr)}
                                     className={`
                                         h-12 md:h-16 rounded-xl flex flex-col items-center justify-center relative transition-[transform,background-color,color,box-shadow] duration-300
-                                        ${isSelected ? 'bg-indigo-600 text-white shadow-md z-10' : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'}
+                                        ${isSelected 
+                                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 z-10 ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900' 
+                                            : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
+                                        }
                                         ${isToday && !isSelected ? 'border border-indigo-500/50 text-indigo-500' : ''}
                                     `}
                                 >
@@ -249,9 +268,10 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
             <div className="mb-6 md:mb-8">
                 <div className="flex gap-3 mb-3">
                     <input 
+                        ref={taskInputRef}
                         type="text" 
                         placeholder="Add a task for this day..." 
-                        className="flex-grow bg-white dark:bg-black/20 border border-slate-200 dark:border-white/5 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500" 
+                        className="flex-grow bg-white dark:bg-black/20 border border-slate-200 dark:border-white/5 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm focus:shadow-md focus:shadow-indigo-500/10" 
                         value={newTargetText} 
                         onChange={e => setNewTargetText(e.target.value)} 
                         onKeyDown={e => e.key === 'Enter' && handleAdd()} 
