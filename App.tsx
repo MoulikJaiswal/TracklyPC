@@ -13,18 +13,13 @@ import {
   Atom,
   Loader2,
   LogOut,
-  ShieldCheck,
-  WifiOff
+  WifiOff,
+  HardDrive
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
 import { SettingsModal } from './components/SettingsModal';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
-
-// Firebase Imports
-import { auth, db, googleProvider } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 // Lazy Load Components
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -32,14 +27,6 @@ const FocusTimer = lazy(() => import('./components/FocusTimer').then(module => (
 const Planner = lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
 const TestLog = lazy(() => import('./components/TestLog').then(module => ({ default: module.TestLog })));
 const Analytics = lazy(() => import('./components/Analytics').then(module => ({ default: module.Analytics })));
-
-// Helper for local date string YYYY-MM-DD
-const getLocalDate = (d = new Date()) => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 // UUID Generator
 const generateUUID = () => {
@@ -389,9 +376,7 @@ const Sidebar = React.memo(({
     onOpenSettings, 
     isCollapsed, 
     toggleCollapsed,
-    user,
-    isGuest,
-    onLogin,
+    hasEntered,
     onLogout
 }: { 
     view: ViewType, 
@@ -399,9 +384,7 @@ const Sidebar = React.memo(({
     onOpenSettings: () => void,
     isCollapsed: boolean,
     toggleCollapsed: () => void,
-    user: User | null,
-    isGuest: boolean,
-    onLogin: () => void,
+    hasEntered: boolean,
     onLogout: () => void
 }) => {
   return (
@@ -457,35 +440,17 @@ const Sidebar = React.memo(({
 
       {/* Auth Status Section */}
       <div className={`px-4 py-2 ${isCollapsed ? 'hidden' : 'block'}`}>
-          {user ? (
-            <div className="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                <ShieldCheck size={16} className="text-emerald-500" />
-                <div className="flex-1 overflow-hidden">
-                    <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Sync Active</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{user.displayName}</p>
-                </div>
-                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
-                    <LogOut size={14} />
-                </button>
-            </div>
-          ) : isGuest ? (
+          {hasEntered && (
             <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-                <WifiOff size={16} className="text-slate-500" />
+                <HardDrive size={16} className="text-slate-500" />
                 <div className="flex-1 overflow-hidden">
-                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Offline Mode</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">Guest User</p>
+                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Local Mode</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">Browser Storage</p>
                 </div>
-                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
+                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors" title="Exit to Home">
                     <LogOut size={14} />
                 </button>
             </div>
-          ) : (
-            <button 
-                onClick={onLogin}
-                className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
-            >
-                Sign In to Save
-            </button>
           )}
       </div>
 
@@ -538,10 +503,9 @@ const App: React.FC = () => {
   const [goals, setGoals] = useState({ Physics: 30, Chemistry: 30, Maths: 30 });
   const [quoteIdx] = useState(() => Math.floor(Math.random() * QUOTES.length));
 
-  // Auth State
-  const [user, setUser] = useState<User | null>(null);
-  const [isGuest, setIsGuest] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  // Local Storage State
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -565,70 +529,35 @@ const App: React.FC = () => {
   const [direction, setDirection] = useState(0);
   const minSwipeDistance = 50;
 
-  // 1. Auth Listener
+  // 1. Initial Load
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-          setIsGuest(false);
-      }
-      setIsAuthLoading(false);
-    });
-    return () => unsubscribe();
+    // Simulate slight loading for smooth transition
+    const timer = setTimeout(() => {
+        const storedEntered = localStorage.getItem('trackly_entered');
+        if (storedEntered === 'true') {
+            setHasEntered(true);
+        }
+        setIsLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Check for existing guest session
+  // 2. Data Syncing (LocalStorage)
   useEffect(() => {
-      const storedGuest = localStorage.getItem('trackly_is_guest');
-      if (storedGuest === 'true' && !user) {
-          setIsGuest(true);
-      }
-  }, [user]);
-
-  // 2. Data Syncing (Firestore OR LocalStorage)
-  useEffect(() => {
-    if (user) {
-        // --- Firebase Sync ---
-        const sessionsQ = query(collection(db, 'users', user.uid, 'sessions'), orderBy('timestamp', 'desc'));
-        const unsubSessions = onSnapshot(sessionsQ, (snapshot) => {
-            setSessions(snapshot.docs.map(d => d.data() as Session));
-        });
-
-        const testsQ = query(collection(db, 'users', user.uid, 'tests'), orderBy('timestamp', 'desc'));
-        const unsubTests = onSnapshot(testsQ, (snapshot) => {
-            setTests(snapshot.docs.map(d => d.data() as TestResult));
-        });
-
-        const targetsQ = query(collection(db, 'users', user.uid, 'targets'), orderBy('timestamp', 'desc'));
-        const unsubTargets = onSnapshot(targetsQ, (snapshot) => {
-            setTargets(snapshot.docs.map(d => d.data() as Target));
-        });
-
-        return () => {
-            unsubSessions();
-            unsubTests();
-            unsubTargets();
-        }
-    } else if (isGuest) {
-        // --- LocalStorage Sync (Guest Mode) ---
+    if (hasEntered) {
         setSessions(safeJSONParse('trackly_guest_sessions', []));
         setTests(safeJSONParse('trackly_guest_tests', []));
         setTargets(safeJSONParse('trackly_guest_targets', []));
         setGoals(safeJSONParse('trackly_guest_goals', { Physics: 30, Chemistry: 30, Maths: 30 }));
-    } else {
-        // Reset if logged out
-        setSessions([]); 
-        setTests([]);
-        setTargets([]);
     }
-  }, [user, isGuest]);
+  }, [hasEntered]);
 
-  // Persist Goals to LS if Guest
+  // Persist Goals to LS
   useEffect(() => {
-    if(isGuest) {
+    if(hasEntered) {
         localStorage.setItem('trackly_guest_goals', JSON.stringify(goals));
     }
-  }, [goals, isGuest]);
+  }, [goals, hasEntered]);
 
   // Load Settings from LocalStorage
   useEffect(() => {
@@ -667,110 +596,66 @@ const App: React.FC = () => {
       });
   }, []);
 
-  const handleLogin = async () => {
-    try {
-        await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-        console.error("Login failed", error);
-        alert("Failed to sign in. Please try again.");
-    }
+  const handleEnter = () => {
+      setHasEntered(true);
+      localStorage.setItem('trackly_entered', 'true');
   };
 
-  const handleGuestLogin = () => {
-      setIsGuest(true);
-      localStorage.setItem('trackly_is_guest', 'true');
+  const handleExit = () => {
+      setHasEntered(false);
+      localStorage.removeItem('trackly_entered');
   };
 
-  const handleLogout = () => {
-      if (user) {
-          signOut(auth);
-      } else {
-          setIsGuest(false);
-          localStorage.removeItem('trackly_is_guest');
-      }
-  };
-
-  // 3. Database Operations (Universal: Works for Firebase AND Guest)
+  // 3. Database Operations (Pure LocalStorage)
   const handleSaveSession = useCallback(async (newSession: Omit<Session, 'id' | 'timestamp'>) => {
     const id = generateUUID();
     const timestamp = Date.now();
     const session: Session = { ...newSession, id, timestamp };
 
-    if (user) {
-        await setDoc(doc(db, 'users', user.uid, 'sessions', id), session);
-    } else if (isGuest) {
-        const updated = [session, ...sessions];
-        setSessions(updated);
-        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
-    }
-  }, [user, isGuest, sessions]);
+    const updated = [session, ...sessions];
+    setSessions(updated);
+    localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+  }, [sessions]);
 
   const handleDeleteSession = useCallback(async (id: string) => {
-    if (user) {
-        await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
-    } else if (isGuest) {
-        const updated = sessions.filter(s => s.id !== id);
-        setSessions(updated);
-        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
-    }
-  }, [user, isGuest, sessions]);
+    const updated = sessions.filter(s => s.id !== id);
+    setSessions(updated);
+    localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+  }, [sessions]);
 
   const handleSaveTest = useCallback(async (newTest: Omit<TestResult, 'id' | 'timestamp'>) => {
     const id = generateUUID();
     const timestamp = Date.now();
     const test: TestResult = { ...newTest, id, timestamp };
 
-    if (user) {
-        await setDoc(doc(db, 'users', user.uid, 'tests', id), test);
-    } else if (isGuest) {
-        const updated = [test, ...tests];
-        setTests(updated);
-        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
-    }
-  }, [user, isGuest, tests]);
+    const updated = [test, ...tests];
+    setTests(updated);
+    localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+  }, [tests]);
 
   const handleDeleteTest = useCallback(async (id: string) => {
-    if (user) {
-        await deleteDoc(doc(db, 'users', user.uid, 'tests', id));
-    } else if (isGuest) {
-        const updated = tests.filter(t => t.id !== id);
-        setTests(updated);
-        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
-    }
-  }, [user, isGuest, tests]);
+    const updated = tests.filter(t => t.id !== id);
+    setTests(updated);
+    localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+  }, [tests]);
 
   const handleSaveTarget = useCallback(async (target: Target) => {
-    if (user) {
-        await setDoc(doc(db, 'users', user.uid, 'targets', target.id), target);
-    } else if (isGuest) {
-        const updated = [...targets, target];
-        setTargets(updated);
-        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
-    }
-  }, [user, isGuest, targets]);
+    const updated = [...targets, target];
+    setTargets(updated);
+    localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+  }, [targets]);
 
   const handleUpdateTarget = useCallback(async (id: string, completed: boolean) => {
-    if (user) {
-        const target = targets.find(t => t.id === id);
-        if (target) {
-            await setDoc(doc(db, 'users', user.uid, 'targets', id), { ...target, completed });
-        }
-    } else if (isGuest) {
-        const updated = targets.map(t => t.id === id ? { ...t, completed } : t);
-        setTargets(updated);
-        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
-    }
-  }, [user, isGuest, targets]);
+    const updated = targets.map(t => t.id === id ? { ...t, completed } : t);
+    setTargets(updated);
+    localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+  }, [targets]);
 
   const handleDeleteTarget = useCallback(async (id: string) => {
-    if (user) {
-        await deleteDoc(doc(db, 'users', user.uid, 'targets', id));
-    } else if (isGuest) {
-        const updated = targets.filter(t => t.id !== id);
-        setTargets(updated);
-        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
-    }
-  }, [user, isGuest, targets]);
+    const updated = targets.filter(t => t.id !== id);
+    setTargets(updated);
+    localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+  }, [targets]);
 
   const changeView = useCallback((newView: ViewType) => {
      if (view === newView) return;
@@ -922,19 +807,18 @@ const App: React.FC = () => {
         }
   `, [themeConfig]);
 
-  if (isAuthLoading) {
+  if (isLoading) {
     return (
         <div className={`min-h-screen flex items-center justify-center ${themeConfig.mode === 'dark' ? 'bg-[#020617]' : 'bg-slate-50'}`}>
             <div className="flex flex-col items-center gap-4">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-                <span className="text-sm font-bold uppercase tracking-widest text-slate-500">Syncing Data...</span>
             </div>
         </div>
     );
   }
 
-  // Not Logged In View
-  if (!user && !isGuest) {
+  // Not Entered View
+  if (!hasEntered) {
     return (
         <div className={`min-h-screen font-sans flex flex-col relative overflow-hidden transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}>
              <style>{dynamicStyles}</style>
@@ -948,27 +832,20 @@ const App: React.FC = () => {
              <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
                 <TracklyLogo id="login-logo" />
                 <div className="mt-8 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-slate-200 dark:border-white/10 text-center max-w-sm w-full shadow-2xl">
-                    <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Welcome Back</h2>
+                    <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Trackly Offline</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                        Sign in to sync your progress, sessions, and test scores across all your devices.
+                        Your private study dashboard. Data is saved to your browser automatically.
                     </p>
                     <button 
-                        onClick={handleLogin}
+                        onClick={handleEnter}
                         className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 mb-4"
                     >
-                        <span>Sign In with Google</span>
+                        <span>Enter Workspace</span>
                         <ArrowRightIcon />
                     </button>
                     
-                    <button 
-                        onClick={handleGuestLogin}
-                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-2xl font-bold uppercase tracking-widest border border-slate-200 dark:border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                    >
-                        <span>Continue Offline</span>
-                    </button>
-
                     <p className="mt-6 text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                        Secure • Cloud Synced • Fast
+                        No Login Required • Private • Fast
                     </p>
                 </div>
              </div>
@@ -996,10 +873,8 @@ const App: React.FC = () => {
           onOpenSettings={() => setIsSettingsOpen(true)} 
           isCollapsed={sidebarCollapsed}
           toggleCollapsed={toggleSidebar}
-          user={user}
-          isGuest={isGuest}
-          onLogin={handleLogin}
-          onLogout={handleLogout}
+          hasEntered={hasEntered}
+          onLogout={handleExit}
       />
 
       {/* Mobile Header */}
