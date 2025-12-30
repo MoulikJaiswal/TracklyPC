@@ -18,6 +18,13 @@ export interface Session {
   timestamp: number;
 }
 
+export interface QuestionLog {
+  timestamp: number;
+  duration: number; // in seconds
+  result: 'correct' | keyof MistakeCounts;
+  subject: string; // Added to track subject per question
+}
+
 export interface TestResult {
   id: string;
   name: string;
@@ -27,6 +34,9 @@ export interface TestResult {
   temperament: 'Calm' | 'Anxious' | 'Focused' | 'Fatigued';
   analysis: string;
   timestamp: number;
+  attachment?: string; // Base64 string of the file
+  attachmentType?: 'image' | 'pdf';
+  fileName?: string;
 }
 
 export interface Target {

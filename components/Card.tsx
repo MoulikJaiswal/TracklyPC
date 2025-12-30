@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface CardProps {
@@ -22,12 +23,13 @@ export const Card: React.FC<CardProps> = React.memo(({ children, className = '',
     `}
     style={{ 
       animation: `fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) ${delay}s backwards`,
-      transform: 'translateZ(0)', // Force GPU layer
+      transform: 'translate3d(0,0,0)', // Force GPU layer
       contain: 'layout style', // Browser optimization hint
       // PERFORMANCE KEY: Only animate cheap properties. Never animate blur/filter.
       transitionProperty: 'transform, opacity, background-color, border-color, box-shadow',
       transitionDuration: '300ms',
-      transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
+      transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      willChange: onClick ? 'transform' : 'auto'
     }}
   >
     {/* Hover State Layer - Simulates hover effect without repainting the blur */}
@@ -51,7 +53,7 @@ export const FloatingCard: React.FC<CardProps> = React.memo(({ children, classNa
     `}
     style={{ 
       animation: `float 6s ease-in-out infinite ${delay}s, fadeIn 1s ease-out ${delay}s backwards`,
-      transform: 'translateZ(0)',
+      transform: 'translate3d(0,0,0)',
       contain: 'layout style',
       transitionProperty: 'transform, opacity',
       transitionDuration: '300ms'

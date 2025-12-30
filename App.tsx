@@ -17,9 +17,11 @@ import {
   ShieldCheck,
   WifiOff,
   ShoppingBag,
-  Download
+  Download,
+  Trophy,
+  ArrowRight
 } from 'lucide-react';
-import { ViewType, Session, TestResult, Target, ThemeId } from './types';
+import { ViewType, Session, TestResult, Target, ThemeId, QuestionLog, MistakeCounts } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
 import { SettingsModal } from './components/SettingsModal';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
@@ -54,12 +56,21 @@ const safeJSONParse = <T,>(key: string, fallback: T): T => {
   }
 };
 
+// Helper for local date string YYYY-MM-DD (Duplicate for App scope)
+const getLocalDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const TracklyLogo = React.memo(({ collapsed = false, id }: { collapsed?: boolean, id?: string }) => {
   const uniqueId = React.useId();
   const gradientId = `logo-gradient-${uniqueId.replace(/:/g, '')}`;
 
   return (
-    <div id={id} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} select-none transition-all duration-300 transform-gpu`}>
+    <div id={id} className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} select-none transition-all duration-300 transform-gpu will-change-transform`}>
       <div className="relative w-8 h-5 flex-shrink-0">
         <svg viewBox="0 0 48 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-[0_0_5px_currentColor] text-indigo-500">
           <defs>
@@ -130,7 +141,7 @@ const AnimatedBackground = React.memo(({
 
     if (themeId === 'midnight') {
         const midnightItems: any[] = [];
-        for(let i=0; i<25; i++) {
+        for(let i=0; i<15; i++) { // Reduced count for performance
             const size = Math.random() * 0.15 + 0.05; 
             const depth = Math.random() * 3 + 1; 
             const isBright = Math.random() > 0.8;
@@ -163,9 +174,6 @@ const AnimatedBackground = React.memo(({
             { id: 1, top: '-10%', left: '-10%', size: 45, shape: 'leaf', depth: 1, rotation: 135, opacity: 0.03 },
             { id: 2, top: '50%', left: '90%', size: 35, shape: 'leaf', depth: 1, rotation: 45, opacity: 0.03 },
             { id: 3, top: '85%', left: '5%', size: 25, shape: 'leaf', depth: 2, rotation: -25, opacity: 0.05 },
-            { id: 4, top: '-10%', left: '60%', size: 28, shape: 'leaf', depth: 2, rotation: 160, opacity: 0.05 },
-            { id: 5, top: '35%', left: '15%', size: 12, shape: 'leaf', depth: 3, rotation: 15, opacity: 0.08 },
-            { id: 6, top: '20%', left: '85%', size: 15, shape: 'leaf', depth: 3, rotation: -10, opacity: 0.08 },
         ].map(item => ({
             ...item,
             parallaxFactor: item.depth * 0.005, 
@@ -178,14 +186,9 @@ const AnimatedBackground = React.memo(({
         { id: 1, top: '8%', left: '5%', size: 16, shape: 'ring', depth: 1, opacity: 0.03, rotation: 0 },
         { id: 2, top: '75%', left: '85%', size: 20, shape: 'squircle', depth: 1, opacity: 0.03, rotation: 15 },
         { id: 3, top: '5%', left: '55%', size: 8, shape: 'circle', depth: 1, opacity: 0.02, rotation: 0 },
-        { id: 4, top: '80%', left: '10%', size: 12, shape: 'square', depth: 1, opacity: 0.02, rotation: 45 },
         { id: 5, top: '30%', left: '90%', size: 4, shape: 'triangle', depth: 2, opacity: 0.06, rotation: 160 },
         { id: 6, top: '45%', left: '5%', size: 5, shape: 'grid', depth: 2, opacity: 0.06, rotation: 10 },
-        { id: 7, top: '15%', left: '80%', size: 3.5, shape: 'plus', depth: 2, opacity: 0.08, rotation: 0 },
-        { id: 8, top: '85%', left: '35%', size: 4, shape: 'ring', depth: 2, opacity: 0.06, rotation: 0 },
         { id: 9, top: '20%', left: '35%', size: 3, shape: 'circle', depth: 2, opacity: 0.05, rotation: 0 },
-        { id: 10, top: '22%', left: '20%', size: 2, shape: 'squircle', depth: 3, opacity: 0.12, rotation: 30 },
-        { id: 11, top: '60%', left: '88%', size: 2.5, shape: 'circle', depth: 3, opacity: 0.12, rotation: 0 },
     ].map(item => ({
         ...item,
         parallaxFactor: item.depth * 0.08, 
@@ -197,35 +200,32 @@ const AnimatedBackground = React.memo(({
   return (
     <div 
         ref={containerRef}
-        className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700" 
+        className="fixed inset-0 z-0 pointer-events-none overflow-hidden select-none transition-colors duration-700 transform-gpu" 
         style={{ 
             backgroundColor: config.colors.bg,
             contain: 'strict',
-            transform: 'translateZ(0)',
             '--off-x': 0,
             '--off-y': 0
         } as React.CSSProperties}
     >
       {!highPerformanceMode && (
-         <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay" style={{ transform: 'translateZ(0)' }}></div>
+         <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay transform-gpu"></div>
       )}
 
       {themeId === 'midnight' && (
         <>
             <div 
-                className="absolute inset-0 z-[1]" 
+                className="absolute inset-0 z-[1] transform-gpu" 
                 style={{ 
-                    background: `linear-gradient(to bottom, #000000 0%, #050505 60%, #0f172a 100%)`, 
-                    transform: 'translateZ(0)'
+                    background: `linear-gradient(to bottom, #000000 0%, #050505 60%, #0f172a 100%)`
                 }} 
             />
             {!highPerformanceMode && (
                 <div 
-                    className="absolute bottom-[-10%] left-[-10%] right-[-10%] h-[40%] z-[1] opacity-30"
+                    className="absolute bottom-[-10%] left-[-10%] right-[-10%] h-[40%] z-[1] opacity-30 transform-gpu"
                     style={{
                         background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-                        opacity: 0.2,
-                        transform: 'translateZ(0)'
+                        opacity: 0.2
                     }}
                 />
             )}
@@ -234,30 +234,28 @@ const AnimatedBackground = React.memo(({
 
       {themeId === 'forest' && (
         <div 
-            className="absolute inset-0 z-[1] opacity-60" 
+            className="absolute inset-0 z-[1] opacity-60 transform-gpu" 
             style={{ 
-                background: `radial-gradient(circle at 50% 120%, #3f6212 0%, transparent 60%), radial-gradient(circle at 50% -20%, #1a2e22 0%, transparent 60%)`,
-                transform: 'translateZ(0)'
+                background: `radial-gradient(circle at 50% 120%, #3f6212 0%, transparent 60%), radial-gradient(circle at 50% -20%, #1a2e22 0%, transparent 60%)`
             }} 
         />
       )}
 
       {themeId === 'obsidian' && (
         <div 
-            className="absolute inset-0 z-[1]" 
+            className="absolute inset-0 z-[1] transform-gpu" 
             style={{ 
                 background: `
                     radial-gradient(circle at 50% -10%, #0f172a 0%, #020617 45%, #000000 100%),
                     radial-gradient(circle at 85% 25%, rgba(6, 182, 212, 0.05) 0%, transparent 50%),
                     radial-gradient(circle at 15% 75%, rgba(8, 145, 178, 0.05) 0%, transparent 45%)
-                `,
-                transform: 'translateZ(0)'
+                `
             }} 
         />
       )}
 
       {showAurora && !highPerformanceMode && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
-        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ transform: 'translateZ(0)' }}>
+        <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20 transform-gpu">
             <div 
                className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
@@ -287,7 +285,7 @@ const AnimatedBackground = React.memo(({
       )}
 
       {showParticles && !highPerformanceMode && (
-        <div className="absolute inset-0 z-[3] overflow-hidden">
+        <div className="absolute inset-0 z-[3] overflow-hidden transform-gpu">
             {items.map((item) => (
                 <div 
                     key={item.id}
@@ -328,14 +326,7 @@ const AnimatedBackground = React.memo(({
                         {item.shape === 'circle' && <div className="w-full h-full rounded-full bg-current" style={{ opacity: themeId === 'midnight' ? 1 : 0.4 }} />}
                         {item.shape === 'ring' && <div className="w-full h-full rounded-full border-[3px] border-current opacity-50" />}
                         {item.shape === 'squircle' && <div className="w-full h-full rounded-[2rem] border-[3px] border-current opacity-40" />}
-                        {item.shape === 'square' && <div className="w-full h-full border-[3px] border-current rounded-3xl opacity-50" />}
                         {item.shape === 'triangle' && <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full opacity-40"><path d="M12 2L2 22h20L12 2z" /></svg>}
-                        {item.shape === 'plus' && (
-                            <div className="w-full h-full relative opacity-50">
-                                <div className="absolute top-1/2 left-0 w-full h-[4px] bg-current -translate-y-1/2 rounded-full" />
-                                <div className="absolute left-1/2 top-0 h-full w-[4px] bg-current -translate-x-1/2 rounded-full" />
-                            </div>
-                        )}
                         {item.shape === 'grid' && (
                             <div className="w-full h-full grid grid-cols-3 gap-2 opacity-40 p-1">
                                 {[...Array(9)].map((_, k) => <div key={k} className="bg-current rounded-full w-full h-full" />)}
@@ -348,12 +339,11 @@ const AnimatedBackground = React.memo(({
       )}
 
       <div 
-        className="absolute inset-0 z-[4] pointer-events-none transition-colors duration-500"
+        className="absolute inset-0 z-[4] pointer-events-none transition-colors duration-500 transform-gpu"
         style={{
             background: config.mode === 'dark' 
                 ? 'radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.4) 100%)' 
-                : 'radial-gradient(circle at center, transparent 40%, rgba(255,255,255,0.4) 100%)',
-            transform: 'translateZ(0)'
+                : 'radial-gradient(circle at center, transparent 40%, rgba(255,255,255,0.4) 100%)'
         }}
       />
     </div>
@@ -405,8 +395,7 @@ const Sidebar = React.memo(({
 }) => {
   return (
     <aside 
-        className={`hidden md:flex flex-col h-screen fixed left-0 top-0 z-40 border-r border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-950/30 backdrop-blur-xl transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isCollapsed ? 'w-20 items-center' : 'w-64'} overflow-visible transform-gpu`}
-        style={{ transform: 'translateZ(0)' }}
+        className={`hidden md:flex flex-col h-screen fixed left-0 top-0 z-40 border-r border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-950/30 backdrop-blur-xl transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isCollapsed ? 'w-20 items-center' : 'w-64'} overflow-visible transform-gpu will-change-transform`}
     >
       <div className={`h-20 flex items-center relative shrink-0 ${isCollapsed ? 'justify-center px-0 w-full' : 'justify-between px-6'}`}>
         <TracklyLogo collapsed={isCollapsed} id="trackly-logo" />
@@ -521,18 +510,21 @@ const Sidebar = React.memo(({
 // Optimized slide variants
 const slideVariants = {
   enter: (direction: number) => ({
-    x: direction > 0 ? 50 : -50,
+    x: direction > 0 ? 30 : -30,
     opacity: 0,
+    position: 'absolute' as 'absolute'
   }),
   center: {
     zIndex: 1,
     x: 0,
     opacity: 1,
+    position: 'relative' as 'relative'
   },
   exit: (direction: number) => ({
     zIndex: 0,
-    x: direction < 0 ? 50 : -50, 
+    x: direction < 0 ? 30 : -30, 
     opacity: 0,
+    position: 'absolute' as 'absolute'
   }),
 };
 
@@ -568,7 +560,7 @@ const App: React.FC = () => {
   const [swipeStiffness, setSwipeStiffness] = useState(6000); 
   const [swipeDamping, setSwipeDamping] = useState(300);    
 
-  // Audio Settings
+  // Audio Settings (UI)
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundPitch, setSoundPitch] = useState(600);
   const [soundVolume, setSoundVolume] = useState(0.5);
@@ -586,8 +578,200 @@ const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
 
-  // Audio Context Ref
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  // Reminders
+  const [showTestReminder, setShowTestReminder] = useState(false);
+  const [reminderMessage, setReminderMessage] = useState('');
+
+  // Audio Context Ref (Click sounds)
+  const clickAudioCtxRef = useRef<AudioContext | null>(null);
+
+  // --- PERSISTENT TIMER STATE (Lifted from FocusTimer) ---
+  const [timerMode, setTimerMode] = useState<'focus' | 'short' | 'long'>('focus');
+  const [timerDurations, setTimerDurations] = useState({ focus: 25, short: 5, long: 15 });
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [brownNoiseEnabled, setBrownNoiseEnabled] = useState(false); // Specific to Focus Timer audio
+  const [sessionLogs, setSessionLogs] = useState<QuestionLog[]>([]);
+  const [lastLogTime, setLastLogTime] = useState<number>(Date.now()); 
+  const [todayStats, setTodayStats] = useState({ Physics: 0, Chemistry: 0, Maths: 0 });
+
+  const timerRef = useRef<any>(null);
+  const endTimeRef = useRef<number>(0);
+  const brownNoiseCtxRef = useRef<AudioContext | null>(null);
+  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+
+  // Initialize Stats from LS
+  useEffect(() => {
+      const today = getLocalDate();
+      const saved = localStorage.getItem(`zenith_stats_${today}`);
+      if (saved) setTodayStats(JSON.parse(saved));
+  }, []);
+
+  // Persist Stats
+  useEffect(() => {
+      const today = getLocalDate();
+      localStorage.setItem(`zenith_stats_${today}`, JSON.stringify(todayStats));
+  }, [todayStats]);
+
+  // Persistent Timer Logic
+  useEffect(() => {
+      if (isTimerActive) {
+          timerRef.current = setInterval(() => {
+              const now = Date.now();
+              const diff = Math.ceil((endTimeRef.current - now) / 1000);
+              if (diff <= 0) {
+                  setTimeLeft(0);
+                  setIsTimerActive(false);
+                  clearInterval(timerRef.current);
+                  if (brownNoiseEnabled) setBrownNoiseEnabled(false); // Stop sound when time ends
+              } else {
+                  setTimeLeft(diff);
+              }
+          }, 1000);
+      }
+      return () => clearInterval(timerRef.current);
+  }, [isTimerActive, brownNoiseEnabled]);
+
+  // Persistent Audio Logic (Brown Noise)
+  useEffect(() => {
+      if (brownNoiseEnabled) {
+          if (!brownNoiseCtxRef.current) {
+              brownNoiseCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+          }
+          const ctx = brownNoiseCtxRef.current;
+          if (ctx?.state === 'suspended') ctx.resume();
+          
+          // Create Brown Noise
+          const bufferSize = ctx!.sampleRate * 2;
+          const buffer = ctx!.createBuffer(1, bufferSize, ctx!.sampleRate);
+          const data = buffer.getChannelData(0);
+          let lastOut = 0;
+          for (let i = 0; i < bufferSize; i++) {
+              const white = Math.random() * 2 - 1;
+              data[i] = (lastOut + (0.02 * white)) / 1.02;
+              lastOut = data[i];
+              data[i] *= 3.5;
+          }
+
+          const source = ctx!.createBufferSource();
+          source.buffer = buffer;
+          source.loop = true;
+          const gain = ctx!.createGain();
+          gain.gain.value = 0.05;
+          source.connect(gain);
+          gain.connect(ctx!.destination);
+          source.start();
+          
+          sourceNodeRef.current = source;
+          gainNodeRef.current = gain;
+      } else {
+          if (sourceNodeRef.current) {
+              try { sourceNodeRef.current.stop(); } catch(e){}
+              sourceNodeRef.current.disconnect();
+              sourceNodeRef.current = null;
+          }
+          if (gainNodeRef.current) {
+              gainNodeRef.current.disconnect();
+              gainNodeRef.current = null;
+          }
+      }
+  }, [brownNoiseEnabled]);
+
+  // Timer Handlers
+  const handleTimerToggle = useCallback(() => {
+      if (!isTimerActive) {
+          setIsTimerActive(true);
+          endTimeRef.current = Date.now() + timeLeft * 1000;
+          setLastLogTime(Date.now()); // Start tracking question time
+      } else {
+          setIsTimerActive(false);
+          clearInterval(timerRef.current);
+      }
+  }, [isTimerActive, timeLeft]);
+
+  const handleTimerReset = useCallback(() => {
+      setIsTimerActive(false);
+      setTimeLeft(timerDurations[timerMode] * 60);
+      setSessionLogs([]); 
+      if (brownNoiseEnabled) setBrownNoiseEnabled(false);
+  }, [timerMode, timerDurations, brownNoiseEnabled]);
+
+  const handleModeSwitch = useCallback((mode: 'focus'|'short'|'long') => {
+      setTimerMode(mode);
+      setIsTimerActive(false);
+      setTimeLeft(timerDurations[mode] * 60);
+  }, [timerDurations]);
+
+  const handleDurationUpdate = useCallback((newDuration: number, modeKey: 'focus'|'short'|'long') => {
+      setTimerDurations(prev => ({ ...prev, [modeKey]: newDuration }));
+      if (timerMode === modeKey && !isTimerActive) {
+          setTimeLeft(newDuration * 60);
+      }
+  }, [timerMode, isTimerActive]);
+
+  // Temporary local logging state update (for UI immediate feedback)
+  const handleAddLog = useCallback((log: QuestionLog, subject: string) => {
+      setSessionLogs(prev => [log, ...prev]);
+      setTodayStats(prev => ({ ...prev, [subject]: (prev as any)[subject] + 1 }));
+      setLastLogTime(Date.now());
+  }, []);
+
+  // 3. Database Operations (Universal: Works for Firebase AND Guest)
+  const handleSaveSession = useCallback(async (newSession: Omit<Session, 'id' | 'timestamp'>) => {
+    const id = generateUUID();
+    const timestamp = Date.now();
+    const session: Session = { ...newSession, id, timestamp };
+
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'sessions', id), session);
+    } else if (isGuest) {
+        // Need to read fresh state to avoid closure staleness if calling multiple times quickly
+        // But for guest mode, we usually do this:
+        const currentSessions = safeJSONParse('trackly_guest_sessions', []);
+        const updated = [session, ...currentSessions];
+        setSessions(updated);
+        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+    }
+  }, [user, isGuest, sessions]);
+
+  // FINAL SAVE: Aggregates logs and saves to Dashboard
+  const handleCompleteSession = useCallback(() => {
+      if (sessionLogs.length === 0) return;
+
+      // Group logs by subject
+      const subjectGroups: Record<string, QuestionLog[]> = {};
+      sessionLogs.forEach(log => {
+          if (!subjectGroups[log.subject]) subjectGroups[log.subject] = [];
+          subjectGroups[log.subject].push(log);
+      });
+
+      // Create session for each subject
+      Object.entries(subjectGroups).forEach(([subject, logs]) => {
+          const attempted = logs.length;
+          const correct = logs.filter(l => l.result === 'correct').length;
+          const mistakes: MistakeCounts = {};
+          
+          logs.forEach(l => {
+              if (l.result !== 'correct') {
+                  mistakes[l.result] = (mistakes[l.result] || 0) + 1;
+              }
+          });
+
+          // Save to persistent storage
+          handleSaveSession({
+              subject,
+              topic: 'Focus Session', // Generic topic for timer sessions
+              attempted,
+              correct,
+              mistakes
+          });
+      });
+
+      // Clear temporary logs after saving
+      setSessionLogs([]);
+      handleTimerReset();
+  }, [sessionLogs, handleSaveSession, handleTimerReset]);
 
   // Check Installation Status
   useEffect(() => {
@@ -630,16 +814,42 @@ const App: React.FC = () => {
       }
   };
 
+  // Auth Handlers
+  const handleLogin = useCallback(async () => {
+    try {
+        await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+        console.error("Login error:", error);
+    }
+  }, []);
+
+  const handleGuestLogin = useCallback(() => {
+      setIsGuest(true);
+      localStorage.setItem('trackly_is_guest', 'true');
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+      if (user) {
+          await signOut(auth);
+      }
+      setIsGuest(false);
+      localStorage.removeItem('trackly_is_guest');
+      // Reset state
+      setSessions([]);
+      setTests([]);
+      setTargets([]);
+  }, [user]);
+
   // Global Click Sound Effect
   useEffect(() => {
     const handleClick = () => {
        if (!soundEnabled) return;
 
        // Initialize Audio Context on first interaction
-       if (!audioCtxRef.current) {
-          audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+       if (!clickAudioCtxRef.current) {
+          clickAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
        }
-       const ctx = audioCtxRef.current;
+       const ctx = clickAudioCtxRef.current;
        if (ctx.state === 'suspended') ctx.resume();
 
        const osc = ctx.createOscillator();
@@ -730,102 +940,6 @@ const App: React.FC = () => {
     }
   }, [goals, isGuest]);
 
-  // Load Settings from LocalStorage
-  useEffect(() => {
-    setAnimationsEnabled(safeJSONParse('zenith_animations', true));
-    const savedTheme = localStorage.getItem('zenith_theme_id');
-    if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
-    setSidebarCollapsed(safeJSONParse('zenith_sidebar_collapsed', false));
-    setShowAurora(safeJSONParse('zenith_aurora', true));
-    setParallaxEnabled(safeJSONParse('zenith_parallax', true));
-    setShowParticles(safeJSONParse('zenith_particles', true));
-    setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
-    setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)));
-    setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
-    
-    // Audio Settings Load
-    setSoundEnabled(safeJSONParse('zenith_sound_enabled', true));
-    setSoundPitch(Number(safeJSONParse('zenith_sound_pitch', 600)));
-    setSoundVolume(Number(safeJSONParse('zenith_sound_volume', 0.5)));
-  }, []);
-
-  // Persist Settings
-  useEffect(() => {
-    localStorage.setItem('zenith_animations', JSON.stringify(animationsEnabled));
-    if (!animationsEnabled) document.body.classList.add('disable-animations');
-    else document.body.classList.remove('disable-animations');
-  }, [animationsEnabled]);
-
-  useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
-  useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
-  useEffect(() => { localStorage.setItem('zenith_parallax', JSON.stringify(parallaxEnabled)); }, [parallaxEnabled]);
-  useEffect(() => { localStorage.setItem('zenith_particles', JSON.stringify(showParticles)); }, [showParticles]);
-  useEffect(() => { localStorage.setItem('zenith_swipe_animation', JSON.stringify(swipeAnimationEnabled)); }, [swipeAnimationEnabled]);
-  useEffect(() => { localStorage.setItem('zenith_swipe_stiffness', String(swipeStiffness)); }, [swipeStiffness]);
-  useEffect(() => { localStorage.setItem('zenith_swipe_damping', String(swipeDamping)); }, [swipeDamping]);
-  
-  // Persist Audio Settings
-  useEffect(() => { localStorage.setItem('zenith_sound_enabled', JSON.stringify(soundEnabled)); }, [soundEnabled]);
-  useEffect(() => { localStorage.setItem('zenith_sound_pitch', String(soundPitch)); }, [soundPitch]);
-  useEffect(() => { localStorage.setItem('zenith_sound_volume', String(soundVolume)); }, [soundVolume]);
-
-  const toggleSidebar = useCallback(() => {
-      setSidebarCollapsed(prev => {
-          const next = !prev;
-          localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(next));
-          return next;
-      });
-  }, []);
-
-  const handleLogin = async () => {
-    try {
-        await signInWithPopup(auth, googleProvider);
-    } catch (error: any) {
-        console.error("Login failed", error);
-        
-        let errorMessage = "Failed to sign in.";
-        if (error.code === 'auth/unauthorized-domain') {
-            errorMessage = `Domain Error:\n\nThe IP "${window.location.hostname}" is not whitelisted.\n\n1. Go to Firebase Console -> Auth -> Settings -> Authorized Domains\n2. Add: ${window.location.hostname}`;
-        } else if (error.code === 'auth/popup-blocked') {
-            errorMessage = "Popup Blocked. Please allow popups for this site.";
-        } else if (error.code === 'auth/popup-closed-by-user') {
-            return; // Ignore
-        } else {
-            errorMessage = `Login Failed: ${error.message}`;
-        }
-        alert(errorMessage);
-    }
-  };
-
-  const handleGuestLogin = () => {
-      setIsGuest(true);
-      localStorage.setItem('trackly_is_guest', 'true');
-  };
-
-  const handleLogout = () => {
-      if (user) {
-          signOut(auth);
-      } else {
-          setIsGuest(false);
-          localStorage.removeItem('trackly_is_guest');
-      }
-  };
-
-  // 3. Database Operations (Universal: Works for Firebase AND Guest)
-  const handleSaveSession = useCallback(async (newSession: Omit<Session, 'id' | 'timestamp'>) => {
-    const id = generateUUID();
-    const timestamp = Date.now();
-    const session: Session = { ...newSession, id, timestamp };
-
-    if (user) {
-        await setDoc(doc(db, 'users', user.uid, 'sessions', id), session);
-    } else if (isGuest) {
-        const updated = [session, ...sessions];
-        setSessions(updated);
-        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
-    }
-  }, [user, isGuest, sessions]);
-
   const handleDeleteSession = useCallback(async (id: string) => {
     if (user) {
         await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
@@ -871,8 +985,24 @@ const App: React.FC = () => {
   }, [user, isGuest, targets]);
 
   const handleUpdateTarget = useCallback(async (id: string, completed: boolean) => {
+    // 1. Trigger Test Reminder logic if completing a test
+    const target = targets.find(t => t.id === id);
+    if (target && target.type === 'test' && completed && !target.completed) {
+        const messages = [
+            "Test completed! Don't forget to analyze it.",
+            "Test completed! Log your marks and prepare for the next one.",
+            "Finish line crossed. Now, let's look at the data.",
+            "Great effort! Record your score to unlock insights.",
+            "One step closer to your goal. Log this test now."
+        ];
+        setReminderMessage(messages[Math.floor(Math.random() * messages.length)]);
+        setShowTestReminder(true);
+        // Auto-dismiss after 8 seconds if not interacted with
+        setTimeout(() => setShowTestReminder(false), 8000);
+    }
+
+    // 2. Perform DB Update
     if (user) {
-        const target = targets.find(t => t.id === id);
         if (target) {
             await setDoc(doc(db, 'users', user.uid, 'targets', id), { ...target, completed });
         }
@@ -892,6 +1022,51 @@ const App: React.FC = () => {
         localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
     }
   }, [user, isGuest, targets]);
+
+  // Load Settings from LocalStorage (kept for brevity, unchanged)
+  useEffect(() => {
+    setAnimationsEnabled(safeJSONParse('zenith_animations', true));
+    const savedTheme = localStorage.getItem('zenith_theme_id');
+    if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
+    setSidebarCollapsed(safeJSONParse('zenith_sidebar_collapsed', false));
+    setShowAurora(safeJSONParse('zenith_aurora', true));
+    setParallaxEnabled(safeJSONParse('zenith_parallax', true));
+    setShowParticles(safeJSONParse('zenith_particles', true));
+    setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
+    setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)));
+    setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
+    
+    // Audio Settings Load
+    setSoundEnabled(safeJSONParse('zenith_sound_enabled', true));
+    setSoundPitch(Number(safeJSONParse('zenith_sound_pitch', 600)));
+    setSoundVolume(Number(safeJSONParse('zenith_sound_volume', 0.5)));
+  }, []);
+
+  // Persist Settings (kept for brevity, unchanged)
+  useEffect(() => {
+    localStorage.setItem('zenith_animations', JSON.stringify(animationsEnabled));
+    if (!animationsEnabled) document.body.classList.add('disable-animations');
+    else document.body.classList.remove('disable-animations');
+  }, [animationsEnabled]);
+
+  useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
+  useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
+  useEffect(() => { localStorage.setItem('zenith_parallax', JSON.stringify(parallaxEnabled)); }, [parallaxEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_particles', JSON.stringify(showParticles)); }, [showParticles]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_animation', JSON.stringify(swipeAnimationEnabled)); }, [swipeAnimationEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_stiffness', String(swipeStiffness)); }, [swipeStiffness]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_damping', String(swipeDamping)); }, [swipeDamping]);
+  useEffect(() => { localStorage.setItem('zenith_sound_enabled', JSON.stringify(soundEnabled)); }, [soundEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_sound_pitch', String(soundPitch)); }, [soundPitch]);
+  useEffect(() => { localStorage.setItem('zenith_sound_volume', String(soundVolume)); }, [soundVolume]);
+
+  const toggleSidebar = useCallback(() => {
+      setSidebarCollapsed(prev => {
+          const next = !prev;
+          localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(next));
+          return next;
+      });
+  }, []);
 
   const changeView = useCallback((newView: ViewType) => {
      if (view === newView) return;
@@ -963,83 +1138,11 @@ const App: React.FC = () => {
           --theme-text-main: ${themeConfig.colors.text};
           --theme-text-sub: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.5)' : '#334155'};
         }
-        /* [Dynamic Styles Omitted for brevity, assume standard] */
         .text-indigo-50, .text-indigo-100, .text-indigo-200, .text-indigo-300, .text-indigo-400, .text-indigo-500, .text-indigo-600, .text-indigo-700, .text-indigo-800, .text-indigo-900 {
             color: var(--theme-accent) !important;
         }
         .bg-indigo-400, .bg-indigo-500, .bg-indigo-600, .bg-indigo-700 {
             background-color: var(--theme-accent) !important;
-        }
-        .border-indigo-100, .border-indigo-200, .border-indigo-300, .border-indigo-400, .border-indigo-500, .border-indigo-600 {
-            border-color: var(--theme-accent) !important;
-        }
-        .ring-indigo-500, .ring-indigo-600 {
-            --tw-ring-color: var(--theme-accent) !important;
-        }
-        .shadow-indigo-500\\/20, .shadow-indigo-600\\/20, .shadow-indigo-500\\/40, .shadow-indigo-600\\/30 {
-            box-shadow: 0 10px 15px -3px ${themeConfig.colors.accent}40 !important;
-        }
-
-        .text-slate-900, .text-gray-900, .text-zinc-900, .text-neutral-900 {
-            color: var(--theme-text-main) !important;
-        }
-        .text-slate-500, .text-gray-500, .text-zinc-500, .text-neutral-500 {
-            color: var(--theme-text-sub) !important;
-        }
-        ${themeConfig.mode === 'light' ? `
-            .text-slate-300 { color: #94a3b8 !important; } 
-            .text-slate-400, .text-gray-400 { color: #475569 !important; }
-            .text-slate-600 { color: #1e293b !important; } 
-            .placeholder\\:text-slate-400::placeholder { color: #64748b !important; }
-        ` : ''}
-
-        .bg-white\\/60, .bg-white\\/70, .bg-white\\/80, .bg-white\\/50 {
-             background-color: ${themeConfig.mode === 'light' ? 'rgba(255,255,255,0.95)' : themeConfig.colors.card + '99'} !important;
-             border-color: ${themeConfig.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)'} !important;
-             box-shadow: ${themeConfig.mode === 'light' ? '0 8px 16px -4px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)' : 'none'} !important;
-        }
-        
-        .dark .bg-slate-900\\/40, .dark .bg-slate-900\\/50, .dark .bg-slate-900\\/60, .dark .bg-slate-900\\/80 {
-            background-color: ${themeConfig.colors.card}99 !important;
-        }
-
-        .from-indigo-400, .from-indigo-500, .from-indigo-600 { --tw-gradient-from: var(--theme-accent) !important; }
-        .to-indigo-400, .to-indigo-500, .to-indigo-600 { --tw-gradient-to: var(--theme-accent) !important; }
-
-        input, select, textarea {
-            background-color: ${themeConfig.mode === 'dark' ? 'rgba(0,0,0,0.2)' : '#ffffff'} !important;
-            border-color: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.1)' : '#cbd5e1'} !important;
-            color: ${themeConfig.colors.text} !important;
-        }
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--theme-accent) !important;
-            box-shadow: 0 0 0 1px var(--theme-accent) !important;
-        }
-
-        .bg-black\\/20, .dark .bg-black\\/20 {
-            background-color: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'} !important;
-        }
-
-        .dark .dark\\:bg-indigo-600 { background-color: var(--theme-accent) !important; }
-        .dark .dark\\:text-white { color: #ffffff !important; }
-        
-        ::-webkit-scrollbar-thumb {
-            background-color: ${themeConfig.colors.accent}66 !important;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-track { background: transparent; }
-
-        ::selection {
-          background-color: ${themeConfig.colors.accent}4d; 
-          color: white;
-        }
-
-        @keyframes obsidian-float {
-            0%, 100% { transform: translate3d(0,0,0) rotate(0deg); }
-            50% { transform: translate3d(0, -15px, 0) rotate(2deg); }
-        }
-        .animate-obsidian-float {
-             animation: obsidian-float 8s ease-in-out infinite;
         }
   `, [themeConfig]);
 
@@ -1054,7 +1157,7 @@ const App: React.FC = () => {
     );
   }
 
-  // Not Logged In View
+  // Not Logged In View (omitted for brevity, same as previous)
   if (!user && !isGuest) {
     return (
         <div className={`min-h-screen font-sans flex flex-col relative overflow-hidden transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}>
@@ -1068,7 +1171,7 @@ const App: React.FC = () => {
              />
              <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
                 <TracklyLogo id="login-logo" />
-                <div className="mt-8 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-slate-200 dark:border-white/10 text-center max-w-sm w-full shadow-2xl">
+                <div className="mt-8 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-slate-200 dark:border-white/10 text-center max-w-sm w-full shadow-2xl cv-auto">
                     <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Welcome Back</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
                         Sign in to sync your progress, sessions, and test scores across all your devices.
@@ -1157,7 +1260,7 @@ const App: React.FC = () => {
                     opacity: { duration: 0.2 }
                   }
                 ) : { duration: animationsEnabled ? 0.2 : 0 }}
-                className="w-full"
+                className="w-full will-change-transform"
              >
                 <Suspense fallback={
                     <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-400">
@@ -1186,7 +1289,23 @@ const App: React.FC = () => {
                   )}
                   {view === 'focus' && (
                       <div className="min-h-[80vh] flex flex-col justify-center">
-                        <FocusTimer targets={targets} />
+                        <FocusTimer 
+                            targets={targets} 
+                            mode={timerMode}
+                            timeLeft={timeLeft}
+                            isActive={isTimerActive}
+                            durations={timerDurations}
+                            soundEnabled={brownNoiseEnabled}
+                            sessionLogs={sessionLogs}
+                            lastLogTime={lastLogTime}
+                            onToggleTimer={handleTimerToggle}
+                            onResetTimer={handleTimerReset}
+                            onSwitchMode={handleModeSwitch}
+                            onToggleSound={() => setBrownNoiseEnabled(!brownNoiseEnabled)}
+                            onUpdateDurations={handleDurationUpdate}
+                            onAddLog={handleAddLog}
+                            onCompleteSession={handleCompleteSession} // Pass the completion handler
+                        />
                       </div>
                   )}
                   {view === 'tests' && (
@@ -1206,6 +1325,40 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      {/* Test Log Reminder Toast */}
+      <AnimatePresence>
+        {showTestReminder && (
+            <motion.div 
+                initial={{ y: 100, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 100, opacity: 0 }}
+                className="fixed bottom-24 md:bottom-10 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm"
+            >
+                <div className="bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 backdrop-blur-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-indigo-500 rounded-xl text-white shadow-lg shadow-indigo-500/20">
+                            <Trophy size={20} />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Test Completed!</h4>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{reminderMessage}</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => {
+                            changeView('tests');
+                            setShowTestReminder(false);
+                        }}
+                        className="flex items-center gap-1 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors"
+                    >
+                        Log Now <ArrowRight size={12} />
+                    </button>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Nav and Modals ... */}
       <nav 
         className="fixed bottom-0 left-0 w-full z-50 bg-white/95 dark:bg-[#020617]/95 backdrop-blur-xl border-t border-slate-200 dark:border-white/5 px-6 py-3 md:hidden transition-colors duration-500 shadow-[0_-5px_10px_rgba(0,0,0,0.03)] dark:shadow-none"
         style={{ 

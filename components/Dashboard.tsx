@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, memo, useCallback } from 'react';
 import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History } from 'lucide-react';
 import { Session, Target, MistakeCounts } from '../types';
@@ -126,13 +127,13 @@ const SubjectPod = memo(({
         onClick();
       }}
       className="relative overflow-hidden rounded-[2rem] border border-slate-200 dark:border-white/5 p-5 md:p-6 flex flex-col justify-between min-h-[160px] md:min-h-[220px] group cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:border-slate-300 dark:hover:border-white/20 active:scale-95 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md transform-gpu will-change-transform transition-[transform,box-shadow,border-color,background-color] duration-300"
-      style={{ transform: 'translateZ(0)' }}
+      style={{ transform: 'translate3d(0,0,0)' }}
     >
       {/* Hover Glow Layer - Absolute positioning for smooth opacity transition (GPU accelerated) */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgHover} opacity-0 group-hover:opacity-100 transition-opacity duration-500 will-change-[opacity]`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgHover} opacity-0 group-hover:opacity-100 transition-opacity duration-500 will-change-composite`} />
        
       {/* Base Gradient Layer */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgBase} opacity-100`} />
+      <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgBase} opacity-100 pointer-events-none`} />
 
       <div className="flex justify-between items-start z-10 w-full relative">
         <div className={`p-3 rounded-2xl bg-white dark:bg-slate-800 shadow-sm ring-1 ring-black/5 ${colors.icon} transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 will-change-transform`}>
@@ -518,7 +519,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
         </div>
 
         {/* Quote Section */}
-        <Card className="bg-indigo-50/50 dark:bg-indigo-600/5 border-indigo-100 dark:border-indigo-500/10 p-5 md:p-8 flex flex-col justify-center items-center text-center relative overflow-hidden transform-gpu">
+        <Card className="bg-indigo-50/50 dark:bg-indigo-600/5 border-indigo-100 dark:border-indigo-500/10 p-5 md:p-8 flex flex-col justify-center items-center text-center relative overflow-hidden transform-gpu will-change-transform">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/30 dark:via-indigo-500/50 to-transparent opacity-50"></div>
             <p className="text-base md:text-2xl font-serif italic text-indigo-900 dark:text-indigo-100 leading-relaxed max-w-4xl mx-auto relative z-10 drop-shadow-sm dark:drop-shadow-lg">"{quote.text}"</p>
             <div className="mt-4 md:mt-6 flex items-center justify-center gap-3 opacity-60">
@@ -562,7 +563,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
           {/* Left Column: Next Objectives */}
           <div className="space-y-6">
-             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 relative overflow-hidden backdrop-blur-md h-full transform-gpu" style={{ transform: 'translateZ(0)' }}>
+             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 relative overflow-hidden backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)' }}>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <CalendarClock size={16} className="text-indigo-500 dark:text-indigo-400" /> Up Next
@@ -593,7 +594,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
 
           {/* Right Column: Recent Activity Feed */}
           <div>
-             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 backdrop-blur-md h-full transform-gpu" style={{ transform: 'translateZ(0)' }}>
+             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)' }}>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <Activity size={16} className="text-indigo-500 dark:text-indigo-400" /> Recent Activity

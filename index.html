@@ -29,6 +29,7 @@
                     transitionTimingFunction: {
                         'spring': 'cubic-bezier(0.4, 0, 0.2, 1)',
                         'bounce-in': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                        'smooth': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                     }
                 }
             }
@@ -51,6 +52,33 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
         
+        /* GPU Acceleration Helpers */
+        .transform-gpu {
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            perspective: 1000px;
+        }
+
+        .will-change-transform {
+            will-change: transform;
+        }
+
+        .will-change-composite {
+            will-change: transform, opacity;
+        }
+
+        /* Optimize Scroll Performance */
+        .smooth-scroll {
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Content Visibility optimization for off-screen elements */
+        .cv-auto {
+            content-visibility: auto;
+            contain-intrinsic-size: 1px 1000px;
+        }
+
         input, select, textarea, button {
             -webkit-tap-highlight-color: transparent;
         }
@@ -60,8 +88,9 @@
                 font-size: 16px !important; 
             }
             .backdrop-blur-xl, .backdrop-blur-2xl, .backdrop-blur-3xl {
-                backdrop-filter: blur(12px) !important;
-                -webkit-backdrop-filter: blur(12px) !important;
+                /* Reduce blur radius on mobile for performance */
+                backdrop-filter: blur(8px) !important;
+                -webkit-backdrop-filter: blur(8px) !important;
             }
         }
 
@@ -107,15 +136,15 @@
         }
 
         @keyframes aurora-1 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -50px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.95); }
+            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+            33% { transform: translate3d(30px, -50px, 0) scale(1.1); }
+            66% { transform: translate3d(-20px, 20px, 0) scale(0.95); }
         }
         
         @keyframes aurora-2 {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(-30px, 40px) scale(1.1); }
-            66% { transform: translate(30px, -30px) scale(0.9); }
+            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+            33% { transform: translate3d(-30px, 40px, 0) scale(1.1); }
+            66% { transform: translate3d(30px, -30px, 0) scale(0.9); }
         }
         
         @keyframes float-gentle { 
@@ -129,16 +158,9 @@
             to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } 
         }
 
-        .gpu-accelerated {
-            will-change: transform, opacity;
-            transform: translateZ(0);
-            backface-visibility: hidden;
-            perspective: 1000px;
-        }
-
-        .animate-aurora-1 { animation: aurora-1 20s infinite ease-in-out; }
-        .animate-aurora-2 { animation: aurora-2 25s infinite ease-in-out; }
-        .animate-float-gentle { animation: float-gentle 12s ease-in-out infinite; }
+        .animate-aurora-1 { animation: aurora-1 20s infinite ease-in-out; will-change: transform; }
+        .animate-aurora-2 { animation: aurora-2 25s infinite ease-in-out; will-change: transform; }
+        .animate-float-gentle { animation: float-gentle 12s ease-in-out infinite; will-change: transform, opacity; }
         
         .bg-noise {
             background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLLVAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZ1BMVEUAAAAAAACF11/9AAAAIklEQVR42mJ8/5+BgoCRgZGBkYGRgZGBkYGRgZGBkYGRgZEBAE2n/hV7w0wyAAAAAElFTkSuQmCC");
@@ -191,3 +213,4 @@
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
+    

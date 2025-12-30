@@ -1,5 +1,6 @@
-import React, { useState, useMemo, memo } from 'react';
-import { Plus, X, Trash2, Trophy, Clock, AlertCircle, Calendar } from 'lucide-react';
+
+import React, { useState, useMemo, memo, useRef } from 'react';
+import { Plus, X, Trash2, Trophy, Clock, AlertCircle, Calendar, UploadCloud, FileText, Image as ImageIcon, Eye, Paperclip } from 'lucide-react';
 import { TestResult, Target } from '../types';
 import { Card } from './Card';
 
@@ -14,34 +15,82 @@ const getLocalDate = () => {
 
 interface TestLogProps {
   tests: TestResult[];
-  targets?: Target[]; // Optional because it might not be passed in older versions or tests
+  targets?: Target[]; 
   onSave: (test: Omit<TestResult, 'id' | 'timestamp'>) => void;
   onDelete: (id: string) => void;
 }
 
 export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSave, onDelete }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewFile, setPreviewFile] = useState<{ name: string; type: 'image' | 'pdf' } | null>(null);
+  const [viewingAttachment, setViewingAttachment] = useState<TestResult | null>(null);
+
   const [formData, setFormData] = useState<Omit<TestResult, 'id' | 'timestamp'>>({
     name: '',
     date: getLocalDate(),
     marks: 0,
     total: 300,
     temperament: 'Calm',
-    analysis: ''
+    analysis: '',
+    attachment: undefined,
+    attachmentType: undefined,
+    fileName: undefined
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Size limit check (approx 800KB to be safe for Firestore documents)
+    if (file.size > 800 * 1024) {
+      alert("File is too large! Please upload an image/PDF smaller than 800KB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      const type = file.type.includes('pdf') ? 'pdf' : 'image';
+      
+      setFormData(prev => ({
+        ...prev,
+        attachment: result,
+        attachmentType: type,
+        fileName: file.name
+      }));
+      setPreviewFile({ name: file.name, type });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeAttachment = () => {
+    setFormData(prev => ({
+      ...prev,
+      attachment: undefined,
+      attachmentType: undefined,
+      fileName: undefined
+    }));
+    setPreviewFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
     onSave(formData);
     setIsAdding(false);
+    setPreviewFile(null);
     setFormData({
       name: '',
       date: getLocalDate(),
       marks: 0,
       total: 300,
       temperament: 'Calm',
-      analysis: ''
+      analysis: '',
+      attachment: undefined,
+      attachmentType: undefined,
+      fileName: undefined
     });
   };
 
@@ -121,6 +170,43 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                 </select>
               </div>
             </div>
+
+            {/* File Upload Section */}
+            <div className="space-y-2">
+               <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Upload Question Paper / Scorecard</label>
+               {!previewFile ? (
+                 <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-indigo-200 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500 bg-white/50 dark:bg-black/20 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors group"
+                 >
+                    <div className="p-3 bg-indigo-50 dark:bg-white/5 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                        <UploadCloud className="text-indigo-500 dark:text-indigo-400" size={24} />
+                    </div>
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Click to upload image or PDF</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Max 800KB (Scorecards only)</p>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept="image/*,application/pdf"
+                        onChange={handleFileChange}
+                    />
+                 </div>
+               ) : (
+                 <div className="flex items-center justify-between p-3 bg-white dark:bg-black/20 border border-indigo-200 dark:border-white/10 rounded-2xl">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-400 shrink-0">
+                            {previewFile.type === 'pdf' ? <FileText size={20} /> : <ImageIcon size={20} />}
+                        </div>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{previewFile.name}</span>
+                    </div>
+                    <button type="button" onClick={removeAttachment} className="p-2 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-rose-500 transition-colors">
+                        <X size={16} />
+                    </button>
+                 </div>
+               )}
+            </div>
+
             <div className="space-y-2">
               <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Quick Analysis</label>
               <textarea 
@@ -163,10 +249,22 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                       <span className="text-xs text-slate-500 font-bold ml-1">/{t.total}</span>
                     </div>
                   </div>
+                  
                   {t.analysis && (
                     <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-2xl border-l-4 border-indigo-500/40 mb-4 h-24 overflow-y-auto">
                       <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">{t.analysis}</p>
                     </div>
+                  )}
+
+                  {/* Attachment Button */}
+                  {t.attachment && (
+                      <button 
+                        onClick={() => setViewingAttachment(t)}
+                        className="w-full flex items-center justify-center gap-2 py-2 mb-4 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all text-xs font-bold uppercase tracking-wider"
+                      >
+                          {t.attachmentType === 'pdf' ? <FileText size={14} /> : <Paperclip size={14} />}
+                          View Paper
+                      </button>
                   )}
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-white/5 mt-auto">
@@ -186,6 +284,52 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
           ))
         )}
       </div>
+
+      {/* Attachment Viewer Modal */}
+      {viewingAttachment && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-[#0f172a] w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+                  <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#0f172a]">
+                      <div className="flex items-center gap-3">
+                          <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg text-indigo-600 dark:text-indigo-400">
+                              {viewingAttachment.attachmentType === 'pdf' ? <FileText size={20} /> : <ImageIcon size={20} />}
+                          </div>
+                          <div>
+                              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{viewingAttachment.name}</h3>
+                              <p className="text-[10px] text-slate-500 font-mono">{viewingAttachment.fileName || 'Attachment'}</p>
+                          </div>
+                      </div>
+                      <button 
+                        onClick={() => setViewingAttachment(null)}
+                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors"
+                      >
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="flex-1 bg-slate-100 dark:bg-black/50 overflow-auto flex items-center justify-center p-4 relative">
+                      {viewingAttachment.attachmentType === 'image' ? (
+                          <img 
+                            src={viewingAttachment.attachment} 
+                            alt="Test Paper" 
+                            className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                          />
+                      ) : (
+                          <div className="text-center">
+                              <FileText size={64} className="text-slate-400 mx-auto mb-4" />
+                              <p className="text-slate-500 dark:text-slate-300 mb-4">PDF Preview is not supported in this view.</p>
+                              <a 
+                                href={viewingAttachment.attachment} 
+                                download={viewingAttachment.fileName || "test-paper.pdf"}
+                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold uppercase text-xs tracking-widest shadow-lg transition-all"
+                              >
+                                  Download PDF
+                              </a>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* Upcoming Tests Section */}
       {upcomingTests.length > 0 && (

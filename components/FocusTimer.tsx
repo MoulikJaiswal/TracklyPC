@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
+
+import React, { useState, useMemo, memo, useEffect } from 'react';
 import { 
   Play, 
   Pause, 
@@ -14,191 +15,99 @@ import {
   ChevronDown,
   Brain,
   Coffee,
-  Armchair
+  Armchair,
+  Plus,
+  Timer as TimerIcon,
+  Flag,
+  Clock
 } from 'lucide-react';
-import { JEE_SYLLABUS } from '../constants';
-import { Target } from '../types';
+import { JEE_SYLLABUS, MISTAKE_TYPES } from '../constants';
+import { Target, QuestionLog } from '../types';
 
 interface FocusTimerProps {
   targets?: Target[];
+  mode: 'focus' | 'short' | 'long';
+  timeLeft: number;
+  isActive: boolean;
+  durations: { focus: number; short: number; long: number };
+  soundEnabled: boolean;
+  sessionLogs: QuestionLog[];
+  lastLogTime: number;
+  onToggleTimer: () => void;
+  onResetTimer: () => void;
+  onSwitchMode: (mode: 'focus' | 'short' | 'long') => void;
+  onToggleSound: () => void;
+  onUpdateDurations: (newDuration: number, mode: 'focus' | 'short' | 'long') => void;
+  onAddLog: (log: QuestionLog, subject: string) => void;
+  onCompleteSession: () => void;
 }
 
-type TimerMode = 'focus' | 'short' | 'long';
-
-// Helper for local date string YYYY-MM-DD
-const getLocalDate = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => {
-  // Optimization: Defer heavy logic/data loading
-  const [isDataReady, setIsDataReady] = useState(false);
-
-  const [mode, setMode] = useState<TimerMode>('focus');
+export const FocusTimer: React.FC<FocusTimerProps> = memo(({ 
+    targets = [], 
+    mode, 
+    timeLeft, 
+    isActive, 
+    durations, 
+    soundEnabled, 
+    sessionLogs,
+    lastLogTime,
+    onToggleTimer,
+    onResetTimer,
+    onSwitchMode,
+    onToggleSound,
+    onUpdateDurations,
+    onAddLog,
+    onCompleteSession
+}) => {
   const [selectedSubject, setSelectedSubject] = useState<keyof typeof JEE_SYLLABUS>('Physics');
-  
-  // Durations in minutes
-  const [durations, setDurations] = useState({ focus: 25, short: 5, long: 15 });
-  
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [isActive, setIsActive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string>('');
   
-  const [todayStats, setTodayStats] = useState({ Physics: 0, Chemistry: 0, Maths: 0 });
-  
-  // Refs for accurate timing
-  const timerRef = useRef<any>(null);
-  const endTimeRef = useRef<number>(0);
-  
-  // Audio Refs - Optimized for performance
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
+  // --- Feature States ---
+  const [showTagger, setShowTagger] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [currentQDuration, setCurrentQDuration] = useState(0); 
+  // ----------------------
 
-  // Defer heavy initialization to allow UI to mount instantly and animation to finish
+  // Automatically show report card when time runs out in Focus Mode
   useEffect(() => {
-    const t = setTimeout(() => {
-        setIsDataReady(true);
-        
-        // Load stats after delay
-        const today = getLocalDate();
-        const savedStats = localStorage.getItem(`zenith_stats_${today}`);
-        if (savedStats) setTodayStats(JSON.parse(savedStats));
-    }, 300);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Persist stats only when they change and data is ready
-  useEffect(() => {
-    if (!isDataReady) return;
-    const today = getLocalDate();
-    localStorage.setItem(`zenith_stats_${today}`, JSON.stringify(todayStats));
-  }, [todayStats, isDataReady]);
-
-  // Cleanup Audio on Unmount
-  useEffect(() => {
-    return () => {
-      if (sourceNodeRef.current) {
-        try { sourceNodeRef.current.stop(); } catch(e){}
-        sourceNodeRef.current.disconnect();
+      if (mode === 'focus' && timeLeft === 0 && sessionLogs.length > 0 && !isActive) {
+          setShowReport(true);
       }
-      if (gainNodeRef.current) gainNodeRef.current.disconnect();
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
-      }
-    };
-  }, []);
+  }, [timeLeft, mode, sessionLogs.length, isActive]);
 
-  const toggleAudio = () => {
-    const shouldEnable = !soundEnabled;
-    setSoundEnabled(shouldEnable);
+  // --- NEW: +1 Logic ---
+  const handlePlusOne = () => {
+      const now = Date.now();
+      const duration = Math.ceil((now - lastLogTime) / 1000);
+      setCurrentQDuration(duration);
+      setShowTagger(true);
+  };
 
-    if (shouldEnable) {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const ctx = audioContextRef.current;
-      if (ctx?.state === 'suspended') ctx.resume();
+  const handleTagResult = (result: 'correct' | string) => {
+      const now = Date.now();
       
-      const bufferSize = ctx!.sampleRate * 2; 
-      const buffer = ctx!.createBuffer(1, bufferSize, ctx!.sampleRate);
-      const data = buffer.getChannelData(0);
+      const newLog: QuestionLog = {
+          timestamp: now,
+          duration: currentQDuration,
+          result: result as any,
+          subject: selectedSubject // Attach subject to log
+      };
       
-      // Generate Brown Noise
-      let lastOut = 0;
-      for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          data[i] = (lastOut + (0.02 * white)) / 1.02;
-          lastOut = data[i];
-          data[i] *= 3.5; 
-      }
-
-      const source = ctx!.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      
-      const gainNode = ctx!.createGain();
-      gainNode.gain.value = 0.05; 
-      
-      source.connect(gainNode);
-      gainNode.connect(ctx!.destination);
-      source.start();
-      
-      sourceNodeRef.current = source;
-      gainNodeRef.current = gainNode;
-    } else {
-      if (sourceNodeRef.current) {
-        try { sourceNodeRef.current.stop(); } catch (e) {}
-        sourceNodeRef.current.disconnect();
-        sourceNodeRef.current = null;
-      }
-      if (gainNodeRef.current) {
-        gainNodeRef.current.disconnect();
-        gainNodeRef.current = null;
-      }
-    }
+      onAddLog(newLog, selectedSubject);
+      setShowTagger(false);
   };
 
-  const startTimer = () => {
-    setIsActive(true);
-    endTimeRef.current = Date.now() + timeLeft * 1000;
+  const handleFinishSession = () => {
+      onToggleTimer(); // Pause
+      setShowReport(true);
   };
 
-  const pauseTimer = () => {
-    setIsActive(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = null;
+  const handleSaveAndClose = () => {
+      onCompleteSession();
+      setShowReport(false);
   };
-
-  useEffect(() => {
-    if (isActive) {
-      timerRef.current = setInterval(() => {
-        const now = Date.now();
-        const diff = Math.ceil((endTimeRef.current - now) / 1000);
-        
-        if (diff <= 0) {
-          setTimeLeft(0);
-          setIsActive(false);
-          clearInterval(timerRef.current);
-          if (soundEnabled) toggleAudio(); 
-        } else {
-          setTimeLeft(diff);
-          if (mode === 'focus') {
-             setTodayStats(prev => ({ ...prev, [selectedSubject]: prev[selectedSubject] + 1 }));
-          }
-        }
-      }, 1000);
-    }
-    
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isActive, mode, selectedSubject, soundEnabled]);
-
-  const switchMode = (newMode: TimerMode) => {
-    setMode(newMode);
-    setIsActive(false);
-    setTimeLeft(durations[newMode] * 60);
-  };
-
-  const resetTimer = () => {
-    setIsActive(false);
-    setTimeLeft(durations[mode] * 60);
-    if (soundEnabled) toggleAudio();
-  };
-
-  const updateDuration = (newDuration: number, modeKey: TimerMode) => {
-      setDurations(prev => ({ ...prev, [modeKey]: newDuration }));
-      if (mode === modeKey && !isActive) {
-          setTimeLeft(newDuration * 60);
-      }
-  };
+  // ---------------------
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -217,9 +126,8 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
 
   const currentSubject = subjects.find(s => s.id === selectedSubject)!;
   
-  // Memoized task data - deferred loading
-  const pendingTasks = useMemo(() => isDataReady ? targets.filter(t => !t.completed) : [], [targets, isDataReady]);
-  const activeTaskObj = useMemo(() => isDataReady ? targets.find(t => t.id === selectedTask) : undefined, [targets, selectedTask, isDataReady]);
+  const pendingTasks = useMemo(() => targets.filter(t => !t.completed), [targets]);
+  const activeTaskObj = useMemo(() => targets.find(t => t.id === selectedTask), [targets, selectedTask]);
 
   const getTheme = () => {
     if (mode === 'focus') {
@@ -282,7 +190,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                   return (
                       <button
                           key={m.id}
-                          onClick={() => switchMode(m.id as TimerMode)}
+                          onClick={() => onSwitchMode(m.id as any)}
                           className={`
                               relative flex items-center gap-2 px-4 py-2 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all duration-300
                               ${isSelected ? 'text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}
@@ -351,11 +259,11 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                               <ListTodo size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
                           )}
                           
-                          {/* Dropdown - Only functional when data is ready */}
+                          {/* Dropdown */}
                           <select 
                               value={selectedTask}
                               onChange={(e) => setSelectedTask(e.target.value)}
-                              disabled={isActive || !isDataReady}
+                              disabled={isActive}
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-base"
                           >
                               <option value="">Select a Goal...</option>
@@ -363,7 +271,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
                           </select>
 
                           <span className={`text-xs font-medium truncate ${activeTaskObj ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>
-                              {!isDataReady ? 'Loading Tasks...' : activeTaskObj ? activeTaskObj.text : 'Select Focus Goal...'}
+                              {activeTaskObj ? activeTaskObj.text : 'Select Focus Goal...'}
                           </span>
                       </div>
                       <ChevronDown size={14} className="text-slate-400 dark:text-slate-600" />
@@ -455,95 +363,269 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({ targets = [] }) => 
         </div>
 
         {/* 3. Bottom Section: Controls */}
-        <div className="flex items-center gap-6 p-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/70 dark:hover:bg-slate-900/70 hover:border-slate-300 dark:hover:border-white/10 hover:shadow-indigo-500/5">
-          
-          <button 
-            onClick={toggleAudio}
-            className={`
-              w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
-              ${soundEnabled ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'}
-            `}
-            title="Brown Noise"
-          >
-            <Waves size={18} className={soundEnabled ? 'animate-pulse' : ''} />
-          </button>
+        <div className="flex flex-col items-center gap-8 w-full">
+            {/* The +1 Button (Only in Focus + Active) */}
+            {mode === 'focus' && isActive ? (
+                <button
+                    onClick={handlePlusOne}
+                    className={`
+                        group relative flex items-center gap-3 px-8 py-4 rounded-3xl
+                        bg-gradient-to-r ${currentSubject.gradient} shadow-2xl shadow-indigo-500/30
+                        transform transition-all duration-150 active:scale-95 hover:scale-105
+                    `}
+                >
+                    <div className="absolute inset-0 rounded-3xl bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+                    <Plus size={28} className="text-white animate-pulse" strokeWidth={3} />
+                    <div className="flex flex-col items-start text-white">
+                        <span className="text-lg font-bold leading-none">+1 Solved</span>
+                        <span className="text-[10px] font-bold uppercase opacity-80 tracking-wide">Log Question</span>
+                    </div>
+                </button>
+            ) : (
+                <div className="flex items-center gap-6 p-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/70 dark:hover:bg-slate-900/70 hover:border-slate-300 dark:hover:border-white/10 hover:shadow-indigo-500/5">
+                
+                    <button 
+                        onClick={onToggleSound}
+                        className={`
+                        w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
+                        ${soundEnabled ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'}
+                        `}
+                        title="Brown Noise"
+                    >
+                        <Waves size={18} className={soundEnabled ? 'animate-pulse' : ''} />
+                    </button>
 
-          <button 
-            onClick={() => isActive ? pauseTimer() : startTimer()}
-            className={`
-              w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95
-              ${isActive 
-                  ? 'bg-slate-100 text-slate-900 hover:bg-white shadow-slate-200 dark:shadow-white/10' 
-                  : `bg-gradient-to-br ${theme.gradient} text-white shadow-lg`}
-            `}
-          >
-            {isActive ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
-          </button>
+                    <button 
+                        onClick={onToggleTimer}
+                        className={`
+                        w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95
+                        ${isActive 
+                            ? 'bg-slate-100 text-slate-900 hover:bg-white shadow-slate-200 dark:shadow-white/10' 
+                            : `bg-gradient-to-br ${theme.gradient} text-white shadow-lg`}
+                        `}
+                    >
+                        {isActive ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+                    </button>
 
-          <div className="relative">
-            <button 
-              onClick={() => setShowSettings(!showSettings)}
-              className={`
-                  w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
-                  ${showSettings ? 'bg-black/5 dark:bg-white/10 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'}
-              `}
-            >
-              {showSettings ? <X size={18} /> : <Settings2 size={18} />}
-            </button>
+                    <div className="relative">
+                        <button 
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`
+                            w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
+                            ${showSettings ? 'bg-black/5 dark:bg-white/10 text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'}
+                        `}
+                        >
+                        {showSettings ? <X size={18} /> : <Settings2 size={18} />}
+                        </button>
 
-            {showSettings && (
-              <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-72 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl animate-in slide-in-from-bottom-2 fade-in duration-200 z-50">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 text-center">Timer Configuration</h4>
+                        {showSettings && (
+                        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-72 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl animate-in slide-in-from-bottom-2 fade-in duration-200 z-50">
+                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 text-center">Timer Configuration</h4>
+                            
+                            <div className="mb-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Focus</span>
+                                    <span className="text-xs font-mono font-bold text-indigo-500">{durations.focus}m</span>
+                                </div>
+                                <input 
+                                    type="range" min="0.5" max="480" step="0.5"
+                                    value={durations.focus}
+                                    onChange={(e) => onUpdateDurations(parseFloat(e.target.value), 'focus')}
+                                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                                />
+                            </div>
+
+                            <div className="mb-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Short Break</span>
+                                    <span className="text-xs font-mono font-bold text-emerald-500">{durations.short}m</span>
+                                </div>
+                                <input 
+                                    type="range" min="0.5" max="60" step="0.5"
+                                    value={durations.short}
+                                    onChange={(e) => onUpdateDurations(parseFloat(e.target.value), 'short')}
+                                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                                />
+                            </div>
+
+                            <div className="mb-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Long Break</span>
+                                    <span className="text-xs font-mono font-bold text-blue-500">{durations.long}m</span>
+                                </div>
+                                <input 
+                                    type="range" min="0.5" max="120" step="0.5"
+                                    value={durations.long}
+                                    onChange={(e) => onUpdateDurations(parseFloat(e.target.value), 'long')}
+                                    className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-blue-500"
+                                />
+                            </div>
+
+                            <div className="flex justify-center mt-2 border-t border-slate-100 dark:border-white/5 pt-3">
+                                <button onClick={onResetTimer} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors">
+                                    <RotateCcw size={10} /> Reset Current
+                                </button>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                </div>
+            )}
+            
+            {/* Session Stats (Small) */}
+            {sessionLogs.length > 0 && mode === 'focus' && (
+                <div className="mt-2 flex items-center gap-4">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-black/5 dark:bg-white/5 rounded-full">
+                        <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Current Session:</span>
+                        <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">{sessionLogs.length} Qs</span>
+                    </div>
+                    {/* Finish Button */}
+                    <button 
+                        onClick={handleFinishSession}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-full text-slate-600 dark:text-slate-300 transition-colors"
+                    >
+                        <Flag size={12} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Finish</span>
+                    </button>
+                </div>
+            )}
+        </div>
+      </div>
+
+      {/* --- REPORT CARD OVERLAY --- */}
+      {showReport && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+              <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
                   
-                  <div className="mb-4">
-                      <div className="flex justify-between items-center mb-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Focus</span>
-                          <span className="text-xs font-mono font-bold text-indigo-500">{durations.focus}m</span>
+                  {/* Header */}
+                  <div className="p-6 bg-gradient-to-r from-indigo-50 to-transparent dark:from-indigo-500/10 dark:to-transparent border-b border-slate-100 dark:border-white/5">
+                      <div className="flex justify-between items-start">
+                          <div>
+                              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                  <CheckCircle2 className="text-emerald-500" /> Session Complete
+                              </h2>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Great job! Here's your performance breakdown.</p>
+                          </div>
                       </div>
-                      <input 
-                        type="range" min="5" max="90" step="5"
-                        value={durations.focus}
-                        onChange={(e) => updateDuration(parseInt(e.target.value), 'focus')}
-                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-indigo-500"
-                      />
+                      
+                      <div className="grid grid-cols-2 gap-4 mt-6">
+                          <div className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/5">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest block mb-1">Accuracy</span>
+                              <span className="text-2xl font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                  {sessionLogs.length > 0 
+                                    ? Math.round((sessionLogs.filter(l => l.result === 'correct').length / sessionLogs.length) * 100) 
+                                    : 0}%
+                              </span>
+                          </div>
+                          <div className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/5">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest block mb-1">Questions</span>
+                              <span className="text-2xl font-mono font-bold text-slate-900 dark:text-white">
+                                  {sessionLogs.length}
+                              </span>
+                          </div>
+                      </div>
                   </div>
 
-                  <div className="mb-4">
-                      <div className="flex justify-between items-center mb-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Short Break</span>
-                          <span className="text-xs font-mono font-bold text-emerald-500">{durations.short}m</span>
-                      </div>
-                      <input 
-                        type="range" min="1" max="15" step="1"
-                        value={durations.short}
-                        onChange={(e) => updateDuration(parseInt(e.target.value), 'short')}
-                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-emerald-500"
-                      />
+                  {/* Question List */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-2 no-scrollbar">
+                      {sessionLogs.map((log, i) => {
+                          const isCorrect = log.result === 'correct';
+                          const mistake = !isCorrect ? MISTAKE_TYPES.find(m => m.id === log.result) : null;
+                          const subjectConfig = subjects.find(s => s.id === log.subject);
+
+                          return (
+                              <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-xl">
+                                  <div className={`p-2 rounded-lg bg-white dark:bg-white/5 ${subjectConfig?.color}`}>
+                                      {subjectConfig?.icon ? <subjectConfig.icon size={14} /> : <Atom size={14} />}
+                                  </div>
+                                  <div className="flex-grow min-w-0">
+                                      <div className="flex justify-between items-center mb-1">
+                                          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Question {i + 1}</span>
+                                          <span className="text-[10px] font-mono font-bold text-slate-400 flex items-center gap-1">
+                                              <Clock size={10} /> {formatTime(log.duration)}
+                                          </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                          {isCorrect ? (
+                                              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">Correct</span>
+                                          ) : (
+                                              <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 flex items-center gap-1`}>
+                                                  {mistake?.label || 'Incorrect'}
+                                              </span>
+                                          )}
+                                      </div>
+                                  </div>
+                              </div>
+                          );
+                      })}
                   </div>
 
-                  <div className="mb-4">
-                      <div className="flex justify-between items-center mb-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Long Break</span>
-                          <span className="text-xs font-mono font-bold text-blue-500">{durations.long}m</span>
-                      </div>
-                      <input 
-                        type="range" min="5" max="30" step="5"
-                        value={durations.long}
-                        onChange={(e) => updateDuration(parseInt(e.target.value), 'long')}
-                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none cursor-pointer accent-blue-500"
-                      />
-                  </div>
-
-                  <div className="flex justify-center mt-2 border-t border-slate-100 dark:border-white/5 pt-3">
-                      <button onClick={resetTimer} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors">
-                          <RotateCcw size={10} /> Reset Current
+                  {/* Footer Actions */}
+                  <div className="p-4 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50">
+                      <button 
+                          onClick={handleSaveAndClose}
+                          className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                          Save to Dashboard
                       </button>
                   </div>
               </div>
-            )}
           </div>
-        </div>
-      </div>
+      )}
+
+      {/* --- REAL-TIME TAGGING OVERLAY --- */}
+      {showTagger && !showReport && (
+          <div className="absolute inset-0 z-50 flex items-end justify-center pb-8 animate-in slide-in-from-bottom-10 fade-in duration-300">
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowTagger(false)} />
+              
+              <div className="relative w-[90%] max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col gap-4">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-white/5 pb-4">
+                      <div>
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-white">Log Question #{sessionLogs.length + 1}</h3>
+                          <div className="flex items-center gap-2 mt-1">
+                              <TimerIcon size={12} className="text-slate-400" />
+                              <span className="text-xs font-mono font-medium text-slate-500 dark:text-slate-400">
+                                  Time taken: <span className="text-indigo-500 font-bold">{formatTime(currentQDuration)}</span>
+                              </span>
+                          </div>
+                      </div>
+                      <button onClick={() => setShowTagger(false)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400">
+                          <X size={20} />
+                      </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                      {/* Massive Correct Button */}
+                      <button 
+                          onClick={() => handleTagResult('correct')}
+                          className="col-span-2 py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                      >
+                          <CheckCircle2 size={20} /> Solved / Correct
+                      </button>
+                      
+                      <div className="col-span-2 text-center my-1">
+                          <span className="text-[9px] font-bold uppercase text-slate-400 tracking-widest bg-white dark:bg-slate-900 px-2 relative z-10">or mark issue</span>
+                          <div className="h-px bg-slate-100 dark:bg-white/5 -mt-2"></div>
+                      </div>
+
+                      {MISTAKE_TYPES.slice(0, 4).map(type => (
+                          <button
+                              key={type.id}
+                              onClick={() => handleTagResult(type.id)}
+                              className={`
+                                  flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-all active:scale-95
+                                  ${type.color.replace('text-', 'text-')}
+                              `}
+                          >
+                              <span className="shrink-0">{type.icon}</span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">{type.label}</span>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
     </>
   );
 });
