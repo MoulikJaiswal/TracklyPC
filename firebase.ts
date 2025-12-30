@@ -2,21 +2,14 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// ------------------------------------------------------------------
-// INSTRUCTIONS:
-// 1. Go to Firebase Console -> Project Settings -> General
-// 2. Scroll down to "Your apps"
-// 3. Copy the 'firebaseConfig' object keys and paste them below.
-// ------------------------------------------------------------------
-
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  // PASTE YOUR KEYS HERE (Replace these placeholder strings):
-  apiKey: "YOUR_API_KEY_GOES_HERE",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyABuDd5YLHJC3FwJQRtacPtXWEzJ3qk2bk",
+  authDomain: "tracklypc.firebaseapp.com",
+  projectId: "tracklypc",
+  storageBucket: "tracklypc.firebasestorage.app",
+  messagingSenderId: "509028484372",
+  appId: "1:509028484372:web:999d1d261e487ee25cae01"
 };
 
 // Initialize Firebase
