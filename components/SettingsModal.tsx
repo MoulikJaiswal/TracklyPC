@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { X, Zap, ZapOff, CheckCircle2, Map, Globe, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Music } from 'lucide-react';
+import { X, Zap, ZapOff, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle } from 'lucide-react';
 import { Card } from './Card';
 import { ThemeId } from '../types';
 import { THEME_CONFIG } from '../constants';
@@ -63,6 +64,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setSoundVolume
 }) => {
   if (!isOpen) return null;
+
+  const handleClearData = () => {
+      if (window.confirm("Are you sure? This will wipe all local data, settings, and guest progress. This action cannot be undone.")) {
+          localStorage.clear();
+          window.location.reload();
+      }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -379,6 +387,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    Reduced motion automatically disables complex effects
                 </p>
              )}
+          </div>
+
+          {/* Danger Zone */}
+          <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-white/10">
+             <label className="text-xs font-bold text-rose-500 uppercase tracking-widest flex items-center gap-2">
+                <AlertTriangle size={12} /> Danger Zone
+             </label>
+             <button 
+               onClick={handleClearData}
+               className="w-full flex items-center justify-between p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors group"
+             >
+                <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 group-hover:bg-rose-200 dark:group-hover:bg-rose-500/30 transition-colors">
+                        <Trash2 size={18} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-rose-700 dark:text-rose-300">Clear All Data</p>
+                      <p className="text-[10px] text-rose-600/70 dark:text-rose-400/70 uppercase font-bold tracking-wider">
+                        Reset app & local storage
+                      </p>
+                    </div>
+                </div>
+             </button>
           </div>
         </div>
         
