@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, memo, useRef } from 'react';
-import { Plus, X, Trash2, Trophy, Clock, AlertCircle, Calendar, UploadCloud, FileText, Image as ImageIcon, Eye, Paperclip } from 'lucide-react';
-import { TestResult, Target } from '../types';
+import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Eye, Paperclip, Atom, Zap, Calculator, BarChart3, AlertCircle, HelpCircle } from 'lucide-react';
+import { TestResult, Target, SubjectBreakdown } from '../types';
 import { Card } from './Card';
 
 // Helper for local date string YYYY-MM-DD
@@ -20,11 +20,20 @@ interface TestLogProps {
   onDelete: (id: string) => void;
 }
 
+const DEFAULT_BREAKDOWN: SubjectBreakdown = {
+  correct: 0,
+  incorrect: 0,
+  unattempted: 0,
+  calcErrors: 0,
+  otherErrors: 0
+};
+
 export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSave, onDelete }) => {
   const [isAdding, setIsAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewFile, setPreviewFile] = useState<{ name: string; type: 'image' | 'pdf' } | null>(null);
   const [viewingAttachment, setViewingAttachment] = useState<TestResult | null>(null);
+  const [activeTab, setActiveTab] = useState<'Physics' | 'Chemistry' | 'Maths'>('Physics');
 
   const [formData, setFormData] = useState<Omit<TestResult, 'id' | 'timestamp'>>({
     name: '',
@@ -32,17 +41,20 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     marks: 0,
     total: 300,
     temperament: 'Calm',
-    analysis: '',
     attachment: undefined,
     attachmentType: undefined,
-    fileName: undefined
+    fileName: undefined,
+    breakdown: {
+      Physics: { ...DEFAULT_BREAKDOWN },
+      Chemistry: { ...DEFAULT_BREAKDOWN },
+      Maths: { ...DEFAULT_BREAKDOWN }
+    }
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Size limit check (approx 800KB to be safe for Firestore documents)
     if (file.size > 800 * 1024) {
       alert("File is too large! Please upload an image/PDF smaller than 800KB.");
       return;
@@ -75,6 +87,19 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const updateBreakdown = (subject: 'Physics' | 'Chemistry' | 'Maths', field: keyof SubjectBreakdown, value: number) => {
+    setFormData(prev => ({
+      ...prev,
+      breakdown: {
+        ...prev.breakdown!,
+        [subject]: {
+          ...prev.breakdown![subject],
+          [field]: Math.max(0, value)
+        }
+      }
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
@@ -87,10 +112,14 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
       marks: 0,
       total: 300,
       temperament: 'Calm',
-      analysis: '',
       attachment: undefined,
       attachmentType: undefined,
-      fileName: undefined
+      fileName: undefined,
+      breakdown: {
+        Physics: { ...DEFAULT_BREAKDOWN },
+        Chemistry: { ...DEFAULT_BREAKDOWN },
+        Maths: { ...DEFAULT_BREAKDOWN }
+      }
     });
   };
 
@@ -119,13 +148,15 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
 
       {isAdding && (
         <Card className="border-indigo-100 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/5 max-w-2xl mx-auto">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Basic Info Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Test Name</label>
                 <input 
                   type="text" required placeholder="e.g., JEE Mains Mock 12"
-                  className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
                 />
@@ -134,7 +165,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                 <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Date</label>
                 <input 
                   type="date" required
-                  className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all"
+                  className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all"
                   value={formData.date}
                   onChange={e => setFormData({...formData, date: e.target.value})}
                 />
@@ -144,7 +175,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                   <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Marks</label>
                   <input 
                     type="number" required placeholder="0"
-                    className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all font-mono"
+                    className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all font-mono"
                     value={formData.marks}
                     onChange={e => setFormData({...formData, marks: parseInt(e.target.value) || 0})}
                   />
@@ -153,7 +184,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                   <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Total</label>
                   <input 
                     type="number" required placeholder="300"
-                    className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all font-mono"
+                    className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all font-mono"
                     value={formData.total}
                     onChange={e => setFormData({...formData, total: parseInt(e.target.value) || 300})}
                   />
@@ -162,7 +193,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Temperament</label>
                 <select 
-                  className="w-full bg-white dark:bg-slate-900 border border-indigo-100 dark:border-white/10 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all"
+                  className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 rounded-2xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all appearance-none"
                   value={formData.temperament}
                   onChange={e => setFormData({...formData, temperament: e.target.value as any})}
                 >
@@ -171,9 +202,98 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
               </div>
             </div>
 
+            {/* Deep Dive Analysis Section */}
+            <div className="space-y-3 pt-2">
+               <label className="text-xs uppercase font-bold text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-2">
+                  <BarChart3 size={14} className="text-indigo-500" /> Deep Dive Analysis
+               </label>
+               
+               <div className="bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 rounded-2xl overflow-hidden">
+                  {/* Subject Tabs */}
+                  <div className="flex border-b border-indigo-100 dark:border-white/10">
+                     {(['Physics', 'Chemistry', 'Maths'] as const).map(subject => (
+                        <button
+                           key={subject}
+                           type="button"
+                           onClick={() => setActiveTab(subject)}
+                           className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2
+                              ${activeTab === subject 
+                                 ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border-b-2 border-indigo-500' 
+                                 : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+                              }`}
+                        >
+                           {subject === 'Physics' && <Atom size={14} />}
+                           {subject === 'Chemistry' && <Zap size={14} />}
+                           {subject === 'Maths' && <Calculator size={14} />}
+                           <span className="hidden md:inline">{subject}</span>
+                        </button>
+                     ))}
+                  </div>
+
+                  {/* Input Fields */}
+                  <div className="p-4 md:p-6 space-y-6">
+                     <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                           <label className="text-[9px] uppercase font-bold text-emerald-500 ml-1">Correct</label>
+                           <input 
+                              type="number" min="0" placeholder="0"
+                              className="w-full bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-2.5 rounded-xl text-center font-mono font-bold text-slate-900 dark:text-white focus:border-emerald-500 outline-none transition-all"
+                              value={formData.breakdown?.[activeTab].correct || ''}
+                              onChange={(e) => updateBreakdown(activeTab, 'correct', parseInt(e.target.value) || 0)}
+                           />
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[9px] uppercase font-bold text-rose-500 ml-1">Wrong</label>
+                           <input 
+                              type="number" min="0" placeholder="0"
+                              className="w-full bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-2.5 rounded-xl text-center font-mono font-bold text-slate-900 dark:text-white focus:border-rose-500 outline-none transition-all"
+                              value={formData.breakdown?.[activeTab].incorrect || ''}
+                              onChange={(e) => updateBreakdown(activeTab, 'incorrect', parseInt(e.target.value) || 0)}
+                           />
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[9px] uppercase font-bold text-slate-400 ml-1">Skipped</label>
+                           <input 
+                              type="number" min="0" placeholder="0"
+                              className="w-full bg-slate-50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-2.5 rounded-xl text-center font-mono font-bold text-slate-900 dark:text-white focus:border-slate-400 outline-none transition-all"
+                              value={formData.breakdown?.[activeTab].unattempted || ''}
+                              onChange={(e) => updateBreakdown(activeTab, 'unattempted', parseInt(e.target.value) || 0)}
+                           />
+                        </div>
+                     </div>
+
+                     <div className="p-4 bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-500/20">
+                        <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                           <AlertCircle size={12} /> Mistake Analysis
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-1">
+                              <label className="text-[9px] uppercase font-bold text-rose-500/70 dark:text-rose-400/70 ml-1">Calculation Error</label>
+                              <input 
+                                 type="number" min="0" placeholder="0"
+                                 className="w-full bg-white dark:bg-black/30 border border-rose-200 dark:border-rose-500/30 p-2.5 rounded-xl text-center font-mono font-bold text-rose-600 dark:text-rose-300 focus:border-rose-500 outline-none transition-all"
+                                 value={formData.breakdown?.[activeTab].calcErrors || ''}
+                                 onChange={(e) => updateBreakdown(activeTab, 'calcErrors', parseInt(e.target.value) || 0)}
+                              />
+                           </div>
+                           <div className="space-y-1">
+                              <label className="text-[9px] uppercase font-bold text-rose-500/70 dark:text-rose-400/70 ml-1">Other / Conceptual</label>
+                              <input 
+                                 type="number" min="0" placeholder="0"
+                                 className="w-full bg-white dark:bg-black/30 border border-rose-200 dark:border-rose-500/30 p-2.5 rounded-xl text-center font-mono font-bold text-rose-600 dark:text-rose-300 focus:border-rose-500 outline-none transition-all"
+                                 value={formData.breakdown?.[activeTab].otherErrors || ''}
+                                 onChange={(e) => updateBreakdown(activeTab, 'otherErrors', parseInt(e.target.value) || 0)}
+                              />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
             {/* File Upload Section */}
             <div className="space-y-2">
-               <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Upload Question Paper / Scorecard</label>
+               <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Attachment (Optional)</label>
                {!previewFile ? (
                  <div 
                     onClick={() => fileInputRef.current?.click()}
@@ -182,8 +302,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                     <div className="p-3 bg-indigo-50 dark:bg-white/5 rounded-full mb-3 group-hover:scale-110 transition-transform">
                         <UploadCloud className="text-indigo-500 dark:text-indigo-400" size={24} />
                     </div>
-                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Click to upload image or PDF</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Max 800KB (Scorecards only)</p>
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Upload Scorecard / Paper</p>
                     <input 
                         type="file" 
                         ref={fileInputRef} 
@@ -207,15 +326,6 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                )}
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-300/60 ml-1">Quick Analysis</label>
-              <textarea 
-                placeholder="What went wrong? Any syllabus gaps?"
-                className="w-full bg-white dark:bg-black/20 border border-indigo-100 dark:border-white/10 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white min-h-[100px] outline-none focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                value={formData.analysis}
-                onChange={e => setFormData({...formData, analysis: e.target.value})}
-              />
-            </div>
             <button type="submit" className="w-full bg-indigo-500 hover:bg-indigo-400 py-3 md:py-4 rounded-2xl text-white font-bold uppercase text-xs tracking-widest shadow-lg transition-colors">Save Performance</button>
           </form>
         </Card>
@@ -250,11 +360,32 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                     </div>
                   </div>
                   
-                  {t.analysis && (
+                  {/* Structured Breakdown Display */}
+                  {t.breakdown ? (
+                    <div className="mb-4 bg-slate-50 dark:bg-white/5 rounded-2xl p-3 border border-slate-100 dark:border-white/5 space-y-2">
+                        <div className="flex text-[9px] font-bold uppercase text-slate-400 tracking-widest pb-1 border-b border-slate-200 dark:border-white/5 mb-1">
+                            <span className="w-8">Sub</span>
+                            <span className="flex-1 text-center text-emerald-500">Corr</span>
+                            <span className="flex-1 text-center text-rose-500">Wrong</span>
+                            <span className="flex-1 text-center text-slate-500">Skip</span>
+                        </div>
+                        {(['Physics', 'Chemistry', 'Maths'] as const).map(sub => {
+                            const data = t.breakdown![sub];
+                            return (
+                                <div key={sub} className="flex items-center text-xs font-mono font-medium text-slate-700 dark:text-slate-300">
+                                    <span className="w-8 font-bold text-[10px] uppercase text-slate-500">{sub.slice(0, 1)}</span>
+                                    <span className="flex-1 text-center">{data.correct}</span>
+                                    <span className="flex-1 text-center">{data.incorrect} <span className="text-[9px] text-rose-400 opacity-60">({data.calcErrors}c)</span></span>
+                                    <span className="flex-1 text-center opacity-50">{data.unattempted}</span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                  ) : t.analysis ? (
                     <div className="bg-slate-50 dark:bg-white/5 p-4 rounded-2xl border-l-4 border-indigo-500/40 mb-4 h-24 overflow-y-auto">
                       <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed italic">{t.analysis}</p>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Attachment Button */}
                   {t.attachment && (

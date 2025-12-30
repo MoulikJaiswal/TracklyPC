@@ -25,6 +25,14 @@ export interface QuestionLog {
   subject: string; // Added to track subject per question
 }
 
+export interface SubjectBreakdown {
+  correct: number;
+  incorrect: number;
+  unattempted: number;
+  calcErrors: number;
+  otherErrors: number;
+}
+
 export interface TestResult {
   id: string;
   name: string;
@@ -32,7 +40,12 @@ export interface TestResult {
   marks: number;
   total: number;
   temperament: 'Calm' | 'Anxious' | 'Focused' | 'Fatigued';
-  analysis: string;
+  analysis?: string; // Legacy field
+  breakdown?: {
+    Physics: SubjectBreakdown;
+    Chemistry: SubjectBreakdown;
+    Maths: SubjectBreakdown;
+  };
   timestamp: number;
   attachment?: string; // Base64 string of the file
   attachmentType?: 'image' | 'pdf';

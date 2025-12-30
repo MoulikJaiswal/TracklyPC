@@ -1329,10 +1329,11 @@ const App: React.FC = () => {
       <AnimatePresence>
         {showTestReminder && (
             <motion.div 
-                initial={{ y: 100, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 100, opacity: 0 }}
-                className="fixed bottom-24 md:bottom-10 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm"
+                initial={{ x: "-50%", y: 100, opacity: 0 }}
+                animate={{ x: "-50%", y: 0, opacity: 1 }}
+                exit={{ x: "-50%", y: 100, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed bottom-24 md:bottom-10 left-1/2 z-[100] w-[90%] max-w-sm"
             >
                 <div className="bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 backdrop-blur-xl">
                     <div className="flex items-center gap-3">
@@ -1341,7 +1342,7 @@ const App: React.FC = () => {
                         </div>
                         <div>
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Test Completed!</h4>
-                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{reminderMessage}</p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-tight mt-0.5">{reminderMessage}</p>
                         </div>
                     </div>
                     <button 
@@ -1349,7 +1350,7 @@ const App: React.FC = () => {
                             changeView('tests');
                             setShowTestReminder(false);
                         }}
-                        className="flex items-center gap-1 px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors"
+                        className="flex-shrink-0 flex items-center gap-1 px-3 py-2 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors"
                     >
                         Log Now <ArrowRight size={12} />
                     </button>
