@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, memo } from 'react';
-import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid, Sparkles, Loader2, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid, Sparkles, Loader2, AlertTriangle, CheckCircle2, ArrowRight, Lock } from 'lucide-react';
 import { Session, TestResult } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
@@ -135,6 +135,7 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
 export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) => {
   const [aiReport, setAiReport] = useState<any | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const stats = useMemo(() => {
     const totalAttempted = sessions.reduce((acc, s) => acc + (Number(s.attempted) || 0), 0);
@@ -160,6 +161,8 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
     }
     
     setIsAnalyzing(true);
+    setError(null);
+    
     try {
       const reportText = await generateAnalysis(sessions, tests);
       
@@ -172,16 +175,21 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
           setAiReport(json);
       } catch (e) {
           console.error("JSON Parse Error", e);
-          // Fallback if parsing fails - Display raw text but cleaner
           setAiReport({ 
               bottleneckTitle: "Analysis Report", 
-              analysis: reportText.replace(/\*\*/g, ''), // Strip bold markers for cleaner raw text
+              analysis: reportText.replace(/\*\*/g, ''), 
               temperament: "Review Required", 
               actionPlan: ["Could not parse detailed plan. See analysis above."] 
           });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      // Friendly error handling for missing API keys
+      if (e.message && e.message.includes("API Key")) {
+        setError("API Key Missing. Add VITE_GEMINI_API_KEY to your .env file.");
+      } else {
+        setError("Failed to generate analysis. Please try again later.");
+      }
       setAiReport(null);
     } finally {
       setIsAnalyzing(false);
@@ -260,6 +268,22 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                                                 <span className="text-xs font-bold uppercase tracking-widest block mb-1">Analyzing Patterns</span>
                                                 <span className="text-[10px] text-indigo-400 dark:text-indigo-500 uppercase font-bold tracking-widest">Studying {sessions.length} sessions...</span>
                                             </div>
+                                        </div>
+                                    ) : error ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-center py-8 px-4">
+                                            <div className="p-3 bg-rose-100 dark:bg-rose-500/20 rounded-full mb-3 text-rose-500">
+                                                <Lock size={20} />
+                                            </div>
+                                            <h4 className="text-sm font-bold text-rose-900 dark:text-white mb-2">Configuration Error</h4>
+                                            <p className="text-xs text-rose-700 dark:text-rose-300 mb-6 max-w-[250px] leading-relaxed mx-auto">
+                                                {error}
+                                            </p>
+                                            <button 
+                                                onClick={handleGenerateReport}
+                                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest shadow-lg transition-all"
+                                            >
+                                                Retry
+                                            </button>
                                         </div>
                                     ) : aiReport ? (
                                         <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">

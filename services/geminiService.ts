@@ -1,12 +1,13 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Session, TestResult } from "../types";
 
-// Initialize the client
-// Ensure process.env.API_KEY is available. 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-
 export const generateAnalysis = async (sessions: Session[], tests: TestResult[]) => {
+  const apiKey = process.env.API_KEY;
+
+  // Initialize client only when needed to avoid startup crashes
+  // Guidelines: API key must be obtained from process.env.API_KEY
+  const ai = new GoogleGenAI({ apiKey });
+
   // Prepare data summary
   const totalQs = sessions.reduce((acc, s) => acc + s.attempted, 0);
   const subjectBreakdown = sessions.reduce((acc, s) => {
@@ -46,7 +47,7 @@ export const generateAnalysis = async (sessions: Session[], tests: TestResult[])
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
