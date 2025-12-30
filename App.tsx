@@ -662,9 +662,20 @@ const App: React.FC = () => {
   const handleLogin = async () => {
     try {
         await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Login failed", error);
-        alert("Failed to sign in. Please try again.");
+        
+        let errorMessage = "Failed to sign in.";
+        if (error.code === 'auth/unauthorized-domain') {
+            errorMessage = `Domain Error:\n\nThe IP "${window.location.hostname}" is not whitelisted.\n\n1. Go to Firebase Console -> Auth -> Settings -> Authorized Domains\n2. Add: ${window.location.hostname}`;
+        } else if (error.code === 'auth/popup-blocked') {
+            errorMessage = "Popup Blocked. Please allow popups for this site.";
+        } else if (error.code === 'auth/popup-closed-by-user') {
+            return; // Ignore
+        } else {
+            errorMessage = `Login Failed: ${error.message}`;
+        }
+        alert(errorMessage);
     }
   };
 
