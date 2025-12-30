@@ -388,7 +388,7 @@ const Sidebar = React.memo(({
     isGuest,
     onLogin,
     onLogout,
-    deferredPrompt,
+    isInstalled,
     onInstall
 }: { 
     view: ViewType, 
@@ -400,7 +400,7 @@ const Sidebar = React.memo(({
     isGuest: boolean,
     onLogin: () => void,
     onLogout: () => void,
-    deferredPrompt: any,
+    isInstalled: boolean,
     onInstall: () => void
 }) => {
   return (
@@ -489,8 +489,8 @@ const Sidebar = React.memo(({
       </div>
 
       <div className="p-4 border-t border-slate-200 dark:border-white/5 w-full space-y-2">
-        {/* Install Button (Only visible if prompt available) */}
-        {deferredPrompt && (
+        {/* Install Button (Visible if not installed) */}
+        {!isInstalled && (
             <button 
               onClick={onInstall}
               className={`w-full flex items-center px-3 py-3 rounded-xl text-indigo-500 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all group ${isCollapsed ? 'justify-center gap-0' : 'gap-3'}`}
@@ -584,9 +584,23 @@ const App: React.FC = () => {
   
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   // Audio Context Ref
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Check Installation Status
+  useEffect(() => {
+    // Check if standalone
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone || document.referrer.includes('android-app://');
+    setIsInstalled(isStandalone);
+    
+    // Listen for changes
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const changeHandler = (e: any) => setIsInstalled(e.matches);
+    mediaQuery.addEventListener('change', changeHandler);
+    return () => mediaQuery.removeEventListener('change', changeHandler);
+  }, []);
 
   // Capture Install Prompt
   useEffect(() => {
@@ -599,11 +613,20 @@ const App: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-          setDeferredPrompt(null);
+      if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+              setDeferredPrompt(null);
+          }
+      } else {
+        // Fallback instructions
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        if (isIOS) {
+             alert("To install Trackly:\n\n1. Tap the Share button below\n2. Scroll down and tap 'Add to Home Screen'");
+        } else {
+             alert("To install Trackly:\n\nLook for the Install icon (⊕) in your browser's address bar, or tap the menu (⋮) and select 'Install App'.");
+        }
       }
   };
 
@@ -1098,7 +1121,7 @@ const App: React.FC = () => {
           isGuest={isGuest}
           onLogin={handleLogin}
           onLogout={handleLogout}
-          deferredPrompt={deferredPrompt}
+          isInstalled={isInstalled}
           onInstall={handleInstallClick}
       />
 
