@@ -147,7 +147,27 @@ export default function App() {
   const [tests, setTests] = useState<TestResult[]>(() => safeJSONParse('tests', []));
   const [goals, setGoals] = useState(() => safeJSONParse('goals', { Physics: 20, Chemistry: 20, Maths: 20 }));
   const [theme, setTheme] = useState<ThemeId>(() => safeJSONParse('theme', 'default-dark'));
-  const [view, setView] = useState<ViewType>('daily');
+  
+  // Navigation State
+  const [view, setViewState] = useState<ViewType>('daily');
+  const [slideDirection, setSlideDirection] = useState<number>(1); // 1 for next (right), -1 for prev (left)
+
+  // --- NAVIGATION CONFIG ---
+  const views: { id: ViewType; label: string; icon: any }[] = [
+    { id: 'daily', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'focus', label: 'Focus', icon: Timer },
+    { id: 'planner', label: 'Planner', icon: CalendarIcon },
+    { id: 'tests', label: 'Tests', icon: Activity },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+  ];
+
+  // Smart View Setter that calculates direction
+  const setView = (newView: ViewType) => {
+    const currentIdx = views.findIndex(v => v.id === view);
+    const newIdx = views.findIndex(v => v.id === newView);
+    setSlideDirection(newIdx > currentIdx ? 1 : -1);
+    setViewState(newView);
+  };
   
   // Settings
   const [animationsEnabled, setAnimationsEnabled] = useState(() => safeJSONParse('animations', true));
@@ -225,6 +245,45 @@ export default function App() {
      setGoals(newGoals); // Directly set the object
   }, []);
 
+  // --- TOUCH SWIPE HANDLERS ---
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    // Check if total swipe distance is significant enough
+    if (Math.abs(distance) < 50) return;
+
+    const currentIndex = views.findIndex(v => v.id === view);
+    
+    // Swipe Left -> Next Tab
+    if (isLeftSwipe && currentIndex < views.length - 1) {
+        setView(views[currentIndex + 1].id);
+    }
+    
+    // Swipe Right -> Prev Tab
+    if (isRightSwipe && currentIndex > 0) {
+        setView(views[currentIndex - 1].id);
+    }
+
+    // Reset
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
+
   // --- THEME APPLICATION ---
   useEffect(() => {
     const root = document.documentElement;
@@ -248,15 +307,6 @@ export default function App() {
     root.style.setProperty('--theme-bg', config.colors.bg);
   }, [theme, animationsEnabled]);
 
-  // --- NAVIGATION CONFIG ---
-  const views: { id: ViewType; label: string; icon: any }[] = [
-    { id: 'daily', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'focus', label: 'Focus', icon: Timer },
-    { id: 'planner', label: 'Planner', icon: CalendarIcon },
-    { id: 'tests', label: 'Tests', icon: Activity },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  ];
-
   const config = THEME_CONFIG[theme];
 
   const tutorialSteps: TutorialStep[] = [
@@ -269,7 +319,12 @@ export default function App() {
   ];
 
   return (
-    <div className={`min-h-screen text-slate-900 dark:text-slate-200 selection:bg-indigo-500/30 overflow-x-hidden ${config.mode}`}>
+    <div 
+      className={`min-h-screen text-slate-900 dark:text-slate-200 selection:bg-indigo-500/30 overflow-x-hidden ${config.mode}`}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
       <AnimatedBackground 
         themeId={theme} 
         showAurora={showAurora} 
@@ -370,12 +425,13 @@ export default function App() {
            </div>
 
            {/* View Content */}
-           <AnimatePresence mode="wait">
+           <AnimatePresence mode="wait" custom={slideDirection}>
              <motion.div
                key={view}
-               initial={{ opacity: 0, y: 10, scale: 0.98 }}
-               animate={{ opacity: 1, y: 0, scale: 1 }}
-               exit={{ opacity: 0, y: -10, scale: 0.98 }}
+               custom={slideDirection}
+               initial={{ opacity: 0, x: slideDirection * 20, scale: 0.98 }}
+               animate={{ opacity: 1, x: 0, scale: 1 }}
+               exit={{ opacity: 0, x: slideDirection * -20, scale: 0.98 }}
                transition={{ 
                  type: "spring", 
                  stiffness: swipeStiffness, 
