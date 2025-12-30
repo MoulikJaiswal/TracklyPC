@@ -8,22 +8,25 @@ import {
   LayoutDashboard,
   Timer,
   Settings,
-  LogOut,
   ChevronRight,
   ChevronLeft,
-  Map,
-  CheckCircle2,
   Atom,
-  Zap,
-  Calculator,
-  Loader2
+  Loader2,
+  LogOut,
+  ShieldCheck,
+  WifiOff
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
 import { SettingsModal } from './components/SettingsModal';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
 
-// Lazy Load Components for Performance Optimization
+// Firebase Imports
+import { auth, db, googleProvider } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+
+// Lazy Load Components
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
 const FocusTimer = lazy(() => import('./components/FocusTimer').then(module => ({ default: module.FocusTimer })));
 const Planner = lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
@@ -38,7 +41,7 @@ const getLocalDate = (d = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-// Robust UUID Generator (Works in non-secure contexts unlike crypto.randomUUID)
+// UUID Generator
 const generateUUID = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -52,7 +55,6 @@ const safeJSONParse = <T,>(key: string, fallback: T): T => {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : fallback;
   } catch (e) {
-    console.warn(`Failed to parse ${key} from localStorage, using fallback.`);
     return fallback;
   }
 };
@@ -104,7 +106,6 @@ const AnimatedBackground = React.memo(({
   const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>();
 
-  // ISOLATED MOUSE TRACKING: Only update styles on this specific background layer
   useEffect(() => {
     if (!parallaxEnabled) return;
 
@@ -113,11 +114,8 @@ const AnimatedBackground = React.memo(({
         requestRef.current = requestAnimationFrame(() => {
             if (containerRef.current) {
                 const { innerWidth: w, innerHeight: h } = window;
-                // Calculate center offset
                 const xOffset = (w / 2 - e.clientX);
                 const yOffset = (h / 2 - e.clientY);
-                
-                // Directly update properties on this element only
                 containerRef.current.style.setProperty('--off-x', `${xOffset}`);
                 containerRef.current.style.setProperty('--off-y', `${yOffset}`);
             }
@@ -135,11 +133,8 @@ const AnimatedBackground = React.memo(({
   const items = useMemo(() => {
     if (!showParticles || highPerformanceMode) return [];
 
-    // --- MIDNIGHT QUIET THEME OVERHAUL ---
     if (themeId === 'midnight') {
         const midnightItems: any[] = [];
-        
-        // Optimized count: Reduced star count for better FPS
         for(let i=0; i<25; i++) {
             const size = Math.random() * 0.15 + 0.05; 
             const depth = Math.random() * 3 + 1; 
@@ -157,7 +152,6 @@ const AnimatedBackground = React.memo(({
                 isBright
             });
         }
-
         midnightItems.push({
             id: 'shooting-star-1',
             top: '20%',
@@ -166,11 +160,9 @@ const AnimatedBackground = React.memo(({
             shape: 'shooting-star',
             parallaxFactor: 0.02
         });
-
         return midnightItems;
     }
 
-    // --- FOREST THEME ---
     if (themeId === 'forest') {
         return [
             { id: 1, top: '-10%', left: '-10%', size: 45, shape: 'leaf', depth: 1, rotation: 135, opacity: 0.03 },
@@ -187,7 +179,6 @@ const AnimatedBackground = React.memo(({
         }));
     }
 
-    // --- DEFAULT GEOMETRIC (Reduced Count) ---
     return [
         { id: 1, top: '8%', left: '5%', size: 16, shape: 'ring', depth: 1, opacity: 0.03, rotation: 0 },
         { id: 2, top: '75%', left: '85%', size: 20, shape: 'squircle', depth: 1, opacity: 0.03, rotation: 15 },
@@ -216,35 +207,28 @@ const AnimatedBackground = React.memo(({
             backgroundColor: config.colors.bg,
             contain: 'strict',
             transform: 'translateZ(0)',
-            // Initialize vars
             '--off-x': 0,
             '--off-y': 0
         } as React.CSSProperties}
     >
-      
-      {/* Layer 5: Static Grain (Global) - REMOVED in High Perf Mode to save compositing */}
       {!highPerformanceMode && (
          <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay" style={{ transform: 'translateZ(0)' }}></div>
       )}
 
-      {/* MIDNIGHT: Layer 1 - Deep Space Gradient */}
       {themeId === 'midnight' && (
         <>
             <div 
                 className="absolute inset-0 z-[1]" 
                 style={{ 
-                    // Pure black at top fading to a very deep subtle blue-grey at bottom for atmosphere
                     background: `linear-gradient(to bottom, #000000 0%, #050505 60%, #0f172a 100%)`, 
                     transform: 'translateZ(0)'
                 }} 
             />
-            {/* Subtle Horizon Glow - Removed in High Perf */}
             {!highPerformanceMode && (
                 <div 
                     className="absolute bottom-[-10%] left-[-10%] right-[-10%] h-[40%] z-[1] opacity-30"
                     style={{
                         background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
-                        // Using standard opacity fade instead of heavy blur
                         opacity: 0.2,
                         transform: 'translateZ(0)'
                     }}
@@ -253,7 +237,6 @@ const AnimatedBackground = React.memo(({
         </>
       )}
 
-      {/* Layer 1: Other Theme Backgrounds */}
       {themeId === 'forest' && (
         <div 
             className="absolute inset-0 z-[1] opacity-60" 
@@ -278,14 +261,12 @@ const AnimatedBackground = React.memo(({
         />
       )}
 
-      {/* Aurora (Disabled for Midnight and High Perf) */}
       {showAurora && !highPerformanceMode && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
         <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20" style={{ transform: 'translateZ(0)' }}>
             <div 
                className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
                style={{ 
                    transform: `translate3d(calc(var(--off-x) * 0.05 * 1px), calc(var(--off-y) * 0.05 * 1px), 0)`,
-                   // Use blur sparingly
                    filter: 'blur(40px)'
                }} 
             >
@@ -310,7 +291,6 @@ const AnimatedBackground = React.memo(({
         </div>
       )}
 
-      {/* Floating Elements / Star Trails */}
       {showParticles && !highPerformanceMode && (
         <div className="absolute inset-0 z-[3] overflow-hidden">
             {items.map((item) => (
@@ -320,7 +300,6 @@ const AnimatedBackground = React.memo(({
                     style={{
                         top: item.top,
                         left: item.left,
-                        // GPU Parallax Transform - Conditionally Applied
                         transform: parallaxEnabled 
                             ? `translate3d(calc(var(--off-x) * ${item.parallaxFactor} * 1px), calc(var(--off-y) * ${item.parallaxFactor} * 1px), 0)`
                             : 'translate3d(0,0,0)',
@@ -340,40 +319,17 @@ const AnimatedBackground = React.memo(({
                             color: (item as any).color || config.colors.accent, 
                             opacity: item.opacity,
                             transform: `rotate(${item.rotation || 0}deg)`,
-                            // REMOVED BLUR FILTERS for performance
                             filter: 'none',
                             willChange: 'transform'
                         }}
                     >
-                        {/* SVG Shapes */}
                         {item.shape === 'leaf' && (
                             <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
                                 <path d="M12 2C12 2 20 8 20 16C20 20.4 16.4 24 12 24C7.6 24 4 20.4 4 16C4 8 12 2 12 2Z" fill="currentColor" />
                             </svg>
                         )}
-                        
-                        {item.shape === 'obsidian-bipyramid' && (
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" className={`w-full h-full`}>
-                                <path d="M12 2 L12 10 M21 12 L12 10 M12 22 L12 10 M3 12 L12 10" strokeWidth="0.2" className="opacity-30" />
-                                <path d="M12 2 L21 12 L12 22 L3 12 Z" strokeWidth={(item as any).strokeWidth || 0.5} />
-                                <path d="M12 2 L12 14 M21 12 L12 14 M12 22 L12 14 M3 12 L12 14" strokeWidth={(item as any).strokeWidth || 0.5} />
-                                {(item as any).fill && <path d="M12 2 L21 12 L12 14 Z M21 12 L12 22 L12 14 Z M12 22 L3 12 L12 14 Z M3 12 L12 2 L12 14 Z" fill="currentColor" fillOpacity="0.03" stroke="none" />}
-                            </svg>
-                        )}
-
-                        {/* MIDNIGHT: Star Point */}
-                        {item.shape === 'star-point' && (
-                            <div 
-                                className="w-full h-full rounded-full bg-white"
-                            />
-                        )}
-
-                        {/* MIDNIGHT: Shooting Star */}
-                        {item.shape === 'shooting-star' && (
-                            <div className="w-[100px] h-[2px] bg-gradient-to-r from-transparent via-indigo-200 to-transparent rotate-[-35deg] opacity-20" />
-                        )}
-
-                        {/* Standard Geometric Shapes */}
+                        {item.shape === 'star-point' && <div className="w-full h-full rounded-full bg-white" />}
+                        {item.shape === 'shooting-star' && <div className="w-[100px] h-[2px] bg-gradient-to-r from-transparent via-indigo-200 to-transparent rotate-[-35deg] opacity-20" />}
                         {item.shape === 'circle' && <div className="w-full h-full rounded-full bg-current" style={{ opacity: themeId === 'midnight' ? 1 : 0.4 }} />}
                         {item.shape === 'ring' && <div className="w-full h-full rounded-full border-[3px] border-current opacity-50" />}
                         {item.shape === 'squircle' && <div className="w-full h-full rounded-[2rem] border-[3px] border-current opacity-40" />}
@@ -432,13 +388,21 @@ const Sidebar = React.memo(({
     setView, 
     onOpenSettings, 
     isCollapsed, 
-    toggleCollapsed 
+    toggleCollapsed,
+    user,
+    isGuest,
+    onLogin,
+    onLogout
 }: { 
     view: ViewType, 
     setView: (v: ViewType) => void, 
     onOpenSettings: () => void,
     isCollapsed: boolean,
-    toggleCollapsed: () => void
+    toggleCollapsed: () => void,
+    user: User | null,
+    isGuest: boolean,
+    onLogin: () => void,
+    onLogout: () => void
 }) => {
   return (
     <aside 
@@ -491,6 +455,40 @@ const Sidebar = React.memo(({
         })}
       </nav>
 
+      {/* Auth Status Section */}
+      <div className={`px-4 py-2 ${isCollapsed ? 'hidden' : 'block'}`}>
+          {user ? (
+            <div className="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                <ShieldCheck size={16} className="text-emerald-500" />
+                <div className="flex-1 overflow-hidden">
+                    <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Sync Active</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{user.displayName}</p>
+                </div>
+                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
+                    <LogOut size={14} />
+                </button>
+            </div>
+          ) : isGuest ? (
+            <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <WifiOff size={16} className="text-slate-500" />
+                <div className="flex-1 overflow-hidden">
+                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Offline Mode</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">Guest User</p>
+                </div>
+                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
+                    <LogOut size={14} />
+                </button>
+            </div>
+          ) : (
+            <button 
+                onClick={onLogin}
+                className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+            >
+                Sign In to Save
+            </button>
+          )}
+      </div>
+
       <div className="p-4 border-t border-slate-200 dark:border-white/5 w-full">
         <button 
           id="settings-btn"
@@ -511,7 +509,7 @@ const Sidebar = React.memo(({
 // Optimized slide variants
 const slideVariants = {
   enter: (direction: number) => ({
-    x: direction > 0 ? 50 : -50, // Reduced distance for faster feel
+    x: direction > 0 ? 50 : -50,
     opacity: 0,
   }),
   center: {
@@ -521,12 +519,11 @@ const slideVariants = {
   },
   exit: (direction: number) => ({
     zIndex: 0,
-    x: direction < 0 ? 50 : -50, // Reduced distance
+    x: direction < 0 ? 50 : -50, 
     opacity: 0,
   }),
 };
 
-// Simple fade variants for when swipe is disabled
 const fadeVariants = {
   enter: { opacity: 0 },
   center: { opacity: 1, x: 0 },
@@ -541,37 +538,99 @@ const App: React.FC = () => {
   const [goals, setGoals] = useState({ Physics: 30, Chemistry: 30, Maths: 30 });
   const [quoteIdx] = useState(() => Math.floor(Math.random() * QUOTES.length));
 
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [theme, setTheme] = useState<ThemeId>('default-dark');
   const [showAurora, setShowAurora] = useState(true);
   
-  // New Visual Settings
   const [parallaxEnabled, setParallaxEnabled] = useState(true);
   const [showParticles, setShowParticles] = useState(true);
   const [swipeAnimationEnabled, setSwipeAnimationEnabled] = useState(true);
   
-  // Animation Tuning State - UPDATED DEFAULTS
   const [swipeStiffness, setSwipeStiffness] = useState(6000); 
   const [swipeDamping, setSwipeDamping] = useState(300);    
   
-  // UI State
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  // Tutorial State
   const [isTutorialActive, setIsTutorialActive] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
-  // Swipe Navigation State
   const [touchStart, setTouchStart] = useState<{ x: number, y: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number, y: number } | null>(null);
-  
-  // Slide Transition State
-  const [direction, setDirection] = useState(0); // -1 for left, 1 for right
+  const [direction, setDirection] = useState(0);
   const minSwipeDistance = 50;
 
-  // Load Settings
+  // 1. Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+          setIsGuest(false);
+      }
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Check for existing guest session
+  useEffect(() => {
+      const storedGuest = localStorage.getItem('trackly_is_guest');
+      if (storedGuest === 'true' && !user) {
+          setIsGuest(true);
+      }
+  }, [user]);
+
+  // 2. Data Syncing (Firestore OR LocalStorage)
+  useEffect(() => {
+    if (user) {
+        // --- Firebase Sync ---
+        const sessionsQ = query(collection(db, 'users', user.uid, 'sessions'), orderBy('timestamp', 'desc'));
+        const unsubSessions = onSnapshot(sessionsQ, (snapshot) => {
+            setSessions(snapshot.docs.map(d => d.data() as Session));
+        });
+
+        const testsQ = query(collection(db, 'users', user.uid, 'tests'), orderBy('timestamp', 'desc'));
+        const unsubTests = onSnapshot(testsQ, (snapshot) => {
+            setTests(snapshot.docs.map(d => d.data() as TestResult));
+        });
+
+        const targetsQ = query(collection(db, 'users', user.uid, 'targets'), orderBy('timestamp', 'desc'));
+        const unsubTargets = onSnapshot(targetsQ, (snapshot) => {
+            setTargets(snapshot.docs.map(d => d.data() as Target));
+        });
+
+        return () => {
+            unsubSessions();
+            unsubTests();
+            unsubTargets();
+        }
+    } else if (isGuest) {
+        // --- LocalStorage Sync (Guest Mode) ---
+        setSessions(safeJSONParse('trackly_guest_sessions', []));
+        setTests(safeJSONParse('trackly_guest_tests', []));
+        setTargets(safeJSONParse('trackly_guest_targets', []));
+        setGoals(safeJSONParse('trackly_guest_goals', { Physics: 30, Chemistry: 30, Maths: 30 }));
+    } else {
+        // Reset if logged out
+        setSessions([]); 
+        setTests([]);
+        setTargets([]);
+    }
+  }, [user, isGuest]);
+
+  // Persist Goals to LS if Guest
+  useEffect(() => {
+    if(isGuest) {
+        localStorage.setItem('trackly_guest_goals', JSON.stringify(goals));
+    }
+  }, [goals, isGuest]);
+
+  // Load Settings from LocalStorage
   useEffect(() => {
     setAnimationsEnabled(safeJSONParse('zenith_animations', true));
     const savedTheme = localStorage.getItem('zenith_theme_id');
@@ -585,7 +644,7 @@ const App: React.FC = () => {
     setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
   }, []);
 
-  // Persist & Apply Settings
+  // Persist Settings
   useEffect(() => {
     localStorage.setItem('zenith_animations', JSON.stringify(animationsEnabled));
     if (!animationsEnabled) document.body.classList.add('disable-animations');
@@ -608,59 +667,116 @@ const App: React.FC = () => {
       });
   }, []);
 
-  // Load Data with Safety
-  useEffect(() => {
-    setSessions(safeJSONParse('zenith_sessions', []));
-    setTests(safeJSONParse('zenith_tests', []));
-    setTargets(safeJSONParse('zenith_targets', []));
-    setGoals(safeJSONParse('zenith_goals', { Physics: 30, Chemistry: 30, Maths: 30 }));
-  }, []);
+  const handleLogin = async () => {
+    try {
+        await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+        console.error("Login failed", error);
+        alert("Failed to sign in. Please try again.");
+    }
+  };
 
-  // Persistence Effects
-  useEffect(() => { setTimeout(() => localStorage.setItem('zenith_sessions', JSON.stringify(sessions)), 500) }, [sessions]);
-  useEffect(() => { setTimeout(() => localStorage.setItem('zenith_tests', JSON.stringify(tests)), 500) }, [tests]);
-  useEffect(() => { setTimeout(() => localStorage.setItem('zenith_targets', JSON.stringify(targets)), 500) }, [targets]);
-  useEffect(() => { setTimeout(() => localStorage.setItem('zenith_goals', JSON.stringify(goals)), 500) }, [goals]);
+  const handleGuestLogin = () => {
+      setIsGuest(true);
+      localStorage.setItem('trackly_is_guest', 'true');
+  };
 
-  const handleSaveSession = useCallback((newSession: Omit<Session, 'id' | 'timestamp'>) => {
-    const session: Session = { ...newSession, id: generateUUID(), timestamp: Date.now() };
-    setSessions(prev => [session, ...prev]);
-  }, []);
+  const handleLogout = () => {
+      if (user) {
+          signOut(auth);
+      } else {
+          setIsGuest(false);
+          localStorage.removeItem('trackly_is_guest');
+      }
+  };
 
-  const handleDeleteSession = useCallback((id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-  }, []);
+  // 3. Database Operations (Universal: Works for Firebase AND Guest)
+  const handleSaveSession = useCallback(async (newSession: Omit<Session, 'id' | 'timestamp'>) => {
+    const id = generateUUID();
+    const timestamp = Date.now();
+    const session: Session = { ...newSession, id, timestamp };
 
-  const handleSaveTest = useCallback((newTest: Omit<TestResult, 'id' | 'timestamp'>) => {
-    const test: TestResult = { ...newTest, id: generateUUID(), timestamp: Date.now() };
-    setTests(prev => [test, ...prev]);
-  }, []);
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'sessions', id), session);
+    } else if (isGuest) {
+        const updated = [session, ...sessions];
+        setSessions(updated);
+        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+    }
+  }, [user, isGuest, sessions]);
 
-  const handleDeleteTest = useCallback((id: string) => {
-    setTests(prev => prev.filter(t => t.id !== id));
-  }, []);
+  const handleDeleteSession = useCallback(async (id: string) => {
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
+    } else if (isGuest) {
+        const updated = sessions.filter(s => s.id !== id);
+        setSessions(updated);
+        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+    }
+  }, [user, isGuest, sessions]);
 
-  const handleSaveTarget = useCallback((target: Target) => {
-    setTargets(prev => [...prev, target]);
-  }, []);
+  const handleSaveTest = useCallback(async (newTest: Omit<TestResult, 'id' | 'timestamp'>) => {
+    const id = generateUUID();
+    const timestamp = Date.now();
+    const test: TestResult = { ...newTest, id, timestamp };
 
-  const handleUpdateTarget = useCallback((id: string, completed: boolean) => {
-    setTargets(prev => prev.map(t => t.id === id ? { ...t, completed } : t));
-  }, []);
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'tests', id), test);
+    } else if (isGuest) {
+        const updated = [test, ...tests];
+        setTests(updated);
+        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+    }
+  }, [user, isGuest, tests]);
 
-  const handleDeleteTarget = useCallback((id: string) => {
-    setTargets(prev => prev.filter(t => t.id !== id));
-  }, []);
+  const handleDeleteTest = useCallback(async (id: string) => {
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'tests', id));
+    } else if (isGuest) {
+        const updated = tests.filter(t => t.id !== id);
+        setTests(updated);
+        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+    }
+  }, [user, isGuest, tests]);
 
-  // View Navigation with Animation Direction Logic
+  const handleSaveTarget = useCallback(async (target: Target) => {
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'targets', target.id), target);
+    } else if (isGuest) {
+        const updated = [...targets, target];
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
+
+  const handleUpdateTarget = useCallback(async (id: string, completed: boolean) => {
+    if (user) {
+        const target = targets.find(t => t.id === id);
+        if (target) {
+            await setDoc(doc(db, 'users', user.uid, 'targets', id), { ...target, completed });
+        }
+    } else if (isGuest) {
+        const updated = targets.map(t => t.id === id ? { ...t, completed } : t);
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
+
+  const handleDeleteTarget = useCallback(async (id: string) => {
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'targets', id));
+    } else if (isGuest) {
+        const updated = targets.filter(t => t.id !== id);
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
+
   const changeView = useCallback((newView: ViewType) => {
      if (view === newView) return;
      const currentIdx = TABS.findIndex(t => t.id === view);
      const newIdx = TABS.findIndex(t => t.id === newView);
-     
-     // Determine slide direction based on index order
      setDirection(newIdx > currentIdx ? 1 : -1);
-     
      setView(newView);
      window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [view]);
@@ -685,9 +801,8 @@ const App: React.FC = () => {
     }
   };
 
-  // Improved Swipe Navigation Handlers
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null); // Reset
+    setTouchEnd(null); 
     setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
   }
 
@@ -697,11 +812,8 @@ const App: React.FC = () => {
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
     const xDistance = touchStart.x - touchEnd.x;
     const yDistance = touchStart.y - touchEnd.y;
-    
-    // Ignore vertical swipes (likely scrolling)
     if (Math.abs(yDistance) > Math.abs(xDistance)) return;
 
     const isLeftSwipe = xDistance > minSwipeDistance;
@@ -709,18 +821,18 @@ const App: React.FC = () => {
 
     if (isLeftSwipe || isRightSwipe) {
       const currentIndex = TABS.findIndex(t => t.id === view);
-      if (isLeftSwipe && currentIndex < TABS.length - 1) {
-         changeView(TABS[currentIndex + 1].id as ViewType);
-      }
-      if (isRightSwipe && currentIndex > 0) {
-         changeView(TABS[currentIndex - 1].id as ViewType);
-      }
+      if (isLeftSwipe && currentIndex < TABS.length - 1) changeView(TABS[currentIndex + 1].id as ViewType);
+      if (isRightSwipe && currentIndex > 0) changeView(TABS[currentIndex - 1].id as ViewType);
     }
     setTouchStart(null);
     setTouchEnd(null);
   }
 
   const themeConfig = THEME_CONFIG[theme];
+  const effectiveShowAurora = animationsEnabled && showAurora;
+  const effectiveParallax = animationsEnabled && parallaxEnabled;
+  const effectiveShowParticles = animationsEnabled && showParticles;
+  const effectiveSwipe = swipeAnimationEnabled; 
 
   const dynamicStyles = useMemo(() => `
         :root {
@@ -730,8 +842,7 @@ const App: React.FC = () => {
           --theme-text-main: ${themeConfig.colors.text};
           --theme-text-sub: ${themeConfig.mode === 'dark' ? 'rgba(255,255,255,0.5)' : '#334155'};
         }
-        
-        /* ... existing styles ... */
+        /* [Dynamic Styles Omitted for brevity, assume standard] */
         .text-indigo-50, .text-indigo-100, .text-indigo-200, .text-indigo-300, .text-indigo-400, .text-indigo-500, .text-indigo-600, .text-indigo-700, .text-indigo-800, .text-indigo-900 {
             color: var(--theme-accent) !important;
         }
@@ -811,13 +922,59 @@ const App: React.FC = () => {
         }
   `, [themeConfig]);
 
-  // Logic to override visual settings when High Perf mode is on
-  const effectiveShowAurora = animationsEnabled && showAurora;
-  const effectiveParallax = animationsEnabled && parallaxEnabled;
-  const effectiveShowParticles = animationsEnabled && showParticles;
-  
-  // We allow swipe even in High Perf mode if configured, but optimized via transition logic
-  const effectiveSwipe = swipeAnimationEnabled; 
+  if (isAuthLoading) {
+    return (
+        <div className={`min-h-screen flex items-center justify-center ${themeConfig.mode === 'dark' ? 'bg-[#020617]' : 'bg-slate-50'}`}>
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <span className="text-sm font-bold uppercase tracking-widest text-slate-500">Syncing Data...</span>
+            </div>
+        </div>
+    );
+  }
+
+  // Not Logged In View
+  if (!user && !isGuest) {
+    return (
+        <div className={`min-h-screen font-sans flex flex-col relative overflow-hidden transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}>
+             <style>{dynamicStyles}</style>
+             <AnimatedBackground 
+                themeId={theme} 
+                showAurora={effectiveShowAurora}
+                parallaxEnabled={effectiveParallax}
+                showParticles={effectiveShowParticles}
+                highPerformanceMode={!animationsEnabled}
+             />
+             <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
+                <TracklyLogo id="login-logo" />
+                <div className="mt-8 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-slate-200 dark:border-white/10 text-center max-w-sm w-full shadow-2xl">
+                    <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Welcome Back</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                        Sign in to sync your progress, sessions, and test scores across all your devices.
+                    </p>
+                    <button 
+                        onClick={handleLogin}
+                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 mb-4"
+                    >
+                        <span>Sign In with Google</span>
+                        <ArrowRightIcon />
+                    </button>
+                    
+                    <button 
+                        onClick={handleGuestLogin}
+                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-2xl font-bold uppercase tracking-widest border border-slate-200 dark:border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <span>Continue Offline</span>
+                    </button>
+
+                    <p className="mt-6 text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                        Secure • Cloud Synced • Fast
+                    </p>
+                </div>
+             </div>
+        </div>
+    );
+  }
 
   return (
     <div 
@@ -833,13 +990,16 @@ const App: React.FC = () => {
         highPerformanceMode={!animationsEnabled}
       />
       
-      {/* Desktop Sidebar */}
       <Sidebar 
           view={view} 
           setView={changeView} 
           onOpenSettings={() => setIsSettingsOpen(true)} 
           isCollapsed={sidebarCollapsed}
           toggleCollapsed={toggleSidebar}
+          user={user}
+          isGuest={isGuest}
+          onLogin={handleLogin}
+          onLogout={handleLogout}
       />
 
       {/* Mobile Header */}
@@ -850,7 +1010,6 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      {/* Main Content Area */}
       <main 
           className={`relative z-10 flex-grow p-4 md:p-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
           onTouchStart={onTouchStart}
@@ -868,11 +1027,9 @@ const App: React.FC = () => {
                 exit="exit"
                 transition={effectiveSwipe ? (
                   animationsEnabled ? {
-                    // High Quality Spring Physics
                     x: { type: "spring", stiffness: swipeStiffness, damping: swipeDamping, mass: 0.8 },
                     opacity: { duration: 0.15 }
                   } : {
-                    // High Performance Simple Glide
                     x: { type: "tween", ease: "circOut", duration: 0.2 },
                     opacity: { duration: 0.2 }
                   }
@@ -926,7 +1083,6 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Mobile Navigation Tabs */}
       <nav 
         className="fixed bottom-0 left-0 w-full z-50 bg-white/95 dark:bg-[#020617]/95 backdrop-blur-xl border-t border-slate-200 dark:border-white/5 px-6 py-3 md:hidden transition-colors duration-500 shadow-[0_-5px_10px_rgba(0,0,0,0.03)] dark:shadow-none"
         style={{ 
@@ -952,7 +1108,6 @@ const App: React.FC = () => {
           </div>
       </nav>
 
-      {/* Tutorial Overlay */}
       {isTutorialActive && (
         <TutorialOverlay 
           steps={TOUR_STEPS}
@@ -962,7 +1117,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Settings Modal */}
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)}
@@ -987,5 +1141,12 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+// Simple Arrow Icon for Login Button
+const ArrowRightIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
 
 export default App;
