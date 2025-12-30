@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { X, Zap, ZapOff, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Zap, ZapOff, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle, Coffee } from 'lucide-react';
 import { Card } from './Card';
 import { ThemeId } from '../types';
 import { THEME_CONFIG } from '../constants';
+import { BuyMeCoffee } from './BuyMeCoffee';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -103,6 +104,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
              >
                <Map size={14} /> Start Tour
              </button>
+          </div>
+
+          {/* Support Section - Buy me a coffee */}
+          <div className="space-y-3">
+             <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                Buy me a coffee ☕
+             </label>
+             <div className="p-1">
+                <BuyMeCoffee />
+             </div>
           </div>
 
           {/* Sound Settings */}
