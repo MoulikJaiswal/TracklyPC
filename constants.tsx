@@ -132,3 +132,60 @@ export const QUOTES = [
   { text: "If you can dream it, you can do it.", author: "Walt Disney" },
   { text: "Action is the foundational key to all success.", author: "Pablo Picasso" }
 ];
+
+export const RECOMMENDED_RESOURCES = [
+  {
+    id: 'phys-1',
+    title: 'Concepts of Physics (Vol 1 & 2)',
+    author: 'H.C. Verma',
+    description: 'The bible for JEE Physics. Excellent for building conceptual clarity and problem-solving skills.',
+    tag: 'Must Have',
+    color: 'indigo',
+    link: 'https://www.amazon.in/Concepts-Physics-Part-1-2019-2020/dp/8177091875'
+  },
+  {
+    id: 'chem-1',
+    title: 'Physical Chemistry',
+    author: 'N. Awasthi',
+    description: 'Perfect for practicing numerical problems in Physical Chemistry with varying difficulty levels.',
+    tag: 'Practice',
+    color: 'rose',
+    link: 'https://www.amazon.in/Problems-Physical-Chemistry-JEE-Main/dp/9389682336'
+  },
+  {
+    id: 'math-1',
+    title: 'Mathematics for JEE Advanced',
+    author: 'Cengage (G. Tewani)',
+    description: 'Comprehensive coverage of calculus, algebra, and coordinate geometry with tons of practice questions.',
+    tag: 'Advanced',
+    color: 'orange',
+    link: 'https://www.amazon.in/Mathematics-JEE-Advanced-Set-Books/dp/9353503612'
+  },
+  {
+    id: 'phys-2',
+    title: 'Problems in General Physics',
+    author: 'I.E. Irodov',
+    description: 'For students aiming for a top rank. Contains challenging problems to test deep understanding.',
+    tag: 'Elite',
+    color: 'indigo',
+    link: 'https://www.amazon.in/Problems-General-Physics-I-IRODOV/dp/9351762562'
+  },
+  {
+    id: 'chem-2',
+    title: 'Organic Chemistry',
+    author: 'Morrison & Boyd',
+    description: 'The gold standard for understanding reaction mechanisms and organic chemistry concepts.',
+    tag: 'Concept',
+    color: 'rose',
+    link: 'https://www.amazon.in/Organic-Chemistry-7e-Morrison-Boyd/dp/8131704815'
+  },
+  {
+    id: 'chem-3',
+    title: 'Concise Inorganic Chemistry',
+    author: 'J.D. Lee',
+    description: 'Detailed explanations for Inorganic Chemistry. Covers block chemistry extensively.',
+    tag: 'Reference',
+    color: 'emerald',
+    link: 'https://www.amazon.in/Concise-Inorganic-Chemistry-J-D-Lee/dp/8126515546'
+  }
+];

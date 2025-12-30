@@ -1,8 +1,10 @@
+
 import React, { useMemo, useState, useEffect, memo } from 'react';
-import { Activity, Target, Trophy, Clock, Brain, TrendingUp, Zap, Atom, Calculator, BarChart2, Grid } from 'lucide-react';
+import { Activity, Target, Trophy, Clock, Brain, TrendingUp, Zap, Atom, Calculator, BarChart2, Grid, Sparkles, Loader2, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Session, TestResult } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
+import { generateAnalysis } from '../services/geminiService';
 
 // Helper for local date string YYYY-MM-DD
 const getLocalDate = (d = new Date()) => {
@@ -11,11 +13,6 @@ const getLocalDate = (d = new Date()) => {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-};
-
-// Helper to convert timestamp to local YYYY-MM-DD
-const getLocalDateFromTimestamp = (ts: number) => {
-    return getLocalDate(new Date(ts));
 };
 
 interface AnalyticsProps {
@@ -165,8 +162,9 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
 });
 
 export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) => {
-  // Removed artificial delay ("buffer") to show content immediately
-  
+  const [aiReport, setAiReport] = useState<any | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   const stats = useMemo(() => {
     // Ensure numbers for aggregation
     const totalAttempted = sessions.reduce((acc, s) => acc + (Number(s.attempted) || 0), 0);
@@ -184,6 +182,29 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
 
     return { totalAttempted, totalCorrect, avgAccuracy, mistakeDistribution, totalMistakes };
   }, [sessions]);
+
+  const handleGenerateReport = async () => {
+    if (sessions.length < 3) {
+      alert("Please log at least 3 study sessions to get a meaningful analysis.");
+      return;
+    }
+    
+    setIsAnalyzing(true);
+    try {
+      const reportText = await generateAnalysis(sessions, tests);
+      try {
+          const json = JSON.parse(reportText || '{}');
+          setAiReport(json);
+      } catch (e) {
+          // Fallback if AI returns plain text despite schema
+          setAiReport({ analysis: reportText, bottleneckTitle: "General Analysis", temperament: "Analysis", actionPlan: [] });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   return (
     <div id="analytics-container" className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
@@ -235,28 +256,100 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                 {/* Left Col: Subjects */}
                 <div className="lg:col-span-2 space-y-6 md:space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                    {/* Subject Breakdown */}
-                    <div className="space-y-4">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Subject Proficiency</h3>
-                        <SubjectProficiency sessions={sessions} />
-                    </div>
+                        {/* Subject Breakdown */}
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Subject Proficiency</h3>
+                            <SubjectProficiency sessions={sessions} />
+                        </div>
 
-                    {/* Performance Tip */}
-                    <div className="space-y-4">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">AI Insight</h3>
-                        <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-500/10 dark:to-purple-500/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 relative overflow-hidden h-auto md:h-full flex flex-col justify-center min-h-[160px] transform-gpu" style={{ transform: 'translateZ(0)' }}>
-                            <div className="absolute top-0 right-0 p-4 opacity-10">
-                                <Brain size={64} className="text-indigo-900 dark:text-white" />
-                            </div>
-                            <p className="text-sm text-indigo-900 dark:text-indigo-100 leading-relaxed italic relative z-10">
-                                "Your <strong className="text-indigo-700 dark:text-white">Chemistry</strong> accuracy is trending up, but <strong className="text-indigo-700 dark:text-white">Calculation errors</strong> in Physics are frequent. Try focusing on numerical practice sessions this week."
-                            </p>
-                            <div className="mt-4 flex items-center gap-2 text-indigo-500/60 dark:text-indigo-400/60">
-                                <Zap size={12} />
-                                <span className="text-[9px] uppercase font-bold tracking-widest">Generated for you</span>
+                        {/* AI Coach Insight */}
+                        <div className="space-y-4">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Gemini Coach</h3>
+                            <div className="p-6 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 relative overflow-hidden min-h-[300px] flex flex-col transform-gpu">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                                    <Sparkles size={80} className="text-indigo-900 dark:text-white" />
+                                </div>
+                                
+                                <div className="relative z-10 flex-grow">
+                                    {isAnalyzing ? (
+                                        <div className="h-full flex flex-col items-center justify-center gap-4 text-indigo-600 dark:text-indigo-300 py-10">
+                                            <Loader2 size={32} className="animate-spin" />
+                                            <div className="text-center">
+                                                <span className="text-xs font-bold uppercase tracking-widest block mb-1">Analyzing Patterns</span>
+                                                <span className="text-[10px] text-indigo-400 dark:text-indigo-500 uppercase font-bold tracking-widest">Studying {sessions.length} sessions...</span>
+                                            </div>
+                                        </div>
+                                    ) : aiReport ? (
+                                        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                            {/* Bottleneck Card */}
+                                            <div className="bg-rose-50/80 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-500/20 p-4 rounded-2xl">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="p-2 bg-rose-100 dark:bg-rose-500/20 rounded-xl text-rose-600 dark:text-rose-400 shrink-0">
+                                                        <AlertTriangle size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 uppercase tracking-wide mb-1">{aiReport.bottleneckTitle || "Critical Area"}</h4>
+                                                        <p className="text-xs text-rose-800/80 dark:text-rose-200/70 leading-relaxed">
+                                                            {aiReport.analysis}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Temperament */}
+                                            {aiReport.temperament && (
+                                                <div className="flex items-center gap-3 px-4 py-3 bg-blue-50/80 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl">
+                                                    <Brain size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                                    <p className="text-xs text-blue-900 dark:text-blue-100 font-medium">
+                                                        <span className="font-bold uppercase text-[10px] tracking-wider text-blue-500 dark:text-blue-400 mr-2">Temperament:</span>
+                                                        {aiReport.temperament}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Action Plan */}
+                                            <div className="space-y-2">
+                                                <h5 className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 ml-1">Weekly Strategy</h5>
+                                                {aiReport.actionPlan?.map((step: string, i: number) => (
+                                                    <div key={i} className="flex items-start gap-3 p-3 bg-white/60 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
+                                                        <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                                                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-snug">{step}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="h-full flex flex-col items-center justify-center text-center py-8">
+                                            <h4 className="text-lg font-bold text-indigo-900 dark:text-white mb-2">Performance Review</h4>
+                                            <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-6 max-w-[200px] leading-relaxed">
+                                                Gemini analyzes your speed, accuracy, and mistake patterns to build a custom study plan.
+                                            </p>
+                                            <button 
+                                                onClick={handleGenerateReport}
+                                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-2 group"
+                                            >
+                                                <Sparkles size={14} className="group-hover:animate-pulse" /> Generate Analysis
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {aiReport && !isAnalyzing && (
+                                    <div className="mt-6 pt-4 border-t border-indigo-200 dark:border-white/5 flex justify-between items-center">
+                                        <div className="flex items-center gap-2 text-indigo-500/60 dark:text-indigo-400/60">
+                                            <Zap size={12} />
+                                            <span className="text-[9px] uppercase font-bold tracking-widest">Gemini 2.0 Flash</span>
+                                        </div>
+                                        <button 
+                                            onClick={handleGenerateReport}
+                                            className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                        >
+                                            Refresh <ArrowRight size={10} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    </div>
                     </div>
                 </div>
 

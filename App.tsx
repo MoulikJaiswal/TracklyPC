@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
@@ -14,7 +15,8 @@ import {
   Loader2,
   LogOut,
   ShieldCheck,
-  WifiOff
+  WifiOff,
+  ShoppingBag
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
