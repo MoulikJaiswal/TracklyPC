@@ -126,8 +126,11 @@ const SubjectPod = memo(({
         if ((e.target as HTMLElement).closest('.goal-input')) return;
         onClick();
       }}
-      className="relative overflow-hidden rounded-[2rem] border border-slate-200 dark:border-white/5 p-5 md:p-6 flex flex-col justify-between min-h-[160px] md:min-h-[220px] group cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:border-slate-300 dark:hover:border-white/20 active:scale-95 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md transform-gpu will-change-transform transition-[transform,box-shadow,border-color,background-color] duration-300"
-      style={{ transform: 'translate3d(0,0,0)' }}
+      className="relative overflow-hidden rounded-[2rem] border border-slate-200 dark:border-white/5 p-5 md:p-6 flex flex-col justify-between min-h-[160px] md:min-h-[220px] group cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:border-slate-300 dark:hover:border-white/20 active:scale-95 backdrop-blur-md transform-gpu will-change-transform transition-[transform,box-shadow,border-color,background-color] duration-300"
+      style={{ 
+        transform: 'translate3d(0,0,0)',
+        backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)'
+      }}
     >
       {/* Hover Glow Layer - Absolute positioning for smooth opacity transition (GPU accelerated) */}
       <div className={`absolute inset-0 bg-gradient-to-br ${colors.bgHover} opacity-0 group-hover:opacity-100 transition-opacity duration-500 will-change-composite`} />
@@ -563,7 +566,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
           {/* Left Column: Next Objectives */}
           <div className="space-y-6">
-             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 relative overflow-hidden backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)' }}>
+             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 relative overflow-hidden backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)', backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <CalendarClock size={16} className="text-indigo-500 dark:text-indigo-400" /> Up Next
@@ -594,7 +597,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
 
           {/* Right Column: Recent Activity Feed */}
           <div>
-             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)' }}>
+             <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)', backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <Activity size={16} className="text-indigo-500 dark:text-indigo-400" /> Recent Activity

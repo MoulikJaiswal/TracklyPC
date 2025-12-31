@@ -31,6 +31,7 @@ export interface SubjectBreakdown {
   unattempted: number;
   calcErrors: number;
   otherErrors: number;
+  mistakes?: MistakeCounts;
 }
 
 export interface TestResult {

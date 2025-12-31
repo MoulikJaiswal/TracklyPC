@@ -115,18 +115,20 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
     <div id="planner-container" className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* Planner Controls - Expanded Full Width */}
-      <div className="flex flex-col md:flex-row gap-4 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-2 rounded-[1.5rem] border border-slate-200 dark:border-white/10 shadow-sm w-full">
+      <div className="flex flex-col md:flex-row gap-4 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-2 rounded-[1.5rem] border border-slate-200 dark:border-white/10 shadow-sm w-full" style={{ backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
           {/* Segmented Toggle - Grows to fill space */}
           <div className="flex flex-1 p-1 bg-slate-100 dark:bg-black/20 rounded-2xl relative">
               <button 
                 onClick={() => setViewMode('week')}
-                className={`flex-1 py-3 md:py-3.5 rounded-xl text-xs md:text-sm font-bold uppercase tracking-widest transition-all ${viewMode === 'week' ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-md scale-[1.02]' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                className={`flex-1 py-3 md:py-3.5 rounded-xl text-xs md:text-sm font-bold uppercase tracking-widest transition-all ${viewMode === 'week' ? 'shadow-md scale-[1.02]' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                style={viewMode === 'week' ? { backgroundColor: 'var(--theme-accent)', color: 'var(--theme-on-accent)' } : {}}
               >
                   Week
               </button>
               <button 
                 onClick={() => setViewMode('month')}
-                className={`flex-1 py-3 md:py-3.5 rounded-xl text-xs md:text-sm font-bold uppercase tracking-widest transition-all ${viewMode === 'month' ? 'bg-white dark:bg-indigo-600 text-indigo-600 dark:text-white shadow-md scale-[1.02]' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                className={`flex-1 py-3 md:py-3.5 rounded-xl text-xs md:text-sm font-bold uppercase tracking-widest transition-all ${viewMode === 'month' ? 'shadow-md scale-[1.02]' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                style={viewMode === 'month' ? { backgroundColor: 'var(--theme-accent)', color: 'var(--theme-on-accent)' } : {}}
               >
                   Month
               </button>
@@ -138,7 +140,11 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                  setCurrentMonthDate(new Date());
                  handleDateClick(todayStr);
              }}
-             className="px-6 py-3 bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-2xl hover:bg-indigo-600 hover:text-white transition-colors shrink-0"
+             className="px-6 py-3 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-2xl transition-all hover:scale-105 shrink-0"
+             style={{ 
+                 backgroundColor: 'rgba(var(--theme-accent-rgb), 0.1)', 
+                 color: 'var(--theme-accent)' 
+             }}
            >
              Go to Today
            </button>
@@ -147,7 +153,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Calendar Column */}
-        <div className="bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-xl select-none transition-colors h-fit">
+        <div className="bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-xl select-none transition-colors h-fit" style={{ backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
             {/* Month Header (Visible in Month Mode) */}
             {viewMode === 'month' && (
                 <div className="flex justify-between items-center mb-8 px-2">
@@ -155,7 +161,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                         <ChevronLeft size={20} className="text-slate-600 dark:text-slate-300" />
                     </button>
                     <div className="flex items-center gap-2">
-                        <CalendarIcon size={18} className="text-indigo-500 dark:text-indigo-400" />
+                        <CalendarIcon size={18} style={{ color: 'var(--theme-accent)' }} />
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">
                             {monthName}
                         </h3>
@@ -170,7 +176,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
             {viewMode === 'week' && (
                 <div className="flex justify-between items-center mb-8 px-2">
                     <div className="flex items-center gap-2">
-                        <CalendarIcon size={18} className="text-indigo-500 dark:text-indigo-400" />
+                        <CalendarIcon size={18} style={{ color: 'var(--theme-accent)' }} />
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-widest">
                             {new Date(weekDays[0]).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                         </h3>
@@ -197,19 +203,28 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                             className={`
                             relative flex flex-col items-center justify-center py-6 rounded-2xl transition-all duration-300 group
                             ${isSelected 
-                                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-110 z-10 ring-4 ring-indigo-50 dark:ring-indigo-500/20' 
+                                ? 'scale-110 z-10' 
                                 : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-slate-200'
                             }
-                            ${isToday && !isSelected ? 'ring-1 ring-indigo-500/50' : ''}
                             `}
+                            style={isSelected ? {
+                                backgroundColor: 'var(--theme-accent)',
+                                color: 'var(--theme-on-accent)',
+                                boxShadow: '0 10px 15px -3px rgba(var(--theme-accent-rgb), 0.2), 0 4px 6px -2px rgba(var(--theme-accent-rgb), 0.1)',
+                            } : isToday ? {
+                                boxShadow: 'inset 0 0 0 1px rgba(var(--theme-accent-rgb), 0.5)'
+                            } : {}}
                         >
                             <span className="text-xs font-bold uppercase tracking-wider mb-2">{d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1)}</span>
-                            <span className={`text-xl font-mono font-bold ${isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}>{d.getDate()}</span>
+                            <span className={`text-xl font-mono font-bold ${isSelected ? '' : 'text-slate-700 dark:text-slate-200'}`}>{d.getDate()}</span>
                             
                             <div className="flex gap-1 mt-3">
                                 {hasTest && <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-amber-500'}`} />}
                                 {!hasTest && tasksForDay.length > 0 && (
-                                    <div className={`w-2 h-2 rounded-full ${allDone ? 'bg-emerald-400' : isSelected ? 'bg-indigo-300' : 'bg-indigo-500/50'}`} />
+                                    <div 
+                                        className="w-2 h-2 rounded-full"
+                                        style={{ backgroundColor: allDone ? '#34d399' : isSelected ? 'rgba(255,255,255,0.7)' : 'rgba(var(--theme-accent-rgb), 0.5)' }} 
+                                    />
                                 )}
                             </div>
                         </button>
@@ -243,16 +258,23 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                                     className={`
                                         h-12 md:h-16 rounded-xl flex flex-col items-center justify-center relative transition-[transform,background-color,color,box-shadow] duration-300
                                         ${isSelected 
-                                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 z-10 ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-slate-900' 
+                                            ? 'z-10' 
                                             : 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-700 dark:text-slate-300'
                                         }
-                                        ${isToday && !isSelected ? 'border border-indigo-500/50 text-indigo-500' : ''}
                                     `}
+                                    style={isSelected ? {
+                                        backgroundColor: 'var(--theme-accent)',
+                                        color: 'var(--theme-on-accent)',
+                                        boxShadow: '0 4px 10px -1px rgba(var(--theme-accent-rgb), 0.2)',
+                                    } : isToday ? {
+                                        color: 'var(--theme-accent)',
+                                        border: '1px solid rgba(var(--theme-accent-rgb), 0.5)'
+                                    } : {}}
                                 >
                                     <span className="text-sm font-mono font-bold">{day}</span>
                                     <div className="flex gap-1 mt-1.5">
                                         {hasTest && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-amber-300' : 'bg-amber-500'}`} />}
-                                        {!hasTest && hasTasks && <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-indigo-300' : 'bg-indigo-500'}`} />}
+                                        {!hasTest && hasTasks && <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.7)' : 'var(--theme-accent)' }} />}
                                     </div>
                                 </button>
                             );
@@ -271,14 +293,16 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                         ref={taskInputRef}
                         type="text" 
                         placeholder="Add a task for this day..." 
-                        className="flex-grow bg-white dark:bg-black/20 border border-slate-200 dark:border-white/5 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm focus:shadow-md focus:shadow-indigo-500/10" 
+                        className="flex-grow bg-white dark:bg-black/20 border border-slate-200 dark:border-white/5 p-3 md:p-4 rounded-2xl text-sm text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 shadow-sm focus:shadow-md"
+                        style={{ borderColor: 'rgba(var(--theme-accent-rgb), 0.2)' }}
                         value={newTargetText} 
                         onChange={e => setNewTargetText(e.target.value)} 
                         onKeyDown={e => e.key === 'Enter' && handleAdd()} 
                     />
                     <button 
                         onClick={handleAdd} 
-                        className="bg-indigo-600 p-3 md:p-4 rounded-2xl text-white hover:bg-indigo-500 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-indigo-600/20"
+                        className="p-3 md:p-4 rounded-2xl text-white transition-all hover:scale-105 active:scale-95 shadow-lg"
+                        style={{ backgroundColor: 'var(--theme-accent)', boxShadow: '0 4px 10px -1px rgba(var(--theme-accent-rgb), 0.2)' }}
                     >
                         <Plus size={20} />
                     </button>
@@ -296,7 +320,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
             </div>
 
             <div className="space-y-3">
-            <h4 className="text-[10px] uppercase font-bold text-indigo-500/80 dark:text-indigo-400/50 tracking-[0.2em] mb-4 flex items-center gap-3">
+            <h4 className="text-[10px] uppercase font-bold tracking-[0.2em] mb-4 flex items-center gap-3" style={{ color: 'rgba(var(--theme-accent-rgb), 0.8)' }}>
                 Tasks for {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                 <div className="h-[1px] flex-grow bg-slate-200 dark:bg-white/5"></div>
             </h4>
@@ -311,7 +335,7 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                 <div key={t.id} className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl group border transition-all ${t.type === 'test' ? 'bg-amber-50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/10' : 'bg-slate-50 dark:bg-white/[0.03] border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10'}`}>
                     <button 
                     onClick={() => onToggle(t.id, !t.completed)} 
-                    className={`transition-all duration-300 ${t.completed ? 'text-emerald-500 dark:text-emerald-400' : t.type === 'test' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-indigo-500 dark:hover:text-indigo-400'}`}
+                    className={`transition-all duration-300 ${t.completed ? 'text-emerald-500 dark:text-emerald-400' : t.type === 'test' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                     {t.completed ? <CheckCircle2 size={24} /> : <div className="w-6 h-6 border-2 border-current rounded-full"></div>}
                     </button>
