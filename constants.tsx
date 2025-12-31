@@ -65,7 +65,7 @@ export const THEME_CONFIG: Record<ThemeId, {
     label: 'Midnight Quiet',
     description: 'True black. The silence of space.',
     mode: 'dark',
-    colors: { bg: '#000000', card: '#09090b', accent: '#818cf8', accentGlow: '#a5b4fc', text: '#94a3b8' }, // Zinc-950 cards, Pure Black BG
+    colors: { bg: '#000000', card: '#09090b', accent: '#FFFFFF', accentGlow: '#FFFFFF', text: '#e2e8f0' }, // Zinc-950 cards, Pure Black BG
     icon: Moon
   },
   'obsidian': {

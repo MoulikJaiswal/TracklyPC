@@ -1183,10 +1183,10 @@ const App: React.FC = () => {
     const rgbCard = hexToRgb(themeConfig.colors.card);
     const rgbAccent = hexToRgb(themeConfig.colors.accent);
     
-    // Determine optimal text color for accent backgrounds (light vs dark themes)
-    // Themes with light/bright accents (like Yellow, Lime, Orange) need dark text.
-    // Themes with dark/deep accents (like Indigo, Blue) need white text.
-    const lightAccentThemes: ThemeId[] = ['forest', 'void', 'obsidian', 'earth', 'morning'];
+    // Determine optimal text color for accent backgrounds
+    // Themes with light/bright accents (like white, yellow, lime) need dark text.
+    // Themes with dark/deep accents (like indigo, blue) need white text.
+    const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void', 'obsidian', 'earth', 'morning'];
     const onAccentColor = lightAccentThemes.includes(theme) ? '#020617' : '#ffffff';
 
     return `
