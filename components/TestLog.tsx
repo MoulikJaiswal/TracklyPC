@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown, Database } from 'lucide-react';
+import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown } from 'lucide-react';
 import { TestResult, Target as TargetType, SubjectBreakdown, MistakeCounts } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES } from '../constants';
@@ -234,41 +234,6 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     }
   });
 
-  const handleGenerateDevData = () => {
-    const temperaments = ['Calm', 'Anxious', 'Focused', 'Fatigued'] as const;
-    
-    for (let i = 0; i < 10; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - Math.floor(Math.random() * 60)); // Random date in last 60 days
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
-
-        const pC = Math.floor(Math.random() * 20) + 5;
-        const pW = Math.floor(Math.random() * 5);
-        const cC = Math.floor(Math.random() * 20) + 5;
-        const cW = Math.floor(Math.random() * 5);
-        const mC = Math.floor(Math.random() * 15) + 5;
-        const mW = Math.floor(Math.random() * 8);
-
-        const totalMarks = (pC * 4 - pW) + (cC * 4 - cW) + (mC * 4 - mW);
-
-        onSave({
-            name: `Mock Test #${Math.floor(Math.random() * 1000)}`,
-            date: dateStr,
-            marks: Math.max(0, totalMarks),
-            total: 300,
-            temperament: temperaments[Math.floor(Math.random() * temperaments.length)],
-            breakdown: {
-                Physics: { correct: pC, incorrect: pW, unattempted: 25 - pC - pW, calcErrors: 0, otherErrors: 0, mistakes: {} },
-                Chemistry: { correct: cC, incorrect: cW, unattempted: 25 - cC - cW, calcErrors: 0, otherErrors: 0, mistakes: {} },
-                Maths: { correct: mC, incorrect: mW, unattempted: 25 - mC - mW, calcErrors: 0, otherErrors: 0, mistakes: {} }
-            }
-        });
-    }
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -475,24 +440,13 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Test Log</h2>
           <p className="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-1 font-bold">Track performance curves</p>
         </div>
-        <div className="flex items-center">
-            {/* Dev Gen Button */}
-            <button 
-                onClick={handleGenerateDevData} 
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-white/5 border border-transparent hover:border-indigo-200 dark:hover:border-white/10 text-xs font-bold uppercase tracking-wider transition-all mr-2"
-                title="Generate 10 random tests for debugging"
-            >
-                <Database size={16} /> Dev: Gen 10
-            </button>
-
-            <button 
-                onClick={() => setIsAdding(!isAdding)} 
-                className="group flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-2xl text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
-            >
-                {isAdding ? <X size={16} /> : <Plus size={16} className="group-hover:rotate-90 transition-transform" />}
-                {isAdding ? 'Cancel' : 'Log Test'}
-            </button>
-        </div>
+        <button 
+          onClick={() => setIsAdding(!isAdding)} 
+          className="group flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-2xl text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+        >
+          {isAdding ? <X size={16} /> : <Plus size={16} className="group-hover:rotate-90 transition-transform" />}
+          {isAdding ? 'Cancel' : 'Log Test'}
+        </button>
       </div>
 
       {/* Add Form */}
@@ -767,28 +721,31 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                     </div>
                   </div>
                   
-                  {/* Numerical Breakdown */}
+                  {/* Visual Bar Breakdown */}
                   {t.breakdown && (
-                    <div className="grid grid-cols-3 gap-2 mt-5">
+                    <div className="flex gap-1 h-2 w-full rounded-full overflow-hidden bg-slate-100 dark:bg-white/5 mt-4">
                         {(['Physics', 'Chemistry', 'Maths'] as const).map(sub => {
                             const d = t.breakdown![sub];
-                            const totalQuestions = d.correct + d.incorrect + d.unattempted;
-                            const color = sub === 'Physics' ? 'text-blue-500' : sub === 'Chemistry' ? 'text-orange-500' : 'text-rose-500';
-                            const bg = sub === 'Physics' ? 'bg-blue-500' : sub === 'Chemistry' ? 'bg-orange-500' : 'bg-rose-500';
-
+                            const accuracy = d.correct + d.incorrect > 0 ? (d.correct / (d.correct + d.incorrect)) : 0;
+                            const width = (100/3); 
+                            const color = sub === 'Physics' ? 'bg-blue-500' : sub === 'Chemistry' ? 'bg-orange-500' : 'bg-rose-500';
+                            
                             return (
-                                <div key={sub} className="flex flex-col items-center justify-center bg-slate-50 dark:bg-white/5 rounded-xl py-2 border border-slate-100 dark:border-white/5 relative overflow-hidden">
-                                    <div className={`absolute top-0 left-0 w-full h-0.5 ${bg} opacity-40`} />
-                                    <span className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${color}`}>{sub.slice(0,3)}</span>
-                                    <div className="flex items-baseline gap-0.5">
-                                        <span className="text-sm font-mono font-bold text-slate-900 dark:text-white">{d.correct}</span>
-                                        <span className="text-[9px] text-slate-400 font-medium">/{totalQuestions}</span>
-                                    </div>
+                                <div key={sub} className="h-full relative group/bar" style={{ width: `${width}%` }}>
+                                    <div className={`h-full ${color} opacity-30 w-full absolute top-0 left-0`} />
+                                    <div className={`h-full ${color} absolute top-0 left-0`} style={{ width: `${accuracy * 100}%` }} />
                                 </div>
                             )
                         })}
                     </div>
                   )}
+                  
+                  {/* Legend */}
+                  <div className="flex justify-between mt-2 px-1">
+                      {(['Physics', 'Chemistry', 'Maths'] as const).map(sub => (
+                          <span key={sub} className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{sub.slice(0,1)}</span>
+                      ))}
+                  </div>
               </div>
               
               {/* Footer Actions */}
@@ -822,3 +779,280 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
       <PerformanceGraph tests={tests} />
 
       {/* --- Detailed Report Card Modal --- */}
+      {viewingReport && createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-[#0f172a] w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
+                  {/* Header */}
+                  <div className="relative p-8 bg-slate-900 overflow-hidden shrink-0">
+                      <div className="absolute inset-0 opacity-30">
+                          <div className={`absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2`} />
+                          <div className={`absolute bottom-0 left-0 w-48 h-48 bg-purple-500 rounded-full blur-[60px] -translate-x-1/3 translate-y-1/3`} />
+                      </div>
+                      
+                      <div className="relative z-10 flex justify-between items-start">
+                          <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{viewingReport.date}</span>
+                                  <span className="w-1 h-1 bg-white/40 rounded-full" />
+                                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{viewingReport.temperament}</span>
+                              </div>
+                              <h2 className="text-2xl font-bold text-white leading-tight">{viewingReport.name}</h2>
+                          </div>
+                          <button onClick={() => setViewingReport(null)} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+                              <X size={18} />
+                          </button>
+                      </div>
+
+                      <div className="relative z-10 flex items-end gap-2 mt-6">
+                          <span className="text-6xl font-display font-bold text-white tracking-tighter">
+                              {viewingReport.marks}
+                          </span>
+                          <div className="flex flex-col mb-2">
+                              <span className="text-sm font-medium text-white/60">/ {viewingReport.total}</span>
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">
+                                  {Math.round((viewingReport.marks / viewingReport.total) * 100)}% Score
+                              </span>
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-6 overflow-y-auto bg-slate-50 dark:bg-[#0f172a]">
+                      
+                      {/* Subject Breakdown List */}
+                      <div className="mb-8">
+                          <div className="flex justify-between items-center mb-4">
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                  <PieChart size={14} /> Subject Analysis
+                              </h4>
+                              {reportSubject && (
+                                <button 
+                                    onClick={() => setReportSubject(null)}
+                                    className="text-[9px] font-bold text-indigo-500 flex items-center gap-1 hover:underline"
+                                >
+                                    Viewing {reportSubject} <X size={10} />
+                                </button>
+                              )}
+                          </div>
+                          
+                          <div className="space-y-3">
+                              {(['Physics', 'Chemistry', 'Maths'] as const).map(sub => {
+                                  const d = viewingReport.breakdown?.[sub] || { correct: 0, incorrect: 0, unattempted: 0 };
+                                  const total = d.correct + d.incorrect + d.unattempted;
+                                  const attempted = d.correct + d.incorrect;
+                                  const acc = attempted > 0 ? Math.round((d.correct / attempted) * 100) : 0;
+                                  
+                                  const color = sub === 'Physics' ? 'text-blue-500' : sub === 'Chemistry' ? 'text-orange-500' : 'text-rose-500';
+                                  const bg = sub === 'Physics' ? 'bg-blue-500' : sub === 'Chemistry' ? 'bg-orange-500' : 'bg-rose-500';
+                                  const isSelected = reportSubject === sub;
+
+                                  return (
+                                      <div 
+                                        key={sub} 
+                                        onClick={() => setReportSubject(prev => prev === sub ? null : sub)}
+                                        className={`
+                                            relative overflow-hidden rounded-2xl p-4 cursor-pointer transition-all duration-300 border
+                                            ${isSelected 
+                                                ? 'bg-white dark:bg-white/5 border-indigo-500 dark:border-indigo-500 shadow-lg scale-[1.02]' 
+                                                : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 hover:border-indigo-300 dark:hover:border-white/20'
+                                            }
+                                        `}
+                                      >
+                                          <div className="flex items-center justify-between mb-3 relative z-10">
+                                              <div className="flex items-center gap-3">
+                                                  <div className={`p-2 rounded-lg ${bg} bg-opacity-10 dark:bg-opacity-20 ${color}`}>
+                                                      {sub === 'Physics' ? <Atom size={18} /> : sub === 'Chemistry' ? <Zap size={18} /> : <Calculator size={18} />}
+                                                  </div>
+                                                  <div>
+                                                      <h5 className={`text-sm font-bold ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>{sub}</h5>
+                                                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{d.correct}/{total} Correct</p>
+                                                  </div>
+                                              </div>
+                                              <div className="text-right">
+                                                  <span className="text-lg font-mono font-bold text-slate-900 dark:text-white">{acc}%</span>
+                                                  <p className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Accuracy</p>
+                                              </div>
+                                          </div>
+                                          
+                                          {/* Mini Stats Grid */}
+                                          <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-white/5 relative z-10">
+                                              <div className="text-center">
+                                                  <span className="block text-xs font-mono font-bold text-emerald-500">{d.correct}</span>
+                                                  <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-wider">Right</span>
+                                              </div>
+                                              <div className="text-center">
+                                                  <span className="block text-xs font-mono font-bold text-rose-500">{d.incorrect}</span>
+                                                  <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-wider">Wrong</span>
+                                              </div>
+                                              <div className="text-center">
+                                                  <span className="block text-xs font-mono font-bold text-slate-500">{d.unattempted}</span>
+                                                  <span className="block text-[8px] uppercase font-bold text-slate-400 tracking-wider">Skip</span>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  )
+                              })}
+                          </div>
+                      </div>
+
+                      {/* Mistake Analysis Aggregation */}
+                      <div>
+                          <div className="flex items-center justify-between mb-4">
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                  <AlertCircle size={14} className={reportSubject ? 'text-indigo-500' : 'text-slate-400'} /> 
+                                  {reportSubject ? `${reportSubject} Mistakes` : 'Overall Mistakes'}
+                              </h4>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                              {MISTAKE_TYPES.map(type => {
+                                  let count = 0;
+                                  if (viewingReport.breakdown) {
+                                      if (reportSubject) {
+                                          const mistakes = viewingReport.breakdown[reportSubject].mistakes;
+                                          if (mistakes) count = mistakes[type.id as keyof MistakeCounts] || 0;
+                                          if (type.id === 'calc' && count === 0) count = viewingReport.breakdown[reportSubject].calcErrors || 0;
+                                          if (type.id === 'concept' && count === 0) count = viewingReport.breakdown[reportSubject].otherErrors || 0;
+                                      } else {
+                                          (['Physics', 'Chemistry', 'Maths'] as const).forEach(sub => {
+                                              const mistakes = viewingReport.breakdown![sub].mistakes;
+                                              if (mistakes) count += (mistakes[type.id as keyof MistakeCounts] || 0);
+                                          });
+                                          if (type.id === 'calc' && count === 0) (['Physics', 'Chemistry', 'Maths'] as const).forEach(sub => count += viewingReport.breakdown![sub].calcErrors || 0);
+                                          if (type.id === 'concept' && count === 0) (['Physics', 'Chemistry', 'Maths'] as const).forEach(sub => count += viewingReport.breakdown![sub].otherErrors || 0);
+                                      }
+                                  }
+
+                                  if (count === 0) return null;
+
+                                  return (
+                                      <div key={type.id} className="flex items-center justify-between p-3 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm animate-in zoom-in-95 duration-300">
+                                          <div className="flex items-center gap-2 overflow-hidden">
+                                              <span className={`${type.color} shrink-0`}>{type.icon}</span>
+                                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 truncate">{type.label}</span>
+                                          </div>
+                                          <span className="text-sm font-mono font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-white/10 px-2 py-0.5 rounded">{count}</span>
+                                      </div>
+                                  )
+                              })}
+                              
+                              <div className="col-span-2 text-center py-4">
+                                  {!MISTAKE_TYPES.some(type => {
+                                      let count = 0;
+                                      if (viewingReport.breakdown) {
+                                          if (reportSubject) {
+                                              count = (viewingReport.breakdown[reportSubject].mistakes?.[type.id as keyof MistakeCounts] || 0);
+                                          } else {
+                                              (['Physics', 'Chemistry', 'Maths'] as const).forEach(sub => count += (viewingReport.breakdown![sub].mistakes?.[type.id as keyof MistakeCounts] || 0));
+                                          }
+                                      }
+                                      return count > 0;
+                                  }) && (
+                                      <p className="text-[10px] uppercase font-bold text-slate-400 italic">No mistakes tagged for this selection</p>
+                                  )}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  
+                  {/* Footer with Attachment button if exists */}
+                  {viewingReport.attachment && (
+                      <div className="p-4 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0f172a] shrink-0">
+                          <button 
+                              onClick={() => { setViewingReport(null); setViewingAttachment(viewingReport); }}
+                              className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 rounded-xl text-indigo-600 dark:text-indigo-400 font-bold uppercase text-xs tracking-widest transition-all"
+                          >
+                              {viewingReport.attachmentType === 'pdf' ? <FileText size={16} /> : <ImageIcon size={16} />}
+                              View Attached Paper
+                          </button>
+                      </div>
+                  )}
+              </div>
+          </div>,
+          document.body
+      )}
+
+      {/* Attachment Viewer Modal */}
+      {viewingAttachment && createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+              <div className="bg-white dark:bg-[#0f172a] w-full max-w-4xl h-[85vh] rounded-3xl overflow-hidden flex flex-col shadow-2xl border border-white/10">
+                  <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#0f172a]">
+                      <div className="flex items-center gap-3">
+                          <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg text-indigo-600 dark:text-indigo-400">
+                              {viewingAttachment.attachmentType === 'pdf' ? <FileText size={20} /> : <ImageIcon size={20} />}
+                          </div>
+                          <div>
+                              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{viewingAttachment.name}</h3>
+                              <p className="text-[10px] text-slate-500 font-mono uppercase">{viewingAttachment.fileName || 'Attachment'}</p>
+                          </div>
+                      </div>
+                      <button 
+                        onClick={() => setViewingAttachment(null)}
+                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors"
+                      >
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="flex-1 bg-slate-100 dark:bg-black/50 overflow-auto flex items-center justify-center p-4 relative">
+                      {viewingAttachment.attachmentType === 'image' ? (
+                          <img 
+                            src={viewingAttachment.attachment} 
+                            alt="Test Paper" 
+                            className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+                          />
+                      ) : (
+                          <div className="text-center">
+                              <FileText size={64} className="text-slate-400 mx-auto mb-4" />
+                              <p className="text-slate-500 dark:text-slate-300 mb-6 font-medium">PDF Preview is not supported in this view.</p>
+                              <a 
+                                href={viewingAttachment.attachment} 
+                                download={viewingAttachment.fileName || "test-paper.pdf"}
+                                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold uppercase text-xs tracking-widest shadow-lg transition-all inline-flex items-center gap-2"
+                              >
+                                  <Download size={16} /> Download PDF
+                              </a>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>,
+          document.body
+      )}
+
+      {/* Upcoming Tests Section */}
+      {upcomingTests.length > 0 && (
+          <div className="pt-8 border-t border-slate-200 dark:border-white/10 mt-8">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6 flex items-center gap-2">
+                  <Calendar size={14} className="text-amber-500" /> Upcoming Scheduled Tests
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {upcomingTests.map(t => {
+                      const dateObj = new Date(t.date + 'T00:00:00'); 
+                      const daysLeft = Math.ceil((dateObj.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      return (
+                          <div key={t.id} className="bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 p-4 rounded-2xl relative overflow-hidden group hover:border-amber-300 dark:hover:border-amber-500/40 transition-colors">
+                              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                  <Clock size={48} className="text-amber-600 dark:text-amber-400" />
+                              </div>
+                              <h4 className="font-bold text-slate-900 dark:text-white truncate pr-6 text-sm">{t.text}</h4>
+                              <div className="flex justify-between items-end mt-3">
+                                  <div className="flex flex-col">
+                                      <span className="text-[10px] uppercase font-bold text-amber-600/70 dark:text-amber-400/70">Date</span>
+                                      <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">
+                                          {dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                  </div>
+                                  <div className="px-2 py-1 bg-amber-500 text-white text-[10px] font-bold uppercase rounded-lg shadow-md">
+                                      {daysLeft <= 0 ? 'Today' : `T - ${daysLeft} days`}
+                                  </div>
+                              </div>
+                          </div>
+                      )
+                  })}
+              </div>
+          </div>
+      )}
+    </div>
+  );
+});
