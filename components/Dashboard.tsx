@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, memo, useCallback } from 'react';
 import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History } from 'lucide-react';
 import { Session, Target, MistakeCounts } from '../types';
@@ -26,6 +25,7 @@ interface DashboardProps {
   goals: { Physics: number; Chemistry: number; Maths: number };
   setGoals: React.Dispatch<React.SetStateAction<{ Physics: number; Chemistry: number; Maths: number }>>;
   onSaveSession: (session: Omit<Session, 'id' | 'timestamp'>) => void;
+  userName: string | null;
 }
 
 const ActivityHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
@@ -467,7 +467,8 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
   onDelete, 
   goals, 
   setGoals, 
-  onSaveSession 
+  onSaveSession,
+  userName
 }) => {
   const todayStr = getLocalDate();
   
@@ -477,6 +478,20 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
   [sessions, todayStr]);
   
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+
+  const { greeting, displayName } = useMemo(() => {
+    const hour = new Date().getHours();
+    let greetingText;
+    if (hour < 12) {
+      greetingText = "Good Morning";
+    } else if (hour < 18) {
+      greetingText = "Good Afternoon";
+    } else {
+      greetingText = "Good Evening";
+    }
+    const name = userName ? `, ${userName.split(' ')[0]}` : '';
+    return { greeting: greetingText, displayName: name };
+  }, [userName]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -513,7 +528,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
           </div>
           <div className="text-center md:text-right order-1 md:order-2 w-full md:w-auto">
             <h2 className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight flex items-center justify-center md:justify-end gap-3">
-              Ready to Study?
+              {greeting}{displayName}!
             </h2>
             <p className="text-xs md:text-sm text-indigo-600 dark:text-indigo-300 uppercase tracking-widest font-bold opacity-70">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}

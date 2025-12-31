@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo, memo, useRef } from 'react';
+import React, { useState, useMemo, memo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown } from 'lucide-react';
 import { TestResult, Target as TargetType, SubjectBreakdown, MistakeCounts } from '../types';
@@ -234,6 +233,21 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     }
   });
 
+  const handleCalculateMarks = useCallback(() => {
+    setFormData(prev => {
+        if (!prev.breakdown) return prev;
+
+        const { Physics, Chemistry, Maths } = prev.breakdown;
+
+        const totalCorrect = (Physics.correct || 0) + (Chemistry.correct || 0) + (Maths.correct || 0);
+        const totalIncorrect = (Physics.incorrect || 0) + (Chemistry.incorrect || 0) + (Maths.incorrect || 0);
+
+        const calculatedMarks = (totalCorrect * 4) - totalIncorrect;
+
+        return { ...prev, marks: calculatedMarks };
+    });
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -451,25 +465,25 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
 
       {/* Add Form */}
       {isAdding && (
-        <Card className="border-indigo-100 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-900/10 max-w-2xl mx-auto shadow-2xl">
+        <Card className="bg-slate-900/50 dark:bg-slate-900/50 border border-slate-800 max-w-2xl mx-auto shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-8">
             
             {/* Basic Info Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1">Test Name</label>
+                <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Test Name</label>
                 <input 
                   type="text" required placeholder="e.g., JEE Mains Mock 12"
-                  className="w-full bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 p-3 rounded-xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+                  className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-sm text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all placeholder:text-slate-500"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1">Date</label>
+                <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Date</label>
                 <input 
                   type="date" required
-                  className="w-full bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 p-3 rounded-xl text-sm text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all"
+                  className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-sm text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all"
                   value={formData.date}
                   onChange={e => setFormData({...formData, date: e.target.value})}
                 />
@@ -477,28 +491,42 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
               
               <div className="md:col-span-2 grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1">Marks</label>
+                  <div className="flex justify-between items-center h-4 mb-1">
+                    <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Marks</label>
+                    <button 
+                        type="button" 
+                        onClick={handleCalculateMarks}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded border border-indigo-500/30 text-indigo-400 text-[9px] font-bold uppercase hover:bg-indigo-500/10 transition-colors"
+                    >
+                        <Zap size={10} />
+                        Auto-Calc
+                    </button>
+                  </div>
                   <input 
                     type="number" required placeholder="0"
-                    className="w-full bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 p-3 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all"
+                    className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-sm font-mono font-bold text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all"
                     value={formData.marks}
                     onChange={e => setFormData({...formData, marks: parseInt(e.target.value) || 0})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1">Total Marks</label>
+                   <div className="flex justify-between items-center h-4 mb-1">
+                      <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Total Marks</label>
+                   </div>
                   <input 
                     type="number" required placeholder="300"
-                    className="w-full bg-white dark:bg-black/40 border border-slate-200 dark:border-white/10 p-3 rounded-xl text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-indigo-500 outline-none transition-all"
+                    className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-sm font-mono font-bold text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all"
                     value={formData.total}
                     onChange={e => setFormData({...formData, total: parseInt(e.target.value) || 300})}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400 ml-1">Total Qs</label>
+                  <div className="flex justify-between items-center h-4 mb-1">
+                     <label className="text-[10px] uppercase font-bold text-indigo-400 ml-1">Total Qs</label>
+                  </div>
                   <input 
                     type="number" placeholder="75"
-                    className="w-full bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/40 p-3 rounded-xl text-sm font-mono font-bold text-indigo-700 dark:text-indigo-300 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full bg-indigo-500/10 border border-indigo-500/40 p-3 rounded-xl text-sm font-mono font-bold text-indigo-300 focus:border-indigo-500 outline-none transition-all"
                     value={globalQCount}
                     onChange={e => handleGlobalQuestionChange(parseInt(e.target.value) || 0)}
                   />
@@ -506,14 +534,14 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
               </div>
 
               <div className="md:col-span-2 space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1">Temperament</label>
+                <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Temperament</label>
                 <div className="grid grid-cols-4 gap-2">
                     {['Calm', 'Anxious', 'Focused', 'Fatigued'].map(t => (
                         <button
                             key={t}
                             type="button"
                             onClick={() => setFormData({...formData, temperament: t as any})}
-                            className={`py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all ${formData.temperament === t ? 'bg-slate-800 text-white border-slate-800 dark:bg-white dark:text-slate-900' : 'bg-transparent border-slate-200 dark:border-white/10 text-slate-500 hover:border-slate-400'}`}
+                            className={`py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide border transition-all ${formData.temperament === t ? 'bg-white text-slate-900 border-white' : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'}`}
                         >
                             {t}
                         </button>
@@ -523,16 +551,16 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
             </div>
 
             {/* Deep Dive Analysis Section */}
-            <div className="space-y-4 pt-4 border-t border-indigo-200/50 dark:border-white/5">
+            <div className="space-y-4 pt-4 border-t border-indigo-500/20">
                <div className="flex items-center justify-between">
-                   <label className="text-xs uppercase font-bold text-indigo-600 dark:text-indigo-400 tracking-widest flex items-center gap-2">
+                   <label className="text-xs uppercase font-bold text-indigo-400 tracking-widest flex items-center gap-2">
                       <BarChart3 size={16} /> Question Breakdown
                    </label>
                </div>
                
-               <div className="bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+               <div className="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden shadow-sm">
                   {/* Subject Tabs */}
-                  <div className="flex border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5">
+                  <div className="flex border-b border-slate-700 bg-slate-900/50">
                      {(['Physics', 'Chemistry', 'Maths'] as const).map(subject => (
                         <button
                            key={subject}
@@ -540,8 +568,8 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                            onClick={() => setActiveTab(subject)}
                            className={`flex-1 py-4 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 relative
                               ${activeTab === subject 
-                                 ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-transparent' 
-                                 : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                                 ? 'text-indigo-400 bg-slate-800' 
+                                 : 'text-slate-400 hover:text-slate-300'
                               }`}
                         >
                            {activeTab === subject && <div className="absolute top-0 left-0 w-full h-0.5 bg-indigo-500" />}
@@ -556,15 +584,15 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                   {/* Input Fields */}
                   <div className="p-6 space-y-6">
                      {/* Total Questions Row */}
-                     <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-                        <div className="p-2 bg-white dark:bg-black/20 rounded-lg text-slate-400">
+                     <div className="flex items-center gap-4 p-3 bg-slate-900/30 rounded-xl border border-slate-700">
+                        <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
                             <Target size={18} />
                         </div>
                         <div className="flex-1">
                             <p className="text-[10px] font-bold uppercase text-slate-500">Total {activeTab} Qs</p>
                             <input 
                                 type="number" min="0" placeholder="0"
-                                className="w-full bg-transparent text-lg font-mono font-bold text-slate-900 dark:text-white outline-none"
+                                className="w-full bg-transparent text-lg font-mono font-bold text-white outline-none"
                                 value={activeTotalQuestions || ''}
                                 onChange={(e) => handleTotalChange(activeTab, parseInt(e.target.value) || 0)}
                             />
@@ -576,7 +604,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                            <label className="text-[9px] uppercase font-bold text-emerald-500 ml-1">Correct</label>
                            <input 
                               type="number" min="0" placeholder="0"
-                              className="w-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 p-3 rounded-xl text-center font-mono font-bold text-emerald-700 dark:text-emerald-300 focus:border-emerald-500 outline-none transition-all"
+                              className="w-full bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-center font-mono font-bold text-emerald-300 focus:border-emerald-500 outline-none transition-all"
                               value={formData.breakdown?.[activeTab].correct || ''}
                               onChange={(e) => handleStatChange(activeTab, 'correct', parseInt(e.target.value) || 0)}
                            />
@@ -585,7 +613,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                            <label className="text-[9px] uppercase font-bold text-rose-500 ml-1">Wrong</label>
                            <input 
                               type="number" min="0" placeholder="0"
-                              className="w-full bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 p-3 rounded-xl text-center font-mono font-bold text-rose-700 dark:text-rose-300 focus:border-rose-500 outline-none transition-all"
+                              className="w-full bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl text-center font-mono font-bold text-rose-300 focus:border-rose-500 outline-none transition-all"
                               value={formData.breakdown?.[activeTab].incorrect || ''}
                               onChange={(e) => handleStatChange(activeTab, 'incorrect', parseInt(e.target.value) || 0)}
                            />
@@ -596,42 +624,42 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                               type="number" 
                               readOnly
                               disabled
-                              className="w-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/5 p-3 rounded-xl text-center font-mono font-bold text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                              className="w-full bg-slate-700/50 border border-slate-700 p-3 rounded-xl text-center font-mono font-bold text-slate-400 cursor-not-allowed"
                               value={formData.breakdown?.[activeTab].unattempted || 0}
                            />
                         </div>
                      </div>
 
-                     <div className="p-4 bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-500/20">
+                     <div className="p-4 bg-rose-500/10 rounded-xl border border-rose-500/20">
                         <div className="flex justify-between items-center mb-4">
-                            <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest flex items-center gap-2">
+                            <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest flex items-center gap-2">
                                 <AlertCircle size={14} /> Mistake Analysis
                             </p>
-                            <span className="text-[9px] px-2 py-1 bg-white dark:bg-black/20 rounded text-rose-500 font-mono border border-rose-200 dark:border-rose-500/20">
+                            <span className="text-[9px] px-2 py-1 bg-black/20 rounded text-rose-400 font-mono border border-rose-500/20">
                                 {activeTaggedCount} / {formData.breakdown?.[activeTab].incorrect} tagged
                             </span>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {MISTAKE_TYPES.map(type => (
-                                <div key={type.id} className="flex items-center justify-between p-2 bg-white dark:bg-black/20 rounded-lg border border-slate-100 dark:border-white/5 hover:border-rose-200 dark:hover:border-rose-500/30 transition-colors">
+                                <div key={type.id} className="flex items-center justify-between p-2 bg-black/20 rounded-lg border border-white/5 hover:border-rose-500/30 transition-colors">
                                     <div className="flex items-center gap-2 overflow-hidden">
                                         <span className={`${type.color} shrink-0 scale-75`}>{type.icon}</span>
-                                        <span className="text-[9px] font-bold uppercase text-slate-600 dark:text-slate-300 truncate">{type.label}</span>
+                                        <span className="text-[9px] font-bold uppercase text-slate-300 truncate">{type.label}</span>
                                     </div>
-                                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/10 rounded p-0.5">
+                                    <div className="flex items-center gap-1 bg-white/10 rounded p-0.5">
                                         <button 
                                             type="button"
                                             onClick={() => updateMistake(activeTab, type.id as keyof MistakeCounts, -1)}
-                                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white dark:hover:bg-white/10 text-slate-500"
+                                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-400"
                                         >-</button>
-                                        <span className="w-4 text-center font-mono font-bold text-xs text-slate-900 dark:text-white">
+                                        <span className="w-4 text-center font-mono font-bold text-xs text-white">
                                             {activeMistakes[type.id as keyof MistakeCounts] || 0}
                                         </span>
                                         <button 
                                             type="button"
                                             onClick={() => updateMistake(activeTab, type.id as keyof MistakeCounts, 1)}
-                                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white dark:hover:bg-white/10 text-slate-500"
+                                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-slate-400"
                                         >+</button>
                                     </div>
                                 </div>
@@ -644,16 +672,16 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
 
             {/* File Upload Section */}
             <div className="space-y-2">
-               <label className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 ml-1">Attachment</label>
+               <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Attachment</label>
                {!previewFile ? (
                  <div 
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full border-2 border-dashed border-slate-200 dark:border-white/10 hover:border-indigo-400 dark:hover:border-indigo-500 bg-slate-50 dark:bg-black/20 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group"
+                    className="w-full border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-black/20 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all group"
                  >
-                    <div className="p-3 bg-white dark:bg-white/5 rounded-full mb-2 group-hover:scale-110 transition-transform shadow-sm">
-                        <UploadCloud className="text-indigo-500 dark:text-indigo-400" size={20} />
+                    <div className="p-3 bg-white/5 rounded-full mb-2 group-hover:scale-110 transition-transform shadow-sm">
+                        <UploadCloud className="text-indigo-400" size={20} />
                     </div>
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-indigo-500 transition-colors">Click to upload Scorecard / PDF</p>
+                    <p className="text-xs font-bold text-slate-400 group-hover:text-indigo-400 transition-colors">Click to upload Scorecard / PDF</p>
                     <input 
                         type="file" 
                         ref={fileInputRef} 
@@ -663,14 +691,14 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                     />
                  </div>
                ) : (
-                 <div className="flex items-center justify-between p-3 bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-xl">
+                 <div className="flex items-center justify-between p-3 bg-black/20 border border-slate-700 rounded-xl">
                     <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="p-2 bg-indigo-50 dark:bg-indigo-500/20 rounded-lg text-indigo-600 dark:text-indigo-400 shrink-0">
+                        <div className="p-2 bg-indigo-500/20 rounded-lg text-indigo-400 shrink-0">
                             {previewFile.type === 'pdf' ? <FileText size={18} /> : <ImageIcon size={18} />}
                         </div>
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{previewFile.name}</span>
+                        <span className="text-xs font-bold text-slate-200 truncate">{previewFile.name}</span>
                     </div>
-                    <button type="button" onClick={removeAttachment} className="p-2 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-rose-500 transition-colors">
+                    <button type="button" onClick={removeAttachment} className="p-2 hover:bg-rose-500/10 rounded-lg text-rose-500 transition-colors">
                         <X size={16} />
                     </button>
                  </div>

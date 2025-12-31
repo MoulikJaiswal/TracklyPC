@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
@@ -37,6 +36,8 @@ const FocusTimer = lazy(() => import('./components/FocusTimer').then(module => (
 const Planner = lazy(() => import('./components/Planner').then(module => ({ default: module.Planner })));
 const TestLog = lazy(() => import('./components/TestLog').then(module => ({ default: module.TestLog })));
 const Analytics = lazy(() => import('./components/Analytics').then(module => ({ default: module.Analytics })));
+const Resources = lazy(() => import('./components/Resources').then(module => ({ default: module.Resources })));
+
 
 // UUID Generator
 const generateUUID = () => {
@@ -408,7 +409,8 @@ const Sidebar = React.memo(({
     onLogin,
     onLogout,
     isInstalled,
-    onInstall
+    onInstall,
+    userName
 }: { 
     view: ViewType, 
     setView: (v: ViewType) => void, 
@@ -420,7 +422,8 @@ const Sidebar = React.memo(({
     onLogin: () => void,
     onLogout: () => void,
     isInstalled: boolean,
-    onInstall: () => void
+    onInstall: () => void,
+    userName: string | null
 }) => {
   return (
     <aside 
@@ -480,7 +483,7 @@ const Sidebar = React.memo(({
                 <ShieldCheck size={16} className="text-emerald-500" />
                 <div className="flex-1 overflow-hidden">
                     <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Sync Active</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{user.displayName || 'User'}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{userName || 'User'}</p>
                 </div>
                 <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
                     <LogOut size={14} />
@@ -491,7 +494,7 @@ const Sidebar = React.memo(({
                 <WifiOff size={16} className="text-slate-500" />
                 <div className="flex-1 overflow-hidden">
                     <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Offline Mode</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">Browser Storage</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{userName || 'Guest'}</p>
                 </div>
                 <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
                     <LogOut size={14} />
@@ -576,6 +579,8 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [guestNameInput, setGuestNameInput] = useState('');
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -855,9 +860,11 @@ const App: React.FC = () => {
   }, []);
 
   const handleGuestLogin = useCallback(() => {
+      if (!guestNameInput.trim()) return;
+      localStorage.setItem('trackly_guest_name', guestNameInput.trim());
       setIsGuest(true);
       localStorage.setItem('trackly_is_guest', 'true');
-  }, []);
+  }, [guestNameInput]);
 
   const handleLogout = useCallback(async () => {
       if (user) {
@@ -865,6 +872,8 @@ const App: React.FC = () => {
       }
       setIsGuest(false);
       localStorage.removeItem('trackly_is_guest');
+      localStorage.removeItem('trackly_guest_name');
+      setUserName(null);
       // Reset state
       setSessions([]);
       setTests([]);
@@ -912,6 +921,7 @@ const App: React.FC = () => {
       setUser(currentUser);
       if (currentUser) {
           setIsGuest(false);
+          setUserName(currentUser.displayName || 'User');
       }
       setIsAuthLoading(false);
     });
@@ -923,6 +933,7 @@ const App: React.FC = () => {
       const storedGuest = localStorage.getItem('trackly_is_guest');
       if (storedGuest === 'true' && !user) {
           setIsGuest(true);
+          setUserName(localStorage.getItem('trackly_guest_name') || 'Guest');
       }
   }, [user]);
 
@@ -1245,26 +1256,39 @@ const App: React.FC = () => {
                 <div className="mt-8 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-slate-200 dark:border-white/10 text-center max-w-sm w-full shadow-2xl cv-auto">
                     <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Welcome Back</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                        Sign in to sync your progress, sessions, and test scores across all your devices.
+                        Sign in to sync your progress, or enter your name to continue offline.
                     </p>
                     <button 
                         onClick={handleLogin}
                         className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 mb-4"
                     >
                         <span>Sign In with Google</span>
-                        <ArrowRightIcon />
                     </button>
                     
-                    <button 
-                        onClick={handleGuestLogin}
-                        className="w-full py-3 bg-white/10 hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-2xl font-bold uppercase tracking-widest border border-slate-200 dark:border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-                    >
-                        <span>Continue Offline</span>
-                    </button>
+                    <div className="my-6 flex items-center">
+                        <div className="flex-grow h-px bg-slate-200 dark:bg-white/10"></div>
+                        <span className="mx-4 text-xs font-bold uppercase text-slate-400">OR</span>
+                        <div className="flex-grow h-px bg-slate-200 dark:bg-white/10"></div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <input
+                            type="text"
+                            placeholder="Enter your name..."
+                            value={guestNameInput}
+                            onChange={(e) => setGuestNameInput(e.target.value)}
+                            className="w-full p-4 bg-white/10 text-slate-900 dark:text-white rounded-2xl border border-slate-200 dark:border-white/10 transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder:text-slate-400"
+                        />
+                        <button 
+                            onClick={handleGuestLogin}
+                            disabled={!guestNameInput.trim()}
+                            className="w-full py-4 bg-white/10 hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-2xl font-bold uppercase tracking-widest border border-slate-200 dark:border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span>Continue Offline</span>
+                            <ArrowRightIcon />
+                        </button>
+                    </div>
 
-                    <p className="mt-6 text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                        Secure • Cloud Synced • Fast
-                    </p>
                 </div>
              </div>
         </div>
@@ -1298,6 +1322,7 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           isInstalled={isInstalled}
           onInstall={handleInstallClick}
+          userName={userName}
       />
 
       {/* Mobile Header */}
@@ -1349,6 +1374,7 @@ const App: React.FC = () => {
                           goals={goals}
                           setGoals={setGoals}
                           onSaveSession={handleSaveSession}
+                          userName={userName}
                       />
                   )}
                   {view === 'planner' && (

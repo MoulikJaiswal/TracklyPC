@@ -1,10 +1,8 @@
-
 import React, { useMemo, useState, memo } from 'react';
-import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid, Sparkles, Loader2, AlertTriangle, CheckCircle2, ArrowRight, Lock } from 'lucide-react';
+import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid } from 'lucide-react';
 import { Session, TestResult } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
-import { generateAnalysis } from '../services/geminiService';
 
 interface AnalyticsProps {
   sessions: Session[];
@@ -133,10 +131,6 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
 });
 
 export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) => {
-  const [aiReport, setAiReport] = useState<any | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const stats = useMemo(() => {
     const totalAttempted = sessions.reduce((acc, s) => acc + (Number(s.attempted) || 0), 0);
     const totalCorrect = sessions.reduce((acc, s) => acc + (Number(s.correct) || 0), 0);
@@ -154,38 +148,6 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
     return { totalAttempted, totalCorrect, avgAccuracy, mistakeDistribution, totalMistakes };
   }, [sessions]);
 
-  const handleGenerateReport = async () => {
-    if (sessions.length < 3) {
-      alert("Please log at least 3 study sessions to get a meaningful analysis.");
-      return;
-    }
-    
-    setIsAnalyzing(true);
-    setError(null);
-    
-    try {
-      const reportText = await generateAnalysis(sessions, tests);
-      
-      try {
-          const json = JSON.parse(reportText);
-          setAiReport(json);
-      } catch (e) {
-          console.error("JSON Parse Error", e);
-          setAiReport({ 
-              bottleneckTitle: "Analysis Report", 
-              analysis: reportText, 
-              temperament: "Review Required", 
-              actionPlan: ["Analysis generated. Check details above."] 
-          });
-      }
-    } catch (e: any) {
-      console.error(e);
-      setError("Failed to generate analysis. Please try again later.");
-      setAiReport(null);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
 
   return (
     <div id="analytics-container" className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
@@ -233,125 +195,15 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
       </div>
 
       <div className="animate-in fade-in duration-500 space-y-6 md:space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-                {/* Left Col: Subjects & AI Coach */}
-                <div className="lg:col-span-2 space-y-6 md:space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                        {/* Subject Breakdown */}
-                        <div className="space-y-4">
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Subject Proficiency</h3>
-                            <SubjectProficiency sessions={sessions} />
-                        </div>
-
-                        {/* AI Coach Insight */}
-                        <div className="space-y-4">
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Performance Coach</h3>
-                            <div className="p-6 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/20 relative overflow-hidden min-h-[320px] flex flex-col transform-gpu">
-                                <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                                    <Sparkles size={80} className="text-indigo-900 dark:text-white" />
-                                </div>
-                                
-                                <div className="relative z-10 flex-grow">
-                                    {isAnalyzing ? (
-                                        <div className="h-full flex flex-col items-center justify-center gap-4 text-indigo-600 dark:text-indigo-300 py-10">
-                                            <Loader2 size={32} className="animate-spin" />
-                                            <div className="text-center">
-                                                <span className="text-xs font-bold uppercase tracking-widest block mb-1">Crunching Data</span>
-                                                <span className="text-[10px] text-indigo-400 dark:text-indigo-500 uppercase font-bold tracking-widest">Analyzing {sessions.length} sessions...</span>
-                                            </div>
-                                        </div>
-                                    ) : error ? (
-                                        <div className="h-full flex flex-col items-center justify-center text-center py-8 px-4">
-                                            <div className="p-3 bg-rose-100 dark:bg-rose-500/20 rounded-full mb-3 text-rose-500">
-                                                <Lock size={20} />
-                                            </div>
-                                            <h4 className="text-sm font-bold text-rose-900 dark:text-white mb-2">Analysis Error</h4>
-                                            <p className="text-xs text-rose-700 dark:text-rose-300 mb-6 max-w-[250px] leading-relaxed mx-auto">
-                                                {error}
-                                            </p>
-                                            <button 
-                                                onClick={handleGenerateReport}
-                                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest shadow-lg transition-all"
-                                            >
-                                                Retry
-                                            </button>
-                                        </div>
-                                    ) : aiReport ? (
-                                        <div className="space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                            {/* Bottleneck Card */}
-                                            <div className="bg-rose-50/80 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-500/20 p-4 rounded-2xl">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="p-2 bg-rose-100 dark:bg-rose-500/20 rounded-xl text-rose-600 dark:text-rose-400 shrink-0">
-                                                        <AlertTriangle size={18} />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 uppercase tracking-wide mb-1">{aiReport.bottleneckTitle || "Critical Area"}</h4>
-                                                        <p className="text-xs text-rose-800/80 dark:text-rose-200/70 leading-relaxed">
-                                                            {aiReport.analysis}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Temperament */}
-                                            {aiReport.temperament && (
-                                                <div className="flex items-center gap-3 px-4 py-3 bg-blue-50/80 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl">
-                                                    <Brain size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                                                    <p className="text-xs text-blue-900 dark:text-blue-100 font-medium">
-                                                        <span className="font-bold uppercase text-[10px] tracking-wider text-blue-500 dark:text-blue-400 mr-2">Temperament:</span>
-                                                        {aiReport.temperament}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {/* Action Plan */}
-                                            <div className="space-y-2">
-                                                <h5 className="text-[10px] font-bold uppercase tracking-widest text-indigo-400 ml-1">Weekly Strategy</h5>
-                                                {aiReport.actionPlan?.map((step: string, i: number) => (
-                                                    <div key={i} className="flex items-start gap-3 p-3 bg-white/60 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-                                                        <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                                        <p className="text-xs text-slate-700 dark:text-slate-300 leading-snug">{step}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="h-full flex flex-col items-center justify-center text-center py-8 px-4">
-                                            <h4 className="text-lg font-bold text-indigo-900 dark:text-white mb-2">Performance Review</h4>
-                                            <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-6 max-w-[220px] leading-relaxed mx-auto">
-                                                Trackly analyzes your speed, accuracy, and mistake patterns to build a custom study plan.
-                                            </p>
-                                            <button 
-                                                onClick={handleGenerateReport}
-                                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-2 group"
-                                            >
-                                                <Sparkles size={14} className="group-hover:animate-pulse" /> Generate Analysis
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {aiReport && !isAnalyzing && (
-                                    <div className="mt-6 pt-4 border-t border-indigo-200 dark:border-white/5 flex justify-between items-center">
-                                        <div className="flex items-center gap-2 text-indigo-500/60 dark:text-indigo-400/60">
-                                            <Zap size={12} />
-                                            <span className="text-[9px] uppercase font-bold tracking-widest">Trackly AI Engine (Local)</span>
-                                        </div>
-                                        <button 
-                                            onClick={handleGenerateReport}
-                                            className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
-                                        >
-                                            Refresh <ArrowRight size={10} />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                {/* Subject Breakdown */}
+                <div className="space-y-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1">Subject Proficiency</h3>
+                    <SubjectProficiency sessions={sessions} />
                 </div>
 
-                {/* Right Col: Error Distribution */}
-                <div className="lg:col-span-1">
+                {/* Error Distribution */}
+                <div>
                     <Card className="bg-white/60 dark:bg-slate-900/60 p-6 h-full">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-rose-500 dark:text-rose-400 mb-6 flex items-center gap-2">
                         <Brain size={16} /> Error Analysis
