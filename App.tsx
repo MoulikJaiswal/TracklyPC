@@ -1068,7 +1068,7 @@ const App: React.FC = () => {
   // Load Settings from LocalStorage
   useEffect(() => {
     setAnimationsEnabled(safeJSONParse('zenith_animations', true));
-    setGraphicsEnabled(safeJSONParse('zenith_graphics', true)); // Load Graphics Setting
+    setGraphicsEnabled(safeJSONParse('zenith_graphics', true));
     const savedTheme = localStorage.getItem('zenith_theme_id');
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
     setSidebarCollapsed(safeJSONParse('zenith_sidebar_collapsed', false));
@@ -1079,25 +1079,22 @@ const App: React.FC = () => {
     setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)));
     setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
     
-    // Audio Settings Load
+    // Audio & Timer Settings Load
     setSoundEnabled(safeJSONParse('zenith_sound_enabled', true));
     setSoundPitch(Number(safeJSONParse('zenith_sound_pitch', 600)));
     setSoundVolume(Number(safeJSONParse('zenith_sound_volume', 0.5)));
+    setTimerDurations(safeJSONParse('zenith_timer_durations', { focus: 25, short: 5, long: 15 }));
   }, []);
 
   // Persist Settings
   useEffect(() => {
     localStorage.setItem('zenith_animations', JSON.stringify(animationsEnabled));
-    // Apply .reduce-motion class if animations disabled
-    if (!animationsEnabled) document.body.classList.add('reduce-motion');
-    else document.body.classList.remove('reduce-motion');
+    document.body.classList.toggle('reduce-motion', !animationsEnabled);
   }, [animationsEnabled]);
 
   useEffect(() => {
     localStorage.setItem('zenith_graphics', JSON.stringify(graphicsEnabled));
-    // Apply .low-graphics class if graphics disabled
-    if (!graphicsEnabled) document.body.classList.add('low-graphics');
-    else document.body.classList.remove('low-graphics');
+    document.body.classList.toggle('low-graphics', !graphicsEnabled);
   }, [graphicsEnabled]);
 
   useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
@@ -1110,13 +1107,12 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('zenith_sound_enabled', JSON.stringify(soundEnabled)); }, [soundEnabled]);
   useEffect(() => { localStorage.setItem('zenith_sound_pitch', String(soundPitch)); }, [soundPitch]);
   useEffect(() => { localStorage.setItem('zenith_sound_volume', String(soundVolume)); }, [soundVolume]);
+  useEffect(() => { localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(sidebarCollapsed)); }, [sidebarCollapsed]);
+  useEffect(() => { localStorage.setItem('zenith_timer_durations', JSON.stringify(timerDurations)); }, [timerDurations]);
+
 
   const toggleSidebar = useCallback(() => {
-      setSidebarCollapsed(prev => {
-          const next = !prev;
-          localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(next));
-          return next;
-      });
+      setSidebarCollapsed(prev => !prev);
   }, []);
 
   const changeView = useCallback((newView: ViewType) => {
