@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle, Eye, Smartphone, Battery, BatteryCharging, Activity, Palette, Zap, SlidersHorizontal, HelpCircle } from 'lucide-react';
+import React, { useRef } from 'react';
+import { X, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle, Eye, Smartphone, Battery, BatteryCharging, Activity, Palette, Zap, SlidersHorizontal, HelpCircle, Image as ImageIcon, Upload, Lock, Crown } from 'lucide-react';
 import { Card } from './Card';
 import { ThemeId } from '../types';
 import { THEME_CONFIG } from '../constants';
@@ -37,6 +37,14 @@ interface SettingsModalProps {
   setSoundPitch: (val: number) => void;
   soundVolume: number;
   setSoundVolume: (val: number) => void;
+
+  // Custom Background
+  customBackground: string | null;
+  setCustomBackground: (bg: string | null) => void;
+  customBackgroundEnabled: boolean;
+  toggleCustomBackground: () => void;
+  isPro: boolean;
+  onOpenUpgrade: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -69,8 +77,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   soundPitch,
   setSoundPitch,
   soundVolume,
-  setSoundVolume
+  setSoundVolume,
+
+  customBackground,
+  setCustomBackground,
+  customBackgroundEnabled,
+  toggleCustomBackground,
+  isPro,
+  onOpenUpgrade
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (!isOpen) return null;
 
   const handleClearData = () => {
@@ -90,6 +107,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           if (graphicsEnabled) toggleGraphics(); // Turn Graphics OFF
           // Do not force animations ON for Lite mode - let them be optional or off for speed
       }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check file size (limit to ~2MB to be safe with localStorage)
+    if (file.size > 2 * 1024 * 1024) {
+        alert("Image is too large. Please select an image under 2MB.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        const result = reader.result as string;
+        try {
+            setCustomBackground(result);
+        } catch (err) {
+            alert("Failed to save background. Storage might be full.");
+        }
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -149,24 +188,101 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 })}
              </div>
 
+             {/* Custom Background (PRO) */}
+             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-xl">
+                 <div className="flex justify-between items-center mb-4">
+                     <div className="flex items-center gap-2">
+                         <div className="p-1.5 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                             <ImageIcon size={16} />
+                         </div>
+                         <span className="text-sm font-bold text-slate-900 dark:text-white">Custom Wallpaper</span>
+                     </div>
+                     {isPro ? (
+                         <button 
+                            onClick={toggleCustomBackground}
+                            className={`w-10 h-5 rounded-full relative transition-colors ${customBackgroundEnabled ? 'bg-indigo-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                         >
+                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${customBackgroundEnabled ? 'left-6' : 'left-1'}`} />
+                         </button>
+                     ) : (
+                         <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded text-[9px] font-bold uppercase tracking-wider">
+                             Pro
+                         </span>
+                     )}
+                 </div>
+
+                 {isPro && customBackgroundEnabled ? (
+                     <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                         {customBackground ? (
+                             <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 group">
+                                 <img src={customBackground} alt="Custom Background" className="w-full h-full object-cover" />
+                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                     <button 
+                                        onClick={() => setCustomBackground(null)}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-rose-600 transition-colors"
+                                     >
+                                         <Trash2 size={14} /> Remove
+                                     </button>
+                                 </div>
+                             </div>
+                         ) : (
+                             <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-full py-8 border-2 border-dashed border-slate-300 dark:border-white/10 rounded-xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400"
+                             >
+                                 <Upload size={24} />
+                                 <span className="text-xs font-bold uppercase tracking-wider">Upload Image</span>
+                             </button>
+                         )}
+                         <input 
+                            ref={fileInputRef}
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleImageUpload}
+                         />
+                         <p className="text-[10px] text-slate-400 text-center">Recommended: 1920x1080 (Max 2MB)</p>
+                     </div>
+                 ) : isPro ? (
+                     <div className="text-center py-2 opacity-50">
+                         <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                             Enable to use a custom background image.
+                         </p>
+                     </div>
+                 ) : (
+                     <div className="text-center py-4 opacity-80">
+                         <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                             Unlock Pro to set your own motivating background images.
+                         </p>
+                         <button 
+                            onClick={onOpenUpgrade}
+                            className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                         >
+                             <Crown size={14} /> Unlock Feature
+                         </button>
+                     </div>
+                 )}
+             </div>
+
              {/* Visual Effects Preferences */}
              <div className={`space-y-3 transition-all duration-300 ${!graphicsEnabled ? 'opacity-50 grayscale pointer-events-none select-none' : ''}`}>
                  <div className="grid grid-cols-1 gap-3">
                     {/* Aurora Toggle */}
                     <button 
                       onClick={toggleAurora}
-                      className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                      disabled={customBackgroundEnabled}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 transition-colors ${customBackgroundEnabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${showAurora ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <div className={`p-2 rounded-lg ${showAurora && !customBackgroundEnabled ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                             <Sparkles size={18} />
                         </div>
                         <div className="text-left">
                           <p className="text-sm font-bold text-slate-900 dark:text-white">Aurora Background</p>
                         </div>
                       </div>
-                      <div className={`w-10 h-5 rounded-full relative transition-colors ${showAurora ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                          <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showAurora ? 'left-6' : 'left-1'}`} />
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${showAurora && !customBackgroundEnabled ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                          <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${showAurora && !customBackgroundEnabled ? 'left-6' : 'left-1'}`} />
                       </div>
                     </button>
 
@@ -191,19 +307,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {/* Parallax Toggle */}
                     <button 
                       onClick={toggleParallax}
-                      disabled={!showParticles}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 transition-colors ${!showParticles ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}
+                      disabled={!showParticles || customBackgroundEnabled}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-white/10 transition-colors ${(!showParticles || customBackgroundEnabled) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-50 dark:hover:bg-white/5'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${parallaxEnabled && showParticles ? 'bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                        <div className={`p-2 rounded-lg ${parallaxEnabled && showParticles && !customBackgroundEnabled ? 'bg-pink-100 text-pink-600 dark:bg-pink-500/20 dark:text-pink-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                             <MousePointer2 size={18} />
                         </div>
                         <div className="text-left">
                           <p className="text-sm font-bold text-slate-900 dark:text-white">Parallax Effect</p>
                         </div>
                       </div>
-                      <div className={`w-10 h-5 rounded-full relative transition-colors ${parallaxEnabled && showParticles ? 'bg-pink-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                          <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${parallaxEnabled && showParticles ? 'left-6' : 'left-1'}`} />
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${parallaxEnabled && showParticles && !customBackgroundEnabled ? 'bg-pink-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                          <div className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow-sm transition-all duration-300 ${parallaxEnabled && showParticles && !customBackgroundEnabled ? 'left-6' : 'left-1'}`} />
                       </div>
                     </button>
                  </div>
@@ -410,7 +526,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
         
         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-white/5 text-center shrink-0">
-          <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Trackly v1.3.3</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Trackly v1.4.0</p>
         </div>
       </Card>
     </div>

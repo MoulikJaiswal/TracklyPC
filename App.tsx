@@ -104,14 +104,16 @@ const AnimatedBackground = React.memo(({
     parallaxEnabled,
     showParticles,
     graphicsEnabled,
-    animationsEnabled
+    animationsEnabled,
+    customBackground
 }: { 
     themeId: ThemeId,
     showAurora: boolean,
     parallaxEnabled: boolean,
     showParticles: boolean,
     graphicsEnabled: boolean,
-    animationsEnabled: boolean
+    animationsEnabled: boolean,
+    customBackground: string | null
 }) => {
   const config = THEME_CONFIG[themeId];
   
@@ -122,12 +124,18 @@ const AnimatedBackground = React.memo(({
       return (
         <div 
             className="fixed inset-0 z-0 pointer-events-none transition-colors duration-300"
-            style={{ backgroundColor: config.colors.bg }}
+            style={{ 
+                backgroundColor: config.colors.bg,
+                ...(customBackground ? { backgroundImage: `url(${customBackground})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {})
+            }}
         >
-            {/* Very cheap radial gradient for minimal depth */}
-            <div className="absolute inset-0 opacity-20" style={{ 
-                background: `radial-gradient(circle at 50% 0%, ${config.colors.accent}40, transparent 70%)` 
-            }} />
+            {/* Very cheap radial gradient for minimal depth if no custom bg */}
+            {!customBackground && (
+                <div className="absolute inset-0 opacity-20" style={{ 
+                    background: `radial-gradient(circle at 50% 0%, ${config.colors.accent}40, transparent 70%)` 
+                }} />
+            )}
+            {customBackground && <div className="absolute inset-0 bg-black/30" />}
         </div>
       );
   }
@@ -238,7 +246,18 @@ const AnimatedBackground = React.memo(({
     >
       <div className="absolute inset-0 bg-noise opacity-[0.03] z-[5] pointer-events-none mix-blend-overlay transform-gpu"></div>
 
-      {themeId === 'midnight' && (
+      {/* CUSTOM BACKGROUND LAYER */}
+      {customBackground && (
+          <div 
+            className="absolute inset-0 z-[0] bg-cover bg-center bg-no-repeat transition-opacity duration-700"
+            style={{ backgroundImage: `url(${customBackground})`, opacity: 1 }}
+          />
+      )}
+      {/* Dimming layer for custom background to ensure legibility */}
+      {customBackground && <div className="absolute inset-0 z-[0] bg-black/40 dark:bg-black/60" />}
+
+      {/* Theme specific background elements - only show if no custom BG or if they look good layered */}
+      {!customBackground && themeId === 'midnight' && (
         <>
             <div 
                 className="absolute inset-0 z-[1] transform-gpu" 
@@ -256,7 +275,7 @@ const AnimatedBackground = React.memo(({
         </>
       )}
 
-      {themeId === 'forest' && (
+      {!customBackground && themeId === 'forest' && (
         <div 
             className="absolute inset-0 z-[1] opacity-60 transform-gpu" 
             style={{ 
@@ -265,7 +284,7 @@ const AnimatedBackground = React.memo(({
         />
       )}
 
-      {themeId === 'obsidian' && (
+      {!customBackground && themeId === 'obsidian' && (
         <div 
             className="absolute inset-0 z-[1] transform-gpu" 
             style={{ 
@@ -278,7 +297,7 @@ const AnimatedBackground = React.memo(({
         />
       )}
 
-      {showAurora && !['forest', 'obsidian', 'midnight'].includes(themeId) && (
+      {showAurora && !['forest', 'obsidian', 'midnight'].includes(themeId) && !customBackground && (
         <div className="absolute inset-0 z-[1] opacity-50 dark:opacity-20 transform-gpu">
             <div 
                className="absolute top-[-40%] left-[-10%] w-[70vw] h-[70vw] mix-blend-screen dark:mix-blend-screen will-change-transform"
@@ -631,7 +650,14 @@ const App: React.FC = () => {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundPitch, setSoundPitch] = useState(600);
   const [soundVolume, setSoundVolume] = useState(0.5);
+  // Audio Settings (Ambient)
+  const [activeSound, setActiveSound] = useState<'off' | 'rain' | 'forest' | 'lofi' | 'cafe'>('off');
   
+  // NEW: Custom Background
+  const [customBackground, setCustomBackground] = useState<string | null>(null);
+  // NEW: Custom Background Toggle
+  const [customBackgroundEnabled, setCustomBackgroundEnabled] = useState(false);
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isTutorialActive, setIsTutorialActive] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
@@ -659,7 +685,6 @@ const App: React.FC = () => {
   const [timerDurations, setTimerDurations] = useState({ focus: 25, short: 5, long: 15 });
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isTimerActive, setIsTimerActive] = useState(false);
-  const [brownNoiseEnabled, setBrownNoiseEnabled] = useState(false); // Specific to Focus Timer audio
   const [sessionLogs, setSessionLogs] = useState<QuestionLog[]>([]);
   const [lastLogTime, setLastLogTime] = useState<number>(Date.now()); 
   const [todayStats, setTodayStats] = useState({ Physics: 0, Chemistry: 0, Maths: 0 });
@@ -724,59 +749,113 @@ const App: React.FC = () => {
                   setTimeLeft(0);
                   setIsTimerActive(false);
                   clearInterval(timerRef.current);
-                  if (brownNoiseEnabled) setBrownNoiseEnabled(false); // Stop sound when time ends
+                  if (activeSound !== 'off') setActiveSound('off'); // Stop sound when time ends
               } else {
                   setTimeLeft(diff);
               }
           }, 1000);
       }
       return () => clearInterval(timerRef.current);
-  }, [isTimerActive, brownNoiseEnabled]);
+  }, [isTimerActive, activeSound]);
 
-  // Persistent Audio Logic (Brown Noise)
+  // Persistent Audio Logic (Ambient Soundscapes)
   useEffect(() => {
-      if (brownNoiseEnabled) {
+      // Cleanup previous sound
+      if (sourceNodeRef.current) {
+          try { sourceNodeRef.current.stop(); } catch(e){}
+          sourceNodeRef.current.disconnect();
+          sourceNodeRef.current = null;
+      }
+      if (gainNodeRef.current) {
+          gainNodeRef.current.disconnect();
+          gainNodeRef.current = null;
+      }
+
+      if (activeSound !== 'off') {
           if (!brownNoiseCtxRef.current) {
               brownNoiseCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
           }
           const ctx = brownNoiseCtxRef.current;
           if (ctx?.state === 'suspended') ctx.resume();
           
-          // Create Brown Noise
           const bufferSize = ctx!.sampleRate * 2;
           const buffer = ctx!.createBuffer(1, bufferSize, ctx!.sampleRate);
           const data = buffer.getChannelData(0);
-          let lastOut = 0;
-          for (let i = 0; i < bufferSize; i++) {
-              const white = Math.random() * 2 - 1;
-              data[i] = (lastOut + (0.02 * white)) / 1.02;
-              lastOut = data[i];
-              data[i] *= 3.5;
+
+          // 1. Noise Generation
+          if (activeSound === 'cafe' || activeSound === 'lofi') {
+             // Brown Noise Base
+             let lastOut = 0;
+             for (let i = 0; i < bufferSize; i++) {
+                 const white = Math.random() * 2 - 1;
+                 data[i] = (lastOut + (0.02 * white)) / 1.02;
+                 lastOut = data[i];
+                 data[i] *= 3.5;
+                 
+                 // Add crackle for lofi vinyl effect
+                 if (activeSound === 'lofi' && Math.random() > 0.9995) {
+                    data[i] += (Math.random() * 0.8); 
+                 }
+             }
+          } else {
+             // Pink Noise Base (Rain/Forest)
+             let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
+             for (let i = 0; i < bufferSize; i++) {
+                 const white = Math.random() * 2 - 1;
+                 b0 = 0.99886 * b0 + white * 0.0555179;
+                 b1 = 0.99332 * b1 + white * 0.0750759;
+                 b2 = 0.96900 * b2 + white * 0.1538520;
+                 b3 = 0.86650 * b3 + white * 0.3104856;
+                 b4 = 0.55000 * b4 + white * 0.5329522;
+                 b5 = -0.7616 * b5 - white * 0.0168980;
+                 data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+                 data[i] *= 0.11;
+                 b6 = white * 0.115926;
+             }
           }
 
           const source = ctx!.createBufferSource();
           source.buffer = buffer;
           source.loop = true;
           const gain = ctx!.createGain();
-          gain.gain.value = 0.05;
-          source.connect(gain);
+          
+          // 2. Volume & EQ
+          if (activeSound === 'forest') {
+               gain.gain.value = 0.08;
+               // High pass for wind/rustle
+               const filter = ctx!.createBiquadFilter();
+               filter.type = 'highpass';
+               filter.frequency.value = 600;
+               source.connect(filter);
+               filter.connect(gain);
+          } else if (activeSound === 'rain') {
+               gain.gain.value = 0.12;
+               // Low pass for heavy rain sound
+               const filter = ctx!.createBiquadFilter();
+               filter.type = 'lowpass';
+               filter.frequency.value = 800;
+               source.connect(filter);
+               filter.connect(gain);
+          } else if (activeSound === 'lofi') {
+               gain.gain.value = 0.15;
+               // Bandpass to simulate radio/vinyl bandwidth
+               const filter = ctx!.createBiquadFilter();
+               filter.type = 'lowpass';
+               filter.frequency.value = 2000;
+               source.connect(filter);
+               filter.connect(gain);
+          } else { // cafe (brown)
+               gain.gain.value = 0.1;
+               source.connect(gain);
+          }
+
           gain.connect(ctx!.destination);
           source.start();
           
           sourceNodeRef.current = source;
           gainNodeRef.current = gain;
-      } else {
-          if (sourceNodeRef.current) {
-              try { sourceNodeRef.current.stop(); } catch(e){}
-              sourceNodeRef.current.disconnect();
-              sourceNodeRef.current = null;
-          }
-          if (gainNodeRef.current) {
-              gainNodeRef.current.disconnect();
-              gainNodeRef.current = null;
-          }
       }
-  }, [brownNoiseEnabled]);
+  }, [activeSound]);
 
   // Timer Handlers
   const handleTimerToggle = useCallback(() => {
@@ -794,8 +873,8 @@ const App: React.FC = () => {
       setIsTimerActive(false);
       setTimeLeft(timerDurations[timerMode] * 60);
       setSessionLogs([]); 
-      if (brownNoiseEnabled) setBrownNoiseEnabled(false);
-  }, [timerMode, timerDurations, brownNoiseEnabled]);
+      if (activeSound !== 'off') setActiveSound('off');
+  }, [timerMode, timerDurations, activeSound]);
 
   const handleModeSwitch = useCallback((mode: 'focus'|'short'|'long') => {
       setTimerMode(mode);
@@ -1163,6 +1242,26 @@ const App: React.FC = () => {
     setSoundPitch(Number(safeJSONParse('zenith_sound_pitch', 600)));
     setSoundVolume(Number(safeJSONParse('zenith_sound_volume', 0.5)));
     setTimerDurations(safeJSONParse('zenith_timer_durations', { focus: 25, short: 5, long: 15 }));
+
+    // Sound Mixer Load (Backward compatibility)
+    const savedSound = localStorage.getItem('zenith_active_sound');
+    if (savedSound) {
+       setActiveSound(savedSound as any);
+    } else {
+       // fallback for legacy boolean setting
+       const oldBool = safeJSONParse('zenith_sound_enabled', false); 
+       // Note: reusing key name accidently in original logic, assuming the ambient sound was meant.
+       // The original App had setBrownNoiseEnabled(safeJSONParse('zenith_brown_noise', false))? No, it wasn't persisted in useEffect.
+       // It seems brown noise state wasn't persisted in previous version.
+       // We'll just default to 'off'.
+    }
+
+    // Load Custom Background
+    const savedBg = localStorage.getItem('zenith_custom_bg');
+    if (savedBg) setCustomBackground(savedBg);
+    
+    // Load Custom Background Enabled Toggle
+    setCustomBackgroundEnabled(safeJSONParse('zenith_custom_bg_enabled', false));
   }, []);
 
   // Persist Settings
@@ -1190,6 +1289,36 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('zenith_sound_volume', String(soundVolume)); }, [soundVolume]);
   useEffect(() => { localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(sidebarCollapsed)); }, [sidebarCollapsed]);
   useEffect(() => { localStorage.setItem('zenith_timer_durations', JSON.stringify(timerDurations)); }, [timerDurations]);
+  useEffect(() => { localStorage.setItem('zenith_active_sound', activeSound); }, [activeSound]);
+  
+  // Persist Custom Background & Toggle
+  useEffect(() => {
+      if (customBackground) {
+          try {
+              localStorage.setItem('zenith_custom_bg', customBackground);
+          } catch(e) {
+              console.error("Failed to save background image", e);
+          }
+      } else {
+          localStorage.removeItem('zenith_custom_bg');
+      }
+  }, [customBackground]);
+
+  useEffect(() => {
+      localStorage.setItem('zenith_custom_bg_enabled', JSON.stringify(customBackgroundEnabled));
+  }, [customBackgroundEnabled]);
+
+  const toggleCustomBackground = useCallback(() => {
+      setCustomBackgroundEnabled(prev => {
+          const next = !prev;
+          if (next) {
+              // Automatically disable conflicting effects
+              setShowAurora(false);
+              setParallaxEnabled(false);
+          }
+          return next;
+      });
+  }, []);
 
 
   const toggleSidebar = useCallback(() => {
@@ -1327,6 +1456,7 @@ const App: React.FC = () => {
                 showParticles={effectiveShowParticles}
                 graphicsEnabled={graphicsEnabled}
                 animationsEnabled={animationsEnabled}
+                customBackground={customBackgroundEnabled ? customBackground : null}
              />
              <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
                 <TracklyLogo id="login-logo" />
@@ -1420,6 +1550,7 @@ const App: React.FC = () => {
         showParticles={effectiveShowParticles}
         graphicsEnabled={graphicsEnabled}
         animationsEnabled={animationsEnabled}
+        customBackground={customBackgroundEnabled ? customBackground : null}
       />
       
       <Sidebar 
@@ -1517,13 +1648,14 @@ const App: React.FC = () => {
                             timeLeft={timeLeft}
                             isActive={isTimerActive}
                             durations={timerDurations}
-                            soundEnabled={brownNoiseEnabled}
+                            activeSound={activeSound}
+                            onSetSound={setActiveSound}
                             sessionLogs={sessionLogs}
                             lastLogTime={lastLogTime}
                             onToggleTimer={handleTimerToggle}
                             onResetTimer={handleTimerReset}
                             onSwitchMode={handleModeSwitch}
-                            onToggleSound={() => setBrownNoiseEnabled(!brownNoiseEnabled)}
+                            onToggleSound={() => {/* Deprecated */}}
                             onUpdateDurations={handleDurationUpdate}
                             onAddLog={handleAddLog}
                             onCompleteSession={handleCompleteSession}
@@ -1667,6 +1799,13 @@ const App: React.FC = () => {
         setSoundPitch={setSoundPitch}
         soundVolume={soundVolume}
         setSoundVolume={setSoundVolume}
+
+        customBackground={customBackground}
+        setCustomBackground={setCustomBackground}
+        customBackgroundEnabled={customBackgroundEnabled}
+        toggleCustomBackground={toggleCustomBackground}
+        isPro={isPro}
+        onOpenUpgrade={() => setShowProModal(true)}
       />
     </div>
   );

@@ -19,7 +19,11 @@ import {
   Timer as TimerIcon,
   Flag,
   Clock,
-  Crown
+  Crown,
+  CloudRain,
+  Trees,
+  Music,
+  VolumeX
 } from 'lucide-react';
 import { JEE_SYLLABUS, MISTAKE_TYPES } from '../constants';
 import { Target, QuestionLog } from '../types';
@@ -30,13 +34,14 @@ interface FocusTimerProps {
   timeLeft: number;
   isActive: boolean;
   durations: { focus: number; short: number; long: number };
-  soundEnabled: boolean;
+  activeSound: 'off' | 'rain' | 'forest' | 'lofi' | 'cafe';
   sessionLogs: QuestionLog[];
   lastLogTime: number;
   onToggleTimer: () => void;
   onResetTimer: () => void;
   onSwitchMode: (mode: 'focus' | 'short' | 'long') => void;
-  onToggleSound: () => void;
+  onToggleSound: () => void; // Deprecated but kept for compatibility in prop signature
+  onSetSound: (type: 'off' | 'rain' | 'forest' | 'lofi' | 'cafe') => void;
   onUpdateDurations: (newDuration: number, mode: 'focus' | 'short' | 'long') => void;
   onAddLog: (log: QuestionLog, subject: string) => void;
   onCompleteSession: () => void;
@@ -51,13 +56,13 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
     timeLeft, 
     isActive, 
     durations, 
-    soundEnabled, 
+    activeSound, 
     sessionLogs,
     lastLogTime,
     onToggleTimer,
     onResetTimer,
     onSwitchMode,
-    onToggleSound,
+    onSetSound,
     onUpdateDurations,
     onAddLog,
     onCompleteSession,
@@ -67,6 +72,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
 }) => {
   const [selectedSubject, setSelectedSubject] = useState<keyof typeof JEE_SYLLABUS>('Physics');
   const [showSettings, setShowSettings] = useState(false);
+  const [showSoundMenu, setShowSoundMenu] = useState(false);
   const [selectedTask, setSelectedTask] = useState<string>('');
   
   // --- Feature States ---
@@ -178,6 +184,14 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
   const circumference = 2 * Math.PI * radius;
   const progressPercentage = timeLeft / (durations[mode] * 60);
   const strokeDashoffset = Number.isFinite(progressPercentage) ? circumference * (1 - progressPercentage) : circumference;
+
+  const SOUND_OPTIONS = [
+      { id: 'rain', label: 'Rain', icon: CloudRain },
+      { id: 'forest', label: 'Forest', icon: Trees },
+      { id: 'cafe', label: 'Cafe', icon: Coffee },
+      { id: 'lofi', label: 'Lo-fi', icon: Music },
+      { id: 'off', label: 'Off', icon: VolumeX },
+  ];
 
   return (
     <>
@@ -379,45 +393,74 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
         <div className="flex flex-col items-center gap-8 w-full">
             {/* The +1 Button (Only in Focus + Active) */}
             {mode === 'focus' && isActive ? (
-                <button
-                    onClick={handlePlusOne}
-                    className={`
-                        group relative flex items-center gap-3 px-8 py-4 rounded-3xl
-                        bg-gradient-to-r ${currentSubject.gradient} shadow-2xl shadow-indigo-500/30
-                        transform transition-all duration-150 active:scale-95 hover:scale-105
-                    `}
-                >
-                    <div className="absolute inset-0 rounded-3xl bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
-                    
-                    <div className="relative">
-                        <Plus size={28} className="text-white animate-pulse" strokeWidth={3} />
-                        {!isPro && sessionCount >= 3 && (
-                            <div className="absolute -top-2 -right-2 bg-amber-500 text-white rounded-full p-0.5 border-2 border-transparent shadow-sm">
-                                <Crown size={10} fill="currentColor" />
-                            </div>
-                        )}
-                    </div>
+                <div className="flex flex-col items-center gap-2">
+                    <button
+                        onClick={handlePlusOne}
+                        className={`
+                            group relative flex items-center gap-3 px-8 py-4 rounded-3xl
+                            bg-gradient-to-r ${currentSubject.gradient} shadow-2xl shadow-indigo-500/30
+                            transform transition-all duration-150 active:scale-95 hover:scale-105
+                        `}
+                    >
+                        <div className="absolute inset-0 rounded-3xl bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
+                        
+                        <div className="relative">
+                            <Plus size={28} className="text-white animate-pulse" strokeWidth={3} />
+                            {!isPro && sessionCount >= 3 && (
+                                <div className="absolute -top-2 -right-2 bg-amber-500 text-white rounded-full p-0.5 border-2 border-transparent shadow-sm">
+                                    <Crown size={10} fill="currentColor" />
+                                </div>
+                            )}
+                        </div>
 
-                    <div className="flex flex-col items-start text-white">
-                        <span className="text-lg font-bold leading-none">+1 Solved</span>
-                        <span className="text-[10px] font-bold uppercase opacity-80 tracking-wide">
-                            {!isPro && sessionCount >= 3 ? 'Pro Feature' : 'Log Question'}
-                        </span>
-                    </div>
-                </button>
+                        <div className="flex flex-col items-start text-white">
+                            <span className="text-lg font-bold leading-none">+1 Solved</span>
+                            <span className="text-[10px] font-bold uppercase opacity-80 tracking-wide">
+                                {!isPro && sessionCount >= 3 ? 'Pro Feature' : 'Log Question'}
+                            </span>
+                        </div>
+                    </button>
+                    {!isPro && (
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                            {sessionCount < 3 
+                                ? `Free Sessions Remaining: ${3 - sessionCount}` 
+                                : 'Free Limit Reached (3/3)'}
+                        </p>
+                    )}
+                </div>
             ) : (
                 <div className="flex items-center gap-6 p-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/70 dark:hover:bg-slate-900/70 hover:border-slate-300 dark:hover:border-white/10 hover:shadow-indigo-500/5">
                 
-                    <button 
-                        onClick={onToggleSound}
-                        className={`
-                        w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
-                        ${soundEnabled ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'}
-                        `}
-                        title="Brown Noise"
-                    >
-                        <Waves size={18} className={soundEnabled ? 'animate-pulse' : ''} />
-                    </button>
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowSoundMenu(!showSoundMenu)}
+                            className={`
+                            w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
+                            ${activeSound !== 'off' ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5'}
+                            `}
+                            title="Ambient Sound"
+                        >
+                            <Waves size={18} className={activeSound !== 'off' ? 'animate-pulse' : ''} />
+                        </button>
+                        
+                        {showSoundMenu && (
+                            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl animate-in slide-in-from-bottom-2 fade-in duration-200 z-50 overflow-hidden">
+                                {SOUND_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => {
+                                            onSetSound(opt.id as any);
+                                            setShowSoundMenu(false);
+                                        }}
+                                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors text-xs font-bold uppercase tracking-wider ${activeSound === opt.id ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5'}`}
+                                    >
+                                        <opt.icon size={14} />
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     <button 
                         onClick={onToggleTimer}
@@ -444,7 +487,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
 
                         {showSettings && (
                         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-72 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl animate-in slide-in-from-bottom-2 fade-in duration-200 z-50">
-                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 text-center">Timer Configuration</h4>
+                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 text-center">Timer Config</h4>
                             
                             <div className="mb-4">
                                 <div className="flex justify-between items-center mb-2">

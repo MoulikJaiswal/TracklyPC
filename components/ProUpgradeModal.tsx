@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check, Crown, TrendingUp, Grid, CreditCard, ArrowLeft, Loader2, Lock } from 'lucide-react';
+import { X, Check, Crown, TrendingUp, Grid, CreditCard, ArrowLeft, Loader2, Lock, Zap, Image as ImageIcon } from 'lucide-react';
 import { Card } from './Card';
 
 interface ProUpgradeModalProps {
@@ -42,7 +42,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
       <div className="relative w-full max-w-md">
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 rounded-[2rem] blur-xl opacity-50" />
         
-        <Card className="relative bg-slate-900 border border-amber-500/30 overflow-hidden flex flex-col items-center text-center p-8 min-h-[520px]">
+        <Card className="relative bg-slate-900 border border-amber-500/30 overflow-hidden flex flex-col items-center text-center p-8 min-h-[580px]">
             <button 
                 onClick={onClose}
                 className="absolute top-5 right-5 z-10 p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
@@ -74,7 +74,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
                     </div>
                     <p className="text-slate-400 text-xs mb-8">Cancel anytime. No hidden fees.</p>
 
-                    <div className="w-full space-y-4 mb-8 text-left">
+                    <div className="w-full space-y-3 mb-8 text-left">
                         <div className="flex items-center gap-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
                             <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
                                 <TrendingUp size={18} />
@@ -92,6 +92,26 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
                             <div>
                                 <p className="text-sm font-bold text-white">Topic Heatmap</p>
                                 <p className="text-[10px] text-blue-200/60">Visualise syllabus mastery with a color-coded grid.</p>
+                            </div>
+                            <Check size={16} className="ml-auto text-blue-400" />
+                        </div>
+                        <div className="flex items-center gap-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                            <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+                                <Zap size={18} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-white">Unlimited +1 Logging</p>
+                                <p className="text-[10px] text-blue-200/60">Log questions instantly during focus sessions.</p>
+                            </div>
+                            <Check size={16} className="ml-auto text-blue-400" />
+                        </div>
+                        <div className="flex items-center gap-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                            <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+                                <ImageIcon size={18} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-white">Custom Wallpapers</p>
+                                <p className="text-[10px] text-blue-200/60">Personalize your study space with any image.</p>
                             </div>
                             <Check size={16} className="ml-auto text-blue-400" />
                         </div>
