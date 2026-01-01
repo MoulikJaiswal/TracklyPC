@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check, Crown, TrendingUp, Grid, CreditCard, ArrowLeft, Loader2, Lock, Plus } from 'lucide-react';
+import { X, Check, Crown, TrendingUp, Grid, CreditCard, ArrowLeft, Loader2, Lock } from 'lucide-react';
 import { Card } from './Card';
 
 interface ProUpgradeModalProps {
@@ -74,7 +74,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
                     </div>
                     <p className="text-slate-400 text-xs mb-8">Cancel anytime. No hidden fees.</p>
 
-                    <div className="w-full space-y-3 mb-8 text-left">
+                    <div className="w-full space-y-4 mb-8 text-left">
                         <div className="flex items-center gap-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
                             <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
                                 <TrendingUp size={18} />
@@ -82,16 +82,6 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
                             <div>
                                 <p className="text-sm font-bold text-white">Unlimited Test Logs</p>
                                 <p className="text-[10px] text-blue-200/60">Track every single mock test performance.</p>
-                            </div>
-                            <Check size={16} className="ml-auto text-blue-400" />
-                        </div>
-                        <div className="flex items-center gap-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                            <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
-                                <Plus size={18} />
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-white">Unlimited +1 Solved</p>
-                                <p className="text-[10px] text-blue-200/60">Log unlimited questions instantly during focus sessions.</p>
                             </div>
                             <Check size={16} className="ml-auto text-blue-400" />
                         </div>

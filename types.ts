@@ -40,6 +40,12 @@ export interface TestResult {
   marks: number;
   total: number;
   temperament: 'Calm' | 'Anxious' | 'Focused' | 'Fatigued';
+  type?: 'full' | 'part'; // New field
+  syllabus?: { // New field
+    Physics: string[];
+    Chemistry: string[];
+    Maths: string[];
+  };
   analysis?: string; // Legacy field
   breakdown?: {
     Physics: SubjectBreakdown;
@@ -50,8 +56,6 @@ export interface TestResult {
   attachment?: string; // Base64 string of the file
   attachmentType?: 'image' | 'pdf';
   fileName?: string;
-  testType?: 'Full' | 'Part';
-  syllabus?: string[];
 }
 
 export interface Target {

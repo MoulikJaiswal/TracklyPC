@@ -379,40 +379,32 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
         <div className="flex flex-col items-center gap-8 w-full">
             {/* The +1 Button (Only in Focus + Active) */}
             {mode === 'focus' && isActive ? (
-                <div className="flex flex-col items-center gap-3">
-                    <button
-                        onClick={handlePlusOne}
-                        className={`
-                            group relative flex items-center gap-3 px-8 py-4 rounded-3xl
-                            bg-gradient-to-r ${currentSubject.gradient} shadow-2xl shadow-indigo-500/30
-                            transform transition-all duration-150 active:scale-95 hover:scale-105
-                        `}
-                    >
-                        <div className="absolute inset-0 rounded-3xl bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
-                        
-                        <div className="relative">
-                            <Plus size={28} className="text-white animate-pulse" strokeWidth={3} />
-                            {!isPro && sessionCount >= 3 && (
-                                <div className="absolute -top-2 -right-2 bg-amber-500 text-white rounded-full p-0.5 border-2 border-transparent shadow-sm">
-                                    <Crown size={10} fill="currentColor" />
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col items-start text-white">
-                            <span className="text-lg font-bold leading-none">+1 Solved</span>
-                            <span className="text-[10px] font-bold uppercase opacity-80 tracking-wide">
-                                {!isPro && sessionCount >= 3 ? 'Pro Feature' : 'Log Question'}
-                            </span>
-                        </div>
-                    </button>
+                <button
+                    onClick={handlePlusOne}
+                    className={`
+                        group relative flex items-center gap-3 px-8 py-4 rounded-3xl
+                        bg-gradient-to-r ${currentSubject.gradient} shadow-2xl shadow-indigo-500/30
+                        transform transition-all duration-150 active:scale-95 hover:scale-105
+                    `}
+                >
+                    <div className="absolute inset-0 rounded-3xl bg-white opacity-0 group-hover:opacity-20 transition-opacity" />
                     
-                    {!isPro && sessionCount < 3 && (
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider animate-in fade-in slide-in-from-top-1">
-                            Free for first 3 sessions
-                        </p>
-                    )}
-                </div>
+                    <div className="relative">
+                        <Plus size={28} className="text-white animate-pulse" strokeWidth={3} />
+                        {!isPro && sessionCount >= 3 && (
+                            <div className="absolute -top-2 -right-2 bg-amber-500 text-white rounded-full p-0.5 border-2 border-transparent shadow-sm">
+                                <Crown size={10} fill="currentColor" />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col items-start text-white">
+                        <span className="text-lg font-bold leading-none">+1 Solved</span>
+                        <span className="text-[10px] font-bold uppercase opacity-80 tracking-wide">
+                            {!isPro && sessionCount >= 3 ? 'Pro Feature' : 'Log Question'}
+                        </span>
+                    </div>
+                </button>
             ) : (
                 <div className="flex items-center gap-6 p-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/70 dark:hover:bg-slate-900/70 hover:border-slate-300 dark:hover:border-white/10 hover:shadow-indigo-500/5">
                 
