@@ -904,8 +904,11 @@ const App: React.FC = () => {
   const handleLogin = useCallback(async () => {
     try {
         await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Login error:", error);
+        if (error.code === 'auth/unauthorized-domain') {
+            alert("Domain not authorized for Firebase Auth. \n\nPlease use 'Continue Offline' (Guest Mode) if you are running a preview or local build.");
+        }
     }
   }, []);
 
@@ -1134,8 +1137,11 @@ const App: React.FC = () => {
     setParallaxEnabled(safeJSONParse('zenith_parallax', true));
     setShowParticles(safeJSONParse('zenith_particles', true));
     setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
-    setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)));
-    setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
+    
+    // SAFE CASTING for numbers
+    setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)) || 6000);
+    setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)) || 300);    
+    
     setIsPro(safeJSONParse('trackly_pro_status', false));
     
     // Audio & Timer Settings Load

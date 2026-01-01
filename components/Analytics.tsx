@@ -39,7 +39,9 @@ const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
     <div className="space-y-4">
       {subjects.map(sub => {
         const { attempted, correct } = stats[sub.id as keyof typeof stats];
-        const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
+        const rawAccuracy = attempted > 0 ? (correct / attempted) : 0;
+        const accuracyPercent = Math.round(rawAccuracy * 100);
+        const scaleVal = Number.isFinite(rawAccuracy) ? rawAccuracy : 0;
         
         return (
           <div key={sub.id} className="flex items-center gap-4 bg-slate-50 dark:bg-black/20 p-3 rounded-2xl border border-slate-200 dark:border-white/5">
@@ -49,12 +51,12 @@ const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
              <div className="flex-grow min-w-0">
                <div className="flex justify-between items-end mb-1.5">
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{sub.id}</span>
-                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">{accuracy}%</span>
+                  <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">{accuracyPercent}%</span>
                </div>
                <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                  <div 
                     className={`h-full ${sub.bg} transition-transform duration-1000 origin-left will-change-transform`} 
-                    style={{ width: '100%', transform: `scaleX(${accuracy / 100})` }} 
+                    style={{ width: '100%', transform: `scaleX(${scaleVal})` }} 
                  />
                </div>
                <div className="mt-1.5 text-[9px] text-slate-500 dark:text-slate-600 font-bold uppercase tracking-widest text-right">
@@ -239,6 +241,8 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests, isPr
                         
                         if (totalMistakes > 0 && count === 0) return null;
 
+                        const scaleVal = Math.max(Number.isFinite(percent) ? percent : 0, totalMistakes > 0 ? 0.05 : 0);
+
                         return (
                             <div key={type.id} className="group">
                             <div className="flex justify-between items-end mb-2">
@@ -251,7 +255,7 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests, isPr
                             <div className="h-2 w-full bg-slate-200 dark:bg-black/40 rounded-full overflow-hidden">
                                 <div 
                                 className={`h-full ${type.color.replace('text', 'bg').replace('-400', '-500 dark:bg-' + type.color.split('-')[1] + '-400')} transition-transform duration-1000 ease-out origin-left will-change-transform`}
-                                style={{ width: '100%', transform: `scaleX(${Math.max(percent, totalMistakes > 0 ? 0.05 : 0)})` }}
+                                style={{ width: '100%', transform: `scaleX(${scaleVal})` }}
                                 />
                             </div>
                             </div>

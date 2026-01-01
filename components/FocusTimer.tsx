@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, memo, useEffect } from 'react';
 import { 
   Play, 
@@ -166,7 +165,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
   const radius = 110; 
   const circumference = 2 * Math.PI * radius;
   const progressPercentage = timeLeft / (durations[mode] * 60);
-  const strokeDashoffset = circumference * (1 - progressPercentage);
+  const strokeDashoffset = Number.isFinite(progressPercentage) ? circumference * (1 - progressPercentage) : circumference;
 
   return (
     <>
@@ -320,14 +319,17 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
                   </defs>
 
                   <circle 
-                      cx="50%" cy="50%" r={radius} 
+                      cx={viewBoxSize/2} 
+                      cy={viewBoxSize/2} 
+                      r={radius} 
                       className="stroke-slate-200 dark:stroke-slate-800/50 fill-none" 
                       strokeWidth="4" 
-                      style={{ cx: viewBoxSize/2, cy: viewBoxSize/2 }}
                   />
 
                   <circle 
-                      cx="50%" cy="50%" r={radius} 
+                      cx={viewBoxSize/2} 
+                      cy={viewBoxSize/2} 
+                      r={radius} 
                       stroke="url(#progressGradient)"
                       strokeWidth="6"
                       fill="none"
@@ -336,7 +338,6 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
                       strokeDashoffset={strokeDashoffset}
                       className="transition-all duration-1000 ease-linear"
                       style={{ 
-                          cx: viewBoxSize/2, cy: viewBoxSize/2,
                           transition: isActive ? 'stroke-dashoffset 1s linear' : 'stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                       }}
                   />

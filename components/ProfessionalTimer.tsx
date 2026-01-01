@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, 
@@ -23,7 +22,7 @@ export const ProfessionalTimer: React.FC = () => {
   
   const timerRef = useRef<any>(null);
 
-  const getTotalTime = () => durations[mode] * 60;
+  const getTotalTime = () => Math.max(1, durations[mode] * 60); // Ensure non-zero divisor
 
   const playBeep = () => {
     if (!soundEnabled) return;
@@ -83,8 +82,9 @@ export const ProfessionalTimer: React.FC = () => {
   const config = getModeConfig();
   const radius = 130;
   const circumference = 2 * Math.PI * radius;
-  const progress = timeLeft / getTotalTime();
-  const dashOffset = circumference * (1 - progress);
+  const totalTime = getTotalTime();
+  const progress = Number.isFinite(timeLeft / totalTime) ? timeLeft / totalTime : 0;
+  const dashOffset = Number.isFinite(circumference * (1 - progress)) ? circumference * (1 - progress) : 0;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[550px] w-full max-w-2xl mx-auto p-4 relative animate-in fade-in duration-700">

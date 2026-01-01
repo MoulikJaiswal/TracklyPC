@@ -75,32 +75,35 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ steps, current
     const cardHeight = 250; // Approx height
     const margin = 20;
 
+    let top = margin;
+    let left = margin;
+
     // Check space on right
     if (targetRect.right + cardWidth + margin < windowSize.w) {
-        return { 
-            top: Math.min(Math.max(margin, targetRect.top), windowSize.h - cardHeight - margin), 
-            left: targetRect.right + margin 
-        };
+        top = Math.min(Math.max(margin, targetRect.top), windowSize.h - cardHeight - margin);
+        left = targetRect.right + margin;
     }
     // Check space on left
-    if (targetRect.left - cardWidth - margin > 0) {
-        return { 
-            top: Math.min(Math.max(margin, targetRect.top), windowSize.h - cardHeight - margin), 
-            left: targetRect.left - cardWidth - margin 
-        };
+    else if (targetRect.left - cardWidth - margin > 0) {
+        top = Math.min(Math.max(margin, targetRect.top), windowSize.h - cardHeight - margin);
+        left = targetRect.left - cardWidth - margin;
     }
     // Check space on bottom
-    if (targetRect.bottom + cardHeight + margin < windowSize.h) {
-        return { 
-            top: targetRect.bottom + margin, 
-            left: Math.max(margin, Math.min(targetRect.left, windowSize.w - cardWidth - margin)) 
-        };
+    else if (targetRect.bottom + cardHeight + margin < windowSize.h) {
+        top = targetRect.bottom + margin;
+        left = Math.max(margin, Math.min(targetRect.left, windowSize.w - cardWidth - margin));
     }
     // Default to top (or center if really cramped)
-    return { 
-        top: Math.max(margin, targetRect.top - cardHeight - margin), 
-        left: Math.max(margin, Math.min(targetRect.left, windowSize.w - cardWidth - margin)) 
-    };
+    else {
+        top = Math.max(margin, targetRect.top - cardHeight - margin);
+        left = Math.max(margin, Math.min(targetRect.left, windowSize.w - cardWidth - margin));
+    }
+
+    // Safety check for NaN or Infinity
+    if (!Number.isFinite(top)) top = windowSize.h / 2;
+    if (!Number.isFinite(left)) left = windowSize.w / 2;
+
+    return { top, left };
   };
 
   const cardStyle = getCardStyle();

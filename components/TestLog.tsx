@@ -1,6 +1,6 @@
 import React, { useState, useMemo, memo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown, Crown, Lock } from 'lucide-react';
+import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown, Crown, Lock, GripHorizontal, Check, Brain, Activity } from 'lucide-react';
 import { TestResult, Target as TargetType, SubjectBreakdown, MistakeCounts } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES } from '../constants';
@@ -32,177 +32,300 @@ const DEFAULT_BREAKDOWN: SubjectBreakdown = {
   mistakes: {}
 };
 
-// --- PERFORMANCE GRAPH COMPONENT ---
-const PerformanceGraph = memo(({ tests }: { tests: TestResult[] }) => {
-    // 1. Prepare Data
+// --- SAFE GRAPH UTILS ---
+const safeNum = (n: any) => Number.isFinite(n) ? n : 0;
+const safeDiv = (n: number, d: number) => d === 0 ? 0 : n / d;
+
+// --- ANALYTICS COMPONENT ---
+const TestAnalytics = memo(({ tests }: { tests: TestResult[] }) => {
+    const [activeTab, setActiveTab] = useState<'overview' | 'subjects' | 'mistakes'>('overview');
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
     const sortedTests = useMemo(() => {
-        return [...tests]
-            .sort((a, b) => a.date.localeCompare(b.date))
-            .map(t => ({
-                ...t,
-                percentage: Math.round((t.marks / t.total) * 100)
-            }));
+        return [...tests].sort((a, b) => a.date.localeCompare(b.date)).slice(-10); // Last 10 tests max
     }, [tests]);
 
-    if (sortedTests.length < 2) return null;
+    const dataPoints = useMemo(() => {
+        return sortedTests.map(t => {
+            const total = safeNum(t.total) || 300;
+            const marks = safeNum(t.marks);
+            const p = t.breakdown?.Physics;
+            const c = t.breakdown?.Chemistry;
+            const m = t.breakdown?.Maths;
 
-    // 2. Trend Calculation
-    const trend = useMemo(() => {
-        const recent = sortedTests.slice(-3); // Last 3 tests
-        if (recent.length < 2) return 'neutral';
-        const first = recent[0].percentage;
-        const last = recent[recent.length - 1].percentage;
-        return last > first ? 'up' : last < first ? 'down' : 'neutral';
+            // Helper to calc subject %
+            const subPct = (sub: SubjectBreakdown | undefined) => {
+                if (!sub) return 0;
+                const attempted = sub.correct + sub.incorrect;
+                const subTotal = attempted + sub.unattempted;
+                const score = (sub.correct * 4) - sub.incorrect;
+                const max = subTotal * 4;
+                return max > 0 ? Math.max(0, (score / max) * 100) : 0;
+            };
+
+            return {
+                id: t.id,
+                date: t.date,
+                name: t.name,
+                overall: safeDiv(marks, total) * 100,
+                Physics: subPct(p),
+                Chemistry: subPct(c),
+                Maths: subPct(m),
+                temperament: t.temperament
+            };
+        });
     }, [sortedTests]);
 
-    // 3. SVG Dimensions
-    const height = 200;
-    const width = 1000; // Virtual width for coordinate system
-    const padding = 20;
-    const availableWidth = width - (padding * 2);
-    const availableHeight = height - (padding * 2);
+    const mistakeStats = useMemo(() => {
+        const counts: Record<string, number> = {};
+        sortedTests.forEach(t => {
+            (['Physics', 'Chemistry', 'Maths'] as const).forEach(sub => {
+                const mistakes = t.breakdown?.[sub]?.mistakes || {};
+                Object.entries(mistakes).forEach(([type, count]) => {
+                    counts[type] = (counts[type] || 0) + (count || 0);
+                });
+            });
+        });
+        const total = (Object.values(counts) as number[]).reduce((a, b) => a + b, 0);
+        return Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([id, count]) => ({ id, count, pct: safeDiv(count, total) * 100 }));
+    }, [sortedTests]);
 
-    // 4. Generate Points
-    const points = sortedTests.map((t, i) => {
-        const x = padding + (i / (sortedTests.length - 1)) * availableWidth;
-        const y = height - padding - ((t.percentage / 100) * availableHeight);
-        return { x, y, data: t };
-    });
+    if (dataPoints.length < 2) return null;
 
-    // 5. Create Path (Smooth Bezier)
-    const generatePath = (points: {x:number, y:number}[]) => {
-        if (points.length === 0) return '';
-        
-        // Move to first point
-        let d = `M ${points[0].x} ${points[0].y}`;
+    // Graph Dimensions
+    const width = 1000;
+    const height = 320;
+    const paddingX = 60;
+    const paddingY = 50;
+    const graphWidth = width - (paddingX * 2);
+    const graphHeight = height - (paddingY * 2);
 
-        // Loop to create cubic bezier curves
-        for (let i = 0; i < points.length - 1; i++) {
-            const p0 = points[i];
-            const p1 = points[i + 1];
-            
-            // Control points for smooth curve
-            const cp1x = p0.x + (p1.x - p0.x) * 0.5;
-            const cp1y = p0.y;
-            const cp2x = p0.x + (p1.x - p0.x) * 0.5;
-            const cp2y = p1.y;
+    const getX = (i: number) => paddingX + (safeDiv(i, dataPoints.length - 1) * graphWidth);
+    const getY = (val: number) => (height - paddingY) - (safeDiv(val, 100) * graphHeight);
 
-            d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
-        }
-        return d;
+    const generatePath = (key: 'overall' | 'Physics' | 'Chemistry' | 'Maths') => {
+        return dataPoints.map((d, i) => 
+            `${i === 0 ? 'M' : 'L'} ${safeNum(getX(i))} ${safeNum(getY(d[key]))}`
+        ).join(' ');
     };
 
-    const linePath = generatePath(points);
-    // Close path for area fill
-    const areaPath = `${linePath} L ${points[points.length-1].x} ${height} L ${points[0].x} ${height} Z`;
-
-    const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+    const generateAreaPath = (key: 'overall' | 'Physics' | 'Chemistry' | 'Maths') => {
+        if (dataPoints.length === 0) return '';
+        const linePath = generatePath(key);
+        const lastX = getX(dataPoints.length - 1);
+        const firstX = getX(0);
+        const bottomY = height - paddingY;
+        return `${linePath} L ${safeNum(lastX)} ${safeNum(bottomY)} L ${safeNum(firstX)} ${safeNum(bottomY)} Z`;
+    };
 
     return (
-        <Card className="p-0 overflow-hidden border-indigo-200 dark:border-indigo-500/30">
-            <div className="p-6 border-b border-indigo-100 dark:border-white/5 flex justify-between items-center bg-white/50 dark:bg-black/20">
-                <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <TrendingUp className="text-indigo-500" size={20} /> Performance Curve
-                    </h3>
-                    <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 tracking-widest mt-1">
-                        Score percentage over time
-                    </p>
-                </div>
-                {trend !== 'neutral' && (
-                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${
-                        trend === 'up' 
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                            : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
-                    }`}>
-                        {trend === 'up' ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                        <span className="text-[10px] font-bold uppercase tracking-wider">
-                            {trend === 'up' ? 'Trending Up' : 'Declining'}
-                        </span>
+        <Card className="p-0 overflow-hidden border-indigo-200 dark:border-indigo-500/30 flex flex-col h-full bg-slate-50/80 dark:bg-[#0B0F19]">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 dark:bg-white/5 backdrop-blur-sm">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-500 text-white rounded-xl shadow-lg shadow-indigo-500/20">
+                        <TrendingUp size={20} />
                     </div>
-                )}
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Performance Trend</h3>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Analysis of Last {dataPoints.length} Tests</p>
+                    </div>
+                </div>
+                <div className="flex bg-slate-200/50 dark:bg-black/40 p-1 rounded-xl shadow-inner border border-slate-200 dark:border-white/5">
+                    {(['overview', 'subjects', 'mistakes'] as const).map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activeTab === tab ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            <div className="relative h-64 w-full bg-indigo-50/30 dark:bg-black/40">
-                <svg 
-                    viewBox={`0 0 ${width} ${height}`} 
-                    className="w-full h-full preserve-3d"
-                    preserveAspectRatio="none"
-                >
-                    <defs>
-                        <linearGradient id="graphGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="rgb(99, 102, 241)" stopOpacity="0.4" />
-                            <stop offset="100%" stopColor="rgb(99, 102, 241)" stopOpacity="0" />
-                        </linearGradient>
-                    </defs>
-
-                    {/* Grid Lines (Horizontal) - 25%, 50%, 75% */}
-                    {[0.25, 0.5, 0.75].map(p => (
-                        <line 
-                            key={p} 
-                            x1="0" 
-                            y1={height - padding - (p * availableHeight)} 
-                            x2={width} 
-                            y2={height - padding - (p * availableHeight)} 
-                            stroke="currentColor" 
-                            className="text-slate-300 dark:text-white/5" 
-                            strokeDasharray="4 4" 
-                            strokeWidth="1"
-                        />
-                    ))}
-
-                    {/* Area Fill */}
-                    <path d={areaPath} fill="url(#graphGradient)" />
-
-                    {/* Main Line */}
-                    <path 
-                        d={linePath} 
-                        fill="none" 
-                        stroke="rgb(99, 102, 241)" 
-                        strokeWidth="3" 
-                        strokeLinecap="round"
-                        className="drop-shadow-lg"
-                    />
-
-                    {/* Data Points */}
-                    {points.map((p, i) => (
-                        <g 
-                            key={i} 
-                            onMouseEnter={() => setHoveredPoint(i)}
-                            onMouseLeave={() => setHoveredPoint(null)}
-                            className="cursor-pointer group"
-                        >
-                            {/* Invisible hit area for easier hovering */}
-                            <circle cx={p.x} cy={p.y} r="20" fill="transparent" />
-                            
-                            {/* Visible Dot */}
-                            <circle 
-                                cx={p.x} 
-                                cy={p.y} 
-                                r={hoveredPoint === i ? 6 : 4} 
-                                className={`transition-all duration-300 ${hoveredPoint === i ? 'fill-white stroke-indigo-500' : 'fill-indigo-500 stroke-white dark:stroke-slate-900'}`}
-                                strokeWidth="2"
-                            />
-                        </g>
-                    ))}
-                </svg>
-
-                {/* Tooltip Overlay */}
-                {hoveredPoint !== null && (
-                    <div 
-                        className="absolute z-10 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-3"
-                        style={{ 
-                            left: `${(points[hoveredPoint].x / width) * 100}%`, 
-                            top: `${(points[hoveredPoint].y / height) * 100}%` 
-                        }}
-                    >
-                        <div className="bg-slate-900 text-white text-xs p-2 rounded-lg shadow-xl flex flex-col items-center min-w-[120px]">
-                            <span className="font-bold">{points[hoveredPoint].data.percentage}% Score</span>
-                            <span className="text-[9px] opacity-70 uppercase tracking-wider">{points[hoveredPoint].data.date}</span>
-                            <span className="text-[9px] text-indigo-300 mt-1 font-mono">{points[hoveredPoint].data.marks}/{points[hoveredPoint].data.total} Marks</span>
+            <div className="relative w-full h-[340px] bg-white dark:bg-[#0f172a] transition-colors">
+                {activeTab === 'mistakes' ? (
+                    <div className="h-full w-full p-8 flex items-center justify-center">
+                        <div className="w-full max-w-3xl grid grid-cols-2 gap-6">
+                            {mistakeStats.slice(0, 6).map((m, i) => {
+                                const info = MISTAKE_TYPES.find(t => t.id === m.id);
+                                return (
+                                    <div key={m.id} className="flex flex-col gap-2 p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`${info?.color} scale-125`}>{info?.icon}</span>
+                                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">{info?.label}</span>
+                                            </div>
+                                            <span className="text-sm font-mono font-bold text-slate-900 dark:text-white bg-white dark:bg-black/20 px-2 py-1 rounded-lg border border-slate-100 dark:border-white/5 shadow-sm">{m.count}</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-200 dark:bg-black/40 rounded-full overflow-hidden mt-1">
+                                            <div className={`h-full ${info?.color.replace('text', 'bg')} opacity-90`} style={{ width: `${m.pct}%` }} />
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                            {mistakeStats.length === 0 && (
+                                <div className="col-span-2 text-center text-slate-400 text-xs font-bold uppercase tracking-widest pt-10">
+                                    No mistake data logged yet
+                                </div>
+                            )}
                         </div>
-                        <div className="w-2 h-2 bg-slate-900 transform rotate-45 mx-auto -mt-1"></div>
                     </div>
+                ) : (
+                    <>
+                        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible preserve-3d">
+                            <defs>
+                                <linearGradient id="grad-overall" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4"/>
+                                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0"/>
+                                </linearGradient>
+                                <linearGradient id="grad-phys" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3"/>
+                                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
+                                </linearGradient>
+                                <linearGradient id="grad-chem" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"/>
+                                    <stop offset="100%" stopColor="#f97316" stopOpacity="0"/>
+                                </linearGradient>
+                                <linearGradient id="grad-math" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.3"/>
+                                    <stop offset="100%" stopColor="#f43f5e" stopOpacity="0"/>
+                                </linearGradient>
+                            </defs>
+
+                            {/* Grid & Axis */}
+                            {[0, 25, 50, 75, 100].map(tick => (
+                                <g key={tick}>
+                                    <line 
+                                        x1={paddingX} y1={safeNum(getY(tick))} 
+                                        x2={width - paddingX} y2={safeNum(getY(tick))} 
+                                        stroke="currentColor" 
+                                        strokeWidth="1"
+                                        className="text-slate-200 dark:text-white/10" 
+                                    />
+                                    <text 
+                                        x={paddingX - 12} y={safeNum(getY(tick))} dy="4" 
+                                        textAnchor="end" className="text-[11px] font-mono fill-slate-400 dark:fill-slate-500 font-bold"
+                                    >{tick}%</text>
+                                </g>
+                            ))}
+
+                            {/* Lines with Area Gradients */}
+                            {activeTab === 'overview' ? (
+                                <>
+                                    <path d={generateAreaPath('overall')} fill="url(#grad-overall)" className="transition-all duration-500" />
+                                    <path 
+                                        d={generatePath('overall')} 
+                                        fill="none" stroke="#6366f1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"
+                                        className="drop-shadow-lg animate-in fade-in duration-1000"
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    {/* Layers background to foreground */}
+                                    <path d={generateAreaPath('Physics')} fill="url(#grad-phys)" className="transition-all duration-500" />
+                                    <path d={generatePath('Physics')} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                    
+                                    <path d={generateAreaPath('Chemistry')} fill="url(#grad-chem)" className="transition-all duration-500" />
+                                    <path d={generatePath('Chemistry')} fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                    
+                                    <path d={generateAreaPath('Maths')} fill="url(#grad-math)" className="transition-all duration-500" />
+                                    <path d={generatePath('Maths')} fill="none" stroke="#f43f5e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                </>
+                            )}
+
+                            {/* Interaction Layer */}
+                            {dataPoints.map((d, i) => (
+                                <g key={i}>
+                                    {/* Mood Indicators (Only on Overview) */}
+                                    {activeTab === 'overview' && (
+                                        <foreignObject x={safeNum(getX(i)) - 10} y={height - 25} width="20" height="20">
+                                            <div 
+                                                className={`w-2 h-2 mx-auto rounded-full mt-2 ring-2 ring-white dark:ring-[#0f172a] ${
+                                                    d.temperament === 'Calm' ? 'bg-emerald-400' : 
+                                                    d.temperament === 'Anxious' ? 'bg-rose-400' : 
+                                                    d.temperament === 'Focused' ? 'bg-indigo-400' : 'bg-amber-400'
+                                                }`} 
+                                                title={d.temperament}
+                                            />
+                                        </foreignObject>
+                                    )}
+
+                                    <rect
+                                        x={safeNum(getX(i)) - (graphWidth / (dataPoints.length * 2))}
+                                        y={paddingY}
+                                        width={safeNum(graphWidth / dataPoints.length)}
+                                        height={graphHeight}
+                                        fill="transparent"
+                                        onMouseEnter={() => setHoveredIndex(i)}
+                                        onMouseLeave={() => setHoveredIndex(null)}
+                                        className="cursor-pointer"
+                                    />
+
+                                    {hoveredIndex === i && (
+                                        <line 
+                                            x1={safeNum(getX(i))} y1={paddingY} 
+                                            x2={safeNum(getX(i))} y2={height - paddingY} 
+                                            stroke="currentColor" strokeWidth="2" strokeDasharray="4 4"
+                                            className="text-slate-400 dark:text-white/40"
+                                        />
+                                    )}
+
+                                    {/* Points */}
+                                    {activeTab === 'overview' ? (
+                                        <circle 
+                                            cx={safeNum(getX(i))} cy={safeNum(getY(d.overall))} r={hoveredIndex === i ? 8 : 5}
+                                            className="fill-indigo-500 stroke-white dark:stroke-[#0f172a] stroke-[3px] shadow-sm transition-all duration-200"
+                                        />
+                                    ) : (
+                                        <>
+                                            <circle cx={safeNum(getX(i))} cy={safeNum(getY(d.Physics))} r={hoveredIndex === i ? 6 : 4} className="fill-blue-500 stroke-white dark:stroke-[#0f172a] stroke-2" />
+                                            <circle cx={safeNum(getX(i))} cy={safeNum(getY(d.Chemistry))} r={hoveredIndex === i ? 6 : 4} className="fill-orange-500 stroke-white dark:stroke-[#0f172a] stroke-2" />
+                                            <circle cx={safeNum(getX(i))} cy={safeNum(getY(d.Maths))} r={hoveredIndex === i ? 6 : 4} className="fill-rose-500 stroke-white dark:stroke-[#0f172a] stroke-2" />
+                                        </>
+                                    )}
+                                </g>
+                            ))}
+                        </svg>
+
+                        {/* Tooltip Overlay */}
+                        {hoveredIndex !== null && dataPoints[hoveredIndex] && (
+                            <div 
+                                className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none bg-slate-900/95 dark:bg-black/90 backdrop-blur text-white px-5 py-3 rounded-2xl shadow-2xl border border-white/10 z-10 flex gap-5 items-center min-w-[200px]"
+                            >
+                                <div>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{dataPoints[hoveredIndex].date}</p>
+                                    <p className="text-sm font-bold truncate max-w-[120px]">{dataPoints[hoveredIndex].name}</p>
+                                </div>
+                                <div className="h-8 w-px bg-white/10" />
+                                <div className="text-right">
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{dataPoints[hoveredIndex].temperament}</p>
+                                    <p className="text-xl font-mono font-bold text-indigo-400">{Math.round(dataPoints[hoveredIndex].overall)}%</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Legend */}
+                        <div className="absolute bottom-2 w-full flex justify-center gap-4 pointer-events-none">
+                            {activeTab === 'subjects' && (
+                                <div className="flex gap-4 bg-white/90 dark:bg-slate-900/90 px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 shadow-lg backdrop-blur-md">
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"/> Phys</span>
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-orange-600 dark:text-orange-400"><div className="w-2.5 h-2.5 rounded-full bg-orange-500"/> Chem</span>
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"/> Math</span>
+                                </div>
+                            )}
+                            {activeTab === 'overview' && (
+                                <div className="flex gap-4 bg-white/90 dark:bg-slate-900/90 px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 shadow-lg backdrop-blur-md">
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><div className="w-2 h-2 rounded-full bg-emerald-500"/> Calm</span>
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400"><div className="w-2 h-2 rounded-full bg-rose-500"/> Anx</span>
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-indigo-600 dark:text-indigo-400"><div className="w-2 h-2 rounded-full bg-indigo-500"/> Focus</span>
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
         </Card>
@@ -294,19 +417,14 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Detailed Mistake Updater
   const updateMistake = (subject: 'Physics' | 'Chemistry' | 'Maths', type: keyof MistakeCounts, delta: number) => {
     setFormData(prev => {
         const currentBreakdown = prev.breakdown![subject];
         const currentMistakes = currentBreakdown.mistakes || {};
         const totalWrong = currentBreakdown.incorrect;
-        
-        // Calculate current total mistakes tagged
         const totalTagged = (Object.values(currentMistakes) as number[]).reduce((a, b) => a + (b || 0), 0);
-        
         const currentValue = currentMistakes[type] || 0;
         
-        // Check constraints
         if (delta < 0 && currentValue <= 0) return prev;
         if (delta > 0 && totalTagged >= totalWrong) return prev;
 
@@ -330,7 +448,6 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     });
   };
 
-  // Logic to handle Universal Total Questions change
   const handleGlobalQuestionChange = (val: number) => {
       setGlobalQCount(val);
       const perSubject = Math.floor(val / 3);
@@ -353,7 +470,6 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
       });
   };
 
-  // Logic to handle Total Questions change per subject
   const handleTotalChange = (subject: 'Physics' | 'Chemistry' | 'Maths', newTotal: number) => {
     const currentBreakdown = formData.breakdown![subject];
     const minTotal = currentBreakdown.correct + currentBreakdown.incorrect;
@@ -380,7 +496,6 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     }));
   };
 
-  // Logic to handle Correct/Incorrect change
   const handleStatChange = (subject: 'Physics' | 'Chemistry' | 'Maths', field: 'correct' | 'incorrect', newValue: number) => {
     setFormData(prev => {
         const current = prev.breakdown![subject];
@@ -466,7 +581,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
               <p className="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-bold">Track performance curves</p>
               {!isPro && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/20 rounded-full border border-amber-200 dark:border-amber-500/20 w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-50 animate-pulse shrink-0" />
                       <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap">
                           {tests.length} / 2 Free Tests
                       </span>
@@ -491,12 +606,14 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
         </button>
       </div>
 
+      {/* --- NEW SAFE ANALYTICS COMPONENT --- */}
+      <TestAnalytics tests={tests} />
+
       {/* Add Form */}
       {isAdding && (
         <Card className="bg-slate-900/50 dark:bg-slate-900/50 border border-slate-800 max-w-2xl mx-auto shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-8">
-            
-            {/* Basic Info Section */}
+            {/* ... (Form Content Same as before) ... */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Test Name</label>
@@ -700,6 +817,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
 
             {/* File Upload Section */}
             <div className="space-y-2">
+               {/* ... (File upload content) ... */}
                <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Attachment</label>
                {!previewFile ? (
                  <div 
@@ -782,14 +900,18 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                     <div className="flex gap-1 h-2 w-full rounded-full overflow-hidden bg-slate-100 dark:bg-white/5 mt-4">
                         {(['Physics', 'Chemistry', 'Maths'] as const).map(sub => {
                             const d = t.breakdown![sub];
-                            const accuracy = d.correct + d.incorrect > 0 ? (d.correct / (d.correct + d.incorrect)) : 0;
+                            const correct = Number(d.correct) || 0;
+                            const incorrect = Number(d.incorrect) || 0;
+                            const accuracy = (correct + incorrect > 0) ? (correct / (correct + incorrect)) : 0;
+                            const safeWidth = Number.isFinite(accuracy) ? accuracy * 100 : 0;
+                            
                             const width = (100/3); 
                             const color = sub === 'Physics' ? 'bg-blue-500' : sub === 'Chemistry' ? 'bg-orange-500' : 'bg-rose-500';
                             
                             return (
                                 <div key={sub} className="h-full relative group/bar" style={{ width: `${width}%` }}>
                                     <div className={`h-full ${color} opacity-30 w-full absolute top-0 left-0`} />
-                                    <div className={`h-full ${color} absolute top-0 left-0`} style={{ width: `${accuracy * 100}%` }} />
+                                    <div className={`h-full ${color} absolute top-0 left-0`} style={{ width: `${safeWidth}%` }} />
                                 </div>
                             )
                         })}
@@ -831,14 +953,11 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
         )}
       </div>
 
-      {/* --- Performance Trend Graph --- */}
-      <PerformanceGraph tests={tests} />
-
       {/* --- Detailed Report Card Modal --- */}
       {viewingReport && createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
               <div className="bg-white dark:bg-[#0f172a] w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
-                  {/* Header */}
+                  {/* ... (Header Same) ... */}
                   <div className="relative p-8 bg-slate-900 overflow-hidden shrink-0">
                       <div className="absolute inset-0 opacity-30">
                           <div className={`absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[80px] translate-x-1/2 -translate-y-1/2`} />
@@ -953,6 +1072,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
 
                       {/* Mistake Analysis Aggregation */}
                       <div>
+                          {/* ... (Mistake rendering logic mostly fine as it doesn't use complex styles) ... */}
                           <div className="flex items-center justify-between mb-4">
                               <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
                                   <AlertCircle size={14} className={reportSubject ? 'text-indigo-500' : 'text-slate-400'} /> 

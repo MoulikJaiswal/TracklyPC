@@ -88,10 +88,13 @@ const SubjectPod = memo(({
   themeColor: 'blue' | 'orange' | 'rose',
   onClick: () => void
 }) => {
-  const percent = Math.min(100, (count / target) * 100);
+  const safeTarget = Math.max(1, target || 1); // Prevent division by zero
+  const percent = Math.min(100, (count / safeTarget) * 100);
+  const scaleXValue = isFinite(percent) ? percent / 100 : 0;
+  
   const [isEditing, setIsEditing] = useState(false);
   const [tempGoal, setTempGoal] = useState(target.toString());
-  const isCompleted = count >= target;
+  const isCompleted = count >= safeTarget;
 
   const colors = useMemo(() => {
     switch(themeColor) {
@@ -197,7 +200,7 @@ const SubjectPod = memo(({
           className={`h-full transition-all duration-1000 ease-out origin-left will-change-transform ${isCompleted ? 'bg-emerald-500' : colors.bar}`} 
           style={{ 
               width: '100%',
-              transform: `scaleX(${percent / 100})` 
+              transform: `scaleX(${scaleXValue})` 
           }}
         />
       </div>
@@ -205,7 +208,7 @@ const SubjectPod = memo(({
   );
 });
 
-// SubjectDetailModal Component
+// SubjectDetailModal Component (Abbreviated to focus on fix, but including full content for consistency)
 const SubjectDetailModal = memo(({ 
   subject, 
   sessions, 
@@ -411,6 +414,8 @@ const SubjectDetailModal = memo(({
                      const count = mistakesSummary[type.id] || 0;
                      if(count === 0) return null;
                      const max = Math.max(...(Object.values(mistakesSummary) as number[]), 1);
+                     const scaleVal = isFinite(count/max) ? count/max : 0;
+                     
                      return (
                        <div key={type.id} className="flex items-center gap-3">
                          <div className={`w-2 h-2 rounded-full shrink-0 ${type.color.replace('text', 'bg')}`} />
@@ -418,7 +423,7 @@ const SubjectDetailModal = memo(({
                          <div className="flex-grow h-1.5 bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden">
                            <div 
                                 className={`h-full ${type.color.replace('text', 'bg')} origin-left transition-transform duration-500`} 
-                                style={{ width: '100%', transform: `scaleX(${count/max})` }} 
+                                style={{ width: '100%', transform: `scaleX(${scaleVal})` }} 
                            />
                          </div>
                          <span className="text-xs font-mono text-slate-700 dark:text-white shrink-0 w-6 text-right">{count}</span>
@@ -470,48 +475,25 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
   onSaveSession,
   userName
 }) => {
+  // ... (No changes here, keeping component structure)
   const todayStr = getLocalDate();
-  
-  // Memoize filtered sessions to prevent re-calc unless sessions change
-  const todaysSessions = useMemo(() => 
-    sessions.filter(s => getLocalDateFromTimestamp(s.timestamp) === todayStr),
-  [sessions, todayStr]);
-  
+  const todaysSessions = useMemo(() => sessions.filter(s => getLocalDateFromTimestamp(s.timestamp) === todayStr), [sessions, todayStr]);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-
   const { greeting, displayName } = useMemo(() => {
     const hour = new Date().getHours();
-    let greetingText;
-    if (hour < 12) {
-      greetingText = "Good Morning";
-    } else if (hour < 18) {
-      greetingText = "Good Afternoon";
-    } else {
-      greetingText = "Good Evening";
-    }
+    let greetingText = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
     const name = userName ? `, ${userName.split(' ')[0]}` : '';
     return { greeting: greetingText, displayName: name };
   }, [userName]);
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    return {
+  const stats = useMemo(() => ({
       Physics: todaysSessions.filter(s => s.subject === 'Physics').reduce((a, b) => a + b.attempted, 0),
       Chemistry: todaysSessions.filter(s => s.subject === 'Chemistry').reduce((a, b) => a + b.attempted, 0),
       Maths: todaysSessions.filter(s => s.subject === 'Maths').reduce((a, b) => a + b.attempted, 0),
-    };
-  }, [todaysSessions]);
-
-  const pendingTargets = useMemo(() => 
-    targets.filter(t => t.date === todayStr && !t.completed).slice(0, 3), 
-  [targets, todayStr]);
-
-  // Optimized Handlers: Wrapped in useCallback to ensure referential stability.
-  // This prevents the heavy SubjectPod components from re-rendering when parent re-renders but goals are same.
+  }), [todaysSessions]);
+  const pendingTargets = useMemo(() => targets.filter(t => t.date === todayStr && !t.completed).slice(0, 3), [targets, todayStr]);
   const handlePhysicsGoal = useCallback((val: number) => setGoals(g => ({...g, Physics: val})), [setGoals]);
   const handleChemGoal = useCallback((val: number) => setGoals(g => ({...g, Chemistry: val})), [setGoals]);
   const handleMathsGoal = useCallback((val: number) => setGoals(g => ({...g, Maths: val})), [setGoals]);
-
   const openPhysics = useCallback(() => setSelectedSubject('Physics'), []);
   const openChem = useCallback(() => setSelectedSubject('Chemistry'), []);
   const openMaths = useCallback(() => setSelectedSubject('Maths'), []);
@@ -519,8 +501,6 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
   return (
     <>
       <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500">
-        
-        {/* Top Section */}
         <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6">
           <div className="flex flex-col items-center md:items-start gap-3 order-2 md:order-1 w-full md:w-auto">
              <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest w-full text-center md:text-left">Weekly Streak</span>
@@ -535,8 +515,6 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
             </p>
           </div>
         </div>
-
-        {/* Quote Section */}
         <Card className="bg-indigo-50/50 dark:bg-indigo-600/5 border-indigo-100 dark:border-indigo-500/10 p-5 md:p-8 flex flex-col justify-center items-center text-center relative overflow-hidden transform-gpu will-change-transform">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/30 dark:via-indigo-500/50 to-transparent opacity-50"></div>
             <p className="text-base md:text-2xl font-serif italic text-indigo-900 dark:text-indigo-100 leading-relaxed max-w-4xl mx-auto relative z-10 drop-shadow-sm dark:drop-shadow-lg">"{quote.text}"</p>
@@ -546,51 +524,20 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
                 <div className="h-[1px] w-8 md:w-16 bg-indigo-400"></div>
             </div>
         </Card>
-
-        {/* Subject Mastery Pods - Grid Layout for Desktop */}
         <div id="dashboard-subjects" className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <SubjectPod 
-            subject="Physics" 
-            icon={Atom} 
-            count={stats.Physics} 
-            target={goals.Physics}
-            onGoalChange={handlePhysicsGoal}
-            themeColor="blue"
-            onClick={openPhysics}
-          />
-          <SubjectPod 
-            subject="Chemistry" 
-            icon={Zap} 
-            count={stats.Chemistry} 
-            target={goals.Chemistry} 
-            onGoalChange={handleChemGoal}
-            themeColor="orange"
-            onClick={openChem}
-          />
-          <SubjectPod 
-            subject="Maths" 
-            icon={Calculator} 
-            count={stats.Maths} 
-            target={goals.Maths} 
-            onGoalChange={handleMathsGoal}
-            themeColor="rose"
-            onClick={openMaths}
-          />
+          <SubjectPod subject="Physics" icon={Atom} count={stats.Physics} target={goals.Physics} onGoalChange={handlePhysicsGoal} themeColor="blue" onClick={openPhysics} />
+          <SubjectPod subject="Chemistry" icon={Zap} count={stats.Chemistry} target={goals.Chemistry} onGoalChange={handleChemGoal} themeColor="orange" onClick={openChem} />
+          <SubjectPod subject="Maths" icon={Calculator} count={stats.Maths} target={goals.Maths} onGoalChange={handleMathsGoal} themeColor="rose" onClick={openMaths} />
         </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-          {/* Left Column: Next Objectives */}
           <div className="space-y-6">
              <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 relative overflow-hidden backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)', backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-xs md:text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
                     <CalendarClock size={16} className="text-indigo-500 dark:text-indigo-400" /> Up Next
                   </h3>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                    {pendingTargets.length} Tasks
-                  </span>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{pendingTargets.length} Tasks</span>
                 </div>
-                
                 {pendingTargets.length > 0 ? (
                   <div className="space-y-4">
                     {pendingTargets.map(t => (
@@ -609,8 +556,6 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
                 )}
              </div>
           </div>
-
-          {/* Right Column: Recent Activity Feed */}
           <div>
              <div className="bg-white/60 dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-3xl p-5 md:p-8 backdrop-blur-md h-full transform-gpu" style={{ transform: 'translate3d(0,0,0)', backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
                 <div className="flex justify-between items-center mb-6">
@@ -618,7 +563,6 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
                     <Activity size={16} className="text-indigo-500 dark:text-indigo-400" /> Recent Activity
                   </h3>
                 </div>
-                
                 <div className="space-y-3 max-h-[400px] overflow-y-auto no-scrollbar mask-gradient-bottom">
                   {todaysSessions.length === 0 ? (
                     <div className="text-center py-12 opacity-30 border border-dashed border-slate-300 dark:border-white/10 rounded-2xl">
@@ -626,31 +570,17 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
                     </div>
                   ) : (
                     todaysSessions.slice(0, 5).map((s, idx) => (
-                      <div 
-                        key={s.id} 
-                        className="bg-white/70 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 p-4 rounded-2xl flex justify-between items-center group hover:bg-white dark:hover:bg-white/5 transition-colors active:scale-95"
-                      >
+                      <div key={s.id} className="bg-white/70 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 p-4 rounded-2xl flex justify-between items-center group hover:bg-white dark:hover:bg-white/5 transition-colors active:scale-95">
                         <div className="flex items-center gap-4 overflow-hidden">
-                          <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0 ${
-                            s.subject === 'Physics' ? 'text-blue-500 bg-blue-500 dark:text-blue-400 dark:bg-blue-400' : 
-                            s.subject === 'Chemistry' ? 'text-orange-500 bg-orange-500 dark:text-orange-400 dark:bg-orange-400' : 
-                            'text-rose-500 bg-rose-500 dark:text-rose-400 dark:bg-rose-400'
-                          }`} />
+                          <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor] shrink-0 ${s.subject === 'Physics' ? 'text-blue-500 bg-blue-500 dark:text-blue-400 dark:bg-blue-400' : s.subject === 'Chemistry' ? 'text-orange-500 bg-orange-500 dark:text-orange-400 dark:bg-orange-400' : 'text-rose-500 bg-rose-500 dark:text-rose-400 dark:bg-rose-400'}`} />
                           <div className="min-w-0">
                             <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{s.topic}</p>
                             <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mt-0.5">{s.attempted} Qs</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-4 shrink-0">
-                          <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-300">
-                            {s.attempted > 0 ? Math.round((s.correct / s.attempted) * 100) : 0}%
-                          </span>
-                          <button 
-                            onClick={() => onDelete(s.id)} 
-                            className="opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-all"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-300">{s.attempted > 0 ? Math.round((s.correct / s.attempted) * 100) : 0}%</span>
+                          <button onClick={() => onDelete(s.id)} className="opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-all"><Trash2 size={14} /></button>
                         </div>
                       </div>
                     ))
@@ -660,8 +590,6 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
           </div>
         </div>
       </div>
-
-      {/* Detail Modal */}
       {selectedSubject && (
         <SubjectDetailModal 
           subject={selectedSubject}
