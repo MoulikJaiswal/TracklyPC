@@ -280,13 +280,22 @@ const App: React.FC = () => {
       )}
 
       {/* Main Content Layout */}
-      <div className="relative z-10 max-w-7xl mx-auto min-h-screen flex flex-col md:flex-row">
+      <div className="relative z-10 w-full min-h-screen flex flex-col md:flex-row">
         
         {/* Desktop Sidebar (Hidden on Mobile) */}
-        <aside className="hidden md:flex flex-col w-20 lg:w-64 sticky top-0 h-screen border-r border-slate-200 dark:border-white/5 bg-white/50 dark:bg-black/20 backdrop-blur-xl p-4">
+        <aside className="hidden md:flex flex-col w-20 lg:w-64 sticky top-0 h-screen border-r border-slate-200 dark:border-white/5 bg-white/50 dark:bg-black/20 backdrop-blur-xl p-4 shrink-0">
             <div className="flex items-center gap-3 px-2 mb-10">
-                <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-600/20">
-                    T
+                <div 
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg transition-colors duration-500"
+                    style={{ 
+                        backgroundColor: 'var(--theme-accent)',
+                        boxShadow: '0 10px 25px -5px rgba(var(--theme-accent-rgb), 0.4)' 
+                    }}
+                >
+                    <svg viewBox="0 0 512 512" className="w-6 h-6 fill-white" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="136" y="100" width="240" height="70" rx="35" />
+                        <path d="M296 200H216V336C216 369.137 242.863 396 276 396H296V200Z" />
+                    </svg>
                 </div>
                 <span className="font-display font-bold text-xl hidden lg:block tracking-tight">Trackly</span>
             </div>
@@ -332,11 +341,22 @@ const App: React.FC = () => {
         </aside>
 
         {/* Content Area */}
-        <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 w-full max-w-full overflow-hidden">
+        <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 w-full overflow-hidden">
             {/* Header Mobile */}
             <div className="md:hidden flex justify-between items-center mb-6">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold">T</div>
+                    <div 
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-lg transition-colors duration-500"
+                        style={{ 
+                            backgroundColor: 'var(--theme-accent)',
+                            boxShadow: '0 4px 12px -2px rgba(var(--theme-accent-rgb), 0.4)' 
+                        }}
+                    >
+                        <svg viewBox="0 0 512 512" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="136" y="100" width="240" height="70" rx="35" />
+                            <path d="M296 200H216V336C216 369.137 242.863 396 276 396H296V200Z" />
+                        </svg>
+                    </div>
                     <span className="font-display font-bold text-xl">Trackly</span>
                 </div>
                 <button onClick={() => setShowSettings(true)} className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white">
@@ -345,7 +365,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Views */}
-            <div className="max-w-5xl mx-auto">
+            <div className="w-full max-w-[1800px] mx-auto">
                 {view === 'daily' && (
                     <Dashboard 
                         sessions={sessions}
