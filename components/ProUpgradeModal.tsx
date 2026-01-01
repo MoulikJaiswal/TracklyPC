@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Check, Crown, TrendingUp, Grid, CreditCard, ArrowLeft, Loader2, Lock, Zap, Image as ImageIcon } from 'lucide-react';
+import { X, Check, Crown, TrendingUp, Grid, CreditCard, ArrowLeft, Loader2, Lock, Zap, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { Card } from './Card';
 
 interface ProUpgradeModalProps {
@@ -10,13 +10,23 @@ interface ProUpgradeModalProps {
 }
 
 export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClose, onUpgrade }) => {
-  const [step, setStep] = useState<'info' | 'payment'>('info');
+  const [step, setStep] = useState<'info' | 'payment' | 'success'>('info');
   const [isLoading, setIsLoading] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
 
   if (!isOpen) return null;
+
+  const handleClose = () => {
+      onClose();
+      setTimeout(() => {
+          setStep('info');
+          setCardNumber('');
+          setExpiry('');
+          setCvc('');
+      }, 300);
+  };
 
   const handleSimulatePayment = (e: React.FormEvent) => {
       e.preventDefault();
@@ -26,14 +36,7 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
       setTimeout(() => {
           setIsLoading(false);
           onUpgrade();
-          onClose();
-          // Reset state after animation out
-          setTimeout(() => {
-              setStep('info');
-              setCardNumber('');
-              setExpiry('');
-              setCvc('');
-          }, 300);
+          setStep('success');
       }, 1500);
   };
 
@@ -43,14 +46,16 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
         <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 rounded-[2rem] blur-xl opacity-50" />
         
         <Card className="relative bg-slate-900 border border-amber-500/30 overflow-hidden flex flex-col items-center text-center p-8 min-h-[580px]">
-            <button 
-                onClick={onClose}
-                className="absolute top-5 right-5 z-10 p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-            >
-                <X size={18} />
-            </button>
+            {step !== 'success' && (
+                <button 
+                    onClick={handleClose}
+                    className="absolute top-5 right-5 z-10 p-2 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                >
+                    <X size={18} />
+                </button>
+            )}
 
-            {step === 'info' ? (
+            {step === 'info' && (
                 <div className="w-full h-full flex flex-col items-center animate-in slide-in-from-left-8 duration-300">
                     <motion.div 
                         initial={{ scale: 0, rotate: -180, x: -50, opacity: 0 }}
@@ -124,7 +129,9 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
                         Upgrade Now
                     </button>
                 </div>
-            ) : (
+            )}
+
+            {step === 'payment' && (
                 <form onSubmit={handleSimulatePayment} className="w-full h-full flex flex-col animate-in slide-in-from-right-8 duration-300">
                     <div className="flex items-center justify-between mb-6">
                         <button 
@@ -213,6 +220,86 @@ export const ProUpgradeModal: React.FC<ProUpgradeModalProps> = ({ isOpen, onClos
                         )}
                     </button>
                 </form>
+            )}
+
+            {step === 'success' && (
+                <div className="w-full h-full flex flex-col items-center justify-center animate-in zoom-in duration-500">
+                    <div className="relative mb-6">
+                        <motion.div 
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 15 }}
+                            className="absolute inset-0 bg-emerald-500 rounded-full blur-[40px] opacity-40 animate-pulse" 
+                        />
+                        <div className="relative">
+                            <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.2, type: "spring", stiffness: 300, damping: 20 }}
+                                className="w-32 h-32 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center shadow-2xl shadow-emerald-500/30"
+                            >
+                                <Check size={64} className="text-white drop-shadow-md" strokeWidth={4} />
+                            </motion.div>
+                            <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.4, type: "spring" }}
+                                className="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-400 p-2 rounded-full shadow-lg border-4 border-slate-900"
+                            >
+                                <Crown size={24} className="text-amber-900" fill="currentColor" />
+                            </motion.div>
+                        </div>
+                    </div>
+
+                    <motion.h2 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-4xl font-display font-bold text-white mb-2"
+                    >
+                        Pro Unlocked!
+                    </motion.h2>
+                    
+                    <motion.p 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="text-slate-400 text-sm mb-6 max-w-xs leading-relaxed"
+                    >
+                        Welcome to the elite circle. You now have:
+                    </motion.p>
+
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                        className="w-full max-w-xs space-y-2 mb-8"
+                    >
+                        {[
+                            'Unlimited Test Logs', 
+                            'Topic Heatmap Analysis', 
+                            'Unlimited Quick Logging', 
+                            'Custom Backgrounds'
+                        ].map((feat, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                                <div className="p-1 bg-emerald-500/20 rounded-full">
+                                    <Check size={10} className="text-emerald-400" strokeWidth={3} />
+                                </div>
+                                <span className="text-xs font-bold text-slate-200 tracking-wide">{feat}</span>
+                            </div>
+                        ))}
+                    </motion.div>
+
+                    <motion.button 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        onClick={handleClose}
+                        className="w-full py-4 bg-white hover:bg-slate-100 text-slate-900 rounded-xl font-bold uppercase tracking-widest shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <Sparkles size={16} className="text-amber-500" /> Start Exploring
+                    </motion.button>
+                </div>
             )}
         </Card>
       </div>
