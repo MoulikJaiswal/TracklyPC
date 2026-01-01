@@ -19,7 +19,8 @@ import {
   Download,
   Trophy,
   ArrowRight,
-  Crown
+  Crown,
+  Wifi
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId, QuestionLog, MistakeCounts } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
@@ -643,6 +644,8 @@ const App: React.FC = () => {
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showNetworkToast, setShowNetworkToast] = useState(false);
 
   // Reminders
   const [showTestReminder, setShowTestReminder] = useState(false);
@@ -675,6 +678,28 @@ const App: React.FC = () => {
       setAnimationsEnabled(false);
       dismissLag();
   }, [dismissLag]);
+
+  // Network Status Monitor
+  useEffect(() => {
+      const handleOnline = () => {
+          setIsOnline(true);
+          setShowNetworkToast(true);
+          setTimeout(() => setShowNetworkToast(false), 3000);
+      };
+      const handleOffline = () => {
+          setIsOnline(false);
+          setShowNetworkToast(true);
+          setTimeout(() => setShowNetworkToast(false), 3000);
+      };
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      return () => {
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('offline', handleOffline);
+      };
+  }, []);
 
   // Initialize Stats from LS
   useEffect(() => {
@@ -1360,6 +1385,34 @@ const App: React.FC = () => {
         onDismiss={dismissLag} 
       />
 
+      {/* Network Status Toast */}
+      <AnimatePresence>
+        {showNetworkToast && (
+          <motion.div
+            initial={{ y: -50, opacity: 0, x: '-50%' }}
+            animate={{ y: 20, opacity: 1, x: '-50%' }}
+            exit={{ y: -50, opacity: 0, x: '-50%' }}
+            className="fixed top-0 left-1/2 z-[200] px-4 py-2 rounded-full shadow-lg border backdrop-blur-md flex items-center gap-2"
+            style={{
+              backgroundColor: isOnline ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+              borderColor: isOnline ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'
+            }}
+          >
+             {isOnline ? (
+               <>
+                 <Wifi size={14} className="text-emerald-500" />
+                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Back Online</span>
+               </>
+             ) : (
+               <>
+                 <WifiOff size={14} className="text-rose-500" />
+                 <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide">No Internet Connection</span>
+               </>
+             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatedBackground 
         themeId={theme} 
         showAurora={effectiveShowAurora}
@@ -1389,9 +1442,19 @@ const App: React.FC = () => {
       {/* Mobile Header */}
       <div className="md:hidden relative z-10 p-6 flex justify-between items-center">
         <TracklyLogo id="trackly-logo-mobile" />
-        <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
-          <Settings size={24} className="text-slate-600 dark:text-slate-300" />
-        </button>
+        <div className="flex items-center gap-3">
+            {!isPro && (
+                <button 
+                    onClick={() => setShowProModal(true)}
+                    className="p-2 rounded-full bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all shadow-sm shadow-amber-500/10 active:scale-95"
+                >
+                    <Crown size={20} fill="currentColor" />
+                </button>
+            )}
+            <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+                <Settings size={24} className="text-slate-600 dark:text-slate-300" />
+            </button>
+        </div>
       </div>
 
       <main 
@@ -1488,7 +1551,7 @@ const App: React.FC = () => {
                         onOpenUpgrade={() => setShowProModal(true)}
                       />
                   )}
-                  {view === 'log' && (
+                  {view === 'resources' && (
                       <Resources />
                   )}
                 </Suspense>
