@@ -18,12 +18,16 @@ import {
   ShoppingBag,
   Download,
   Trophy,
-  ArrowRight
+  ArrowRight,
+  Crown
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId, QuestionLog, MistakeCounts } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
 import { SettingsModal } from './components/SettingsModal';
 import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
+import { usePerformanceMonitor } from './hooks/usePerformanceMonitor';
+import { PerformanceToast } from './components/PerformanceToast';
+import { ProUpgradeModal } from './components/ProUpgradeModal';
 
 // Firebase Imports
 import { auth, db, googleProvider } from './firebase';
@@ -410,7 +414,9 @@ const Sidebar = React.memo(({
     onLogout,
     isInstalled,
     onInstall,
-    userName
+    userName,
+    isPro,
+    onOpenUpgrade
 }: { 
     view: ViewType, 
     setView: (v: ViewType) => void, 
@@ -423,7 +429,9 @@ const Sidebar = React.memo(({
     onLogout: () => void,
     isInstalled: boolean,
     onInstall: () => void,
-    userName: string | null
+    userName: string | null,
+    isPro: boolean,
+    onOpenUpgrade: () => void
 }) => {
   return (
     <aside 
@@ -475,6 +483,34 @@ const Sidebar = React.memo(({
           )
         })}
       </nav>
+
+      {/* Pro Badge */}
+      <div className={`px-4 mb-2 ${isCollapsed ? 'hidden' : 'block'}`}>
+          {!isPro ? (
+              <button 
+                onClick={onOpenUpgrade}
+                className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl group transition-all hover:scale-[1.02]"
+              >
+                  <div className="p-1.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg text-white shadow-lg shadow-amber-500/30">
+                      <Crown size={14} fill="currentColor" />
+                  </div>
+                  <div className="text-left">
+                      <p className="text-xs font-bold text-amber-600 dark:text-amber-400">Upgrade to Pro</p>
+                      <p className="text-[9px] text-amber-600/70 dark:text-amber-400/70 font-bold uppercase tracking-wider">Unleash Power</p>
+                  </div>
+              </button>
+          ) : (
+              <div className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-xl">
+                  <div className="p-1.5 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-lg text-white shadow-lg shadow-emerald-500/30">
+                      <Crown size={14} fill="currentColor" />
+                  </div>
+                  <div>
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Pro Active</p>
+                      <p className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 font-bold uppercase tracking-wider">Power User</p>
+                  </div>
+              </div>
+          )}
+      </div>
 
       {/* Auth Status Section */}
       <div className={`px-4 py-2 ${isCollapsed ? 'hidden' : 'block'}`}>
@@ -582,10 +618,15 @@ const App: React.FC = () => {
   const [userName, setUserName] = useState<string | null>(null);
   const [guestNameInput, setGuestNameInput] = useState('');
 
+  // Pro State
+  const [isPro, setIsPro] = useState(false);
+  const [showProModal, setShowProModal] = useState(false);
+
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [graphicsEnabled, setGraphicsEnabled] = useState(true); // New Graphics Toggle
+  const [lagDetectionEnabled, setLagDetectionEnabled] = useState(true); // New Lag Detection Toggle
   const [theme, setTheme] = useState<ThemeId>('default-dark');
   const [showAurora, setShowAurora] = useState(true);
   
@@ -636,6 +677,15 @@ const App: React.FC = () => {
   const brownNoiseCtxRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
+
+  // Initialize Performance Monitor (Only active if graphics are ON and Lag Detection is ENABLED)
+  const { isLagging, dismiss: dismissLag } = usePerformanceMonitor(graphicsEnabled && lagDetectionEnabled);
+
+  const activateLiteMode = useCallback(() => {
+      setGraphicsEnabled(false);
+      setAnimationsEnabled(false);
+      dismissLag();
+  }, [dismissLag]);
 
   // Initialize Stats from LS
   useEffect(() => {
@@ -880,6 +930,13 @@ const App: React.FC = () => {
       setTargets([]);
   }, [user]);
 
+  // Handle Pro Upgrade
+  const handleUpgrade = useCallback(() => {
+      setIsPro(true);
+      // Persist Pro status (Simulator)
+      localStorage.setItem('trackly_pro_status', 'true');
+  }, []);
+
   // Global Click Sound Effect
   useEffect(() => {
     const handleClick = () => {
@@ -1069,6 +1126,7 @@ const App: React.FC = () => {
   useEffect(() => {
     setAnimationsEnabled(safeJSONParse('zenith_animations', true));
     setGraphicsEnabled(safeJSONParse('zenith_graphics', true));
+    setLagDetectionEnabled(safeJSONParse('zenith_lag_detection', true)); // Load Lag Setting
     const savedTheme = localStorage.getItem('zenith_theme_id');
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
     setSidebarCollapsed(safeJSONParse('zenith_sidebar_collapsed', false));
@@ -1078,6 +1136,7 @@ const App: React.FC = () => {
     setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
     setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)));
     setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)));
+    setIsPro(safeJSONParse('trackly_pro_status', false));
     
     // Audio & Timer Settings Load
     setSoundEnabled(safeJSONParse('zenith_sound_enabled', true));
@@ -1096,6 +1155,8 @@ const App: React.FC = () => {
     localStorage.setItem('zenith_graphics', JSON.stringify(graphicsEnabled));
     document.body.classList.toggle('low-graphics', !graphicsEnabled);
   }, [graphicsEnabled]);
+
+  useEffect(() => { localStorage.setItem('zenith_lag_detection', JSON.stringify(lagDetectionEnabled)); }, [lagDetectionEnabled]); // Save Lag Setting
 
   useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
@@ -1297,6 +1358,13 @@ const App: React.FC = () => {
     >
       <style>{dynamicStyles}</style>
 
+      {/* Lag Monitor Toast */}
+      <PerformanceToast 
+        isVisible={isLagging} 
+        onSwitch={activateLiteMode}
+        onDismiss={dismissLag} 
+      />
+
       <AnimatedBackground 
         themeId={theme} 
         showAurora={effectiveShowAurora}
@@ -1319,6 +1387,8 @@ const App: React.FC = () => {
           isInstalled={isInstalled}
           onInstall={handleInstallClick}
           userName={userName}
+          isPro={isPro}
+          onOpenUpgrade={() => setShowProModal(true)}
       />
 
       {/* Mobile Header */}
@@ -1408,10 +1478,17 @@ const App: React.FC = () => {
                           targets={targets} 
                           onSave={handleSaveTest}
                           onDelete={handleDeleteTest}
+                          isPro={isPro}
+                          onOpenUpgrade={() => setShowProModal(true)}
                       />
                   )}
                   {view === 'analytics' && (
-                      <Analytics sessions={sessions} tests={tests} />
+                      <Analytics 
+                        sessions={sessions} 
+                        tests={tests} 
+                        isPro={isPro} 
+                        onOpenUpgrade={() => setShowProModal(true)}
+                      />
                   )}
                 </Suspense>
              </motion.div>
@@ -1452,6 +1529,13 @@ const App: React.FC = () => {
             </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Pro Upgrade Modal */}
+      <ProUpgradeModal 
+        isOpen={showProModal} 
+        onClose={() => setShowProModal(false)}
+        onUpgrade={handleUpgrade}
+      />
 
       {/* Nav and Modals ... */}
       <nav 
@@ -1495,6 +1579,8 @@ const App: React.FC = () => {
         toggleAnimations={() => setAnimationsEnabled(!animationsEnabled)}
         graphicsEnabled={graphicsEnabled}
         toggleGraphics={() => setGraphicsEnabled(!graphicsEnabled)}
+        lagDetectionEnabled={lagDetectionEnabled}
+        toggleLagDetection={() => setLagDetectionEnabled(!lagDetectionEnabled)}
         theme={theme}
         setTheme={setTheme}
         onStartTutorial={startTutorial}

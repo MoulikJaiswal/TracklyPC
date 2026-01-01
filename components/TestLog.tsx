@@ -1,6 +1,6 @@
 import React, { useState, useMemo, memo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown, Crown, Lock } from 'lucide-react';
 import { TestResult, Target as TargetType, SubjectBreakdown, MistakeCounts } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES } from '../constants';
@@ -19,6 +19,8 @@ interface TestLogProps {
   targets?: TargetType[]; 
   onSave: (test: Omit<TestResult, 'id' | 'timestamp'>) => void;
   onDelete: (id: string) => void;
+  isPro: boolean;
+  onOpenUpgrade: () => void;
 }
 
 const DEFAULT_BREAKDOWN: SubjectBreakdown = {
@@ -207,7 +209,7 @@ const PerformanceGraph = memo(({ tests }: { tests: TestResult[] }) => {
     );
 });
 
-export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSave, onDelete }) => {
+export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSave, onDelete, isPro, onOpenUpgrade }) => {
   const [isAdding, setIsAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewFile, setPreviewFile] = useState<{ name: string; type: 'image' | 'pdf' } | null>(null);
@@ -232,6 +234,14 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
       Maths: { ...DEFAULT_BREAKDOWN, unattempted: 25 }
     }
   });
+
+  const handleAddClick = () => {
+      if (!isPro && tests.length >= 2) {
+          onOpenUpgrade();
+      } else {
+          setIsAdding(!isAdding);
+      }
+  };
 
   const handleCalculateMarks = useCallback(() => {
     setFormData(prev => {
@@ -452,14 +462,32 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
       <div className="flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Test Log</h2>
-          <p className="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mt-1 font-bold">Track performance curves</p>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mt-1">
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-bold">Track performance curves</p>
+              {!isPro && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/20 rounded-full border border-amber-200 dark:border-amber-500/20 w-fit">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                          {tests.length} / 2 Free Tests
+                      </span>
+                  </div>
+              )}
+          </div>
         </div>
         <button 
-          onClick={() => setIsAdding(!isAdding)} 
-          className="group flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 rounded-2xl text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
+          onClick={handleAddClick} 
+          className={`group flex items-center gap-2 px-5 py-2.5 rounded-2xl text-white text-xs font-bold uppercase tracking-wider shadow-lg active:scale-95 transition-all
+            ${!isPro && tests.length >= 2 
+                ? 'bg-amber-500 hover:bg-amber-400 shadow-amber-500/20' 
+                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
+            }
+          `}
         >
-          {isAdding ? <X size={16} /> : <Plus size={16} className="group-hover:rotate-90 transition-transform" />}
-          {isAdding ? 'Cancel' : 'Log Test'}
+          {isAdding 
+            ? <X size={16} /> 
+            : (!isPro && tests.length >= 2) ? <Crown size={16} /> : <Plus size={16} className="group-hover:rotate-90 transition-transform" />
+          }
+          {isAdding ? 'Cancel' : (!isPro && tests.length >= 2) ? 'Upgrade to Log' : 'Log Test'}
         </button>
       </div>
 

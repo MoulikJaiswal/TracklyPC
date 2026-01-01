@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Coffee, Heart, Sparkles, ExternalLink, Mail, Copy, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,7 +27,7 @@ export const BuyMeCoffee: React.FC = () => {
                 <Coffee size={24} strokeWidth={2.5} />
               </div>
               <div className="flex-1 text-left">
-                 <span className="block text-sm font-bold uppercase tracking-wide">Buy a Coffee</span>
+                 <span className="block text-sm font-bold uppercase tracking-wide">Buy me a coffee</span>
                  <span className="block text-[10px] font-bold opacity-60 uppercase tracking-widest">$3.00 • Keep the fire burning</span>
               </div>
               <ExternalLink size={16} className="opacity-50" />

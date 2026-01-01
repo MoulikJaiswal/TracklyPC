@@ -1,5 +1,5 @@
 import React, { useMemo, useState, memo } from 'react';
-import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid } from 'lucide-react';
+import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid, Lock, Crown } from 'lucide-react';
 import { Session, TestResult } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
@@ -7,6 +7,8 @@ import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
 interface AnalyticsProps {
   sessions: Session[];
   tests: TestResult[];
+  isPro: boolean;
+  onOpenUpgrade: () => void;
 }
 
 const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
@@ -66,7 +68,7 @@ const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
   );
 });
 
-const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
+const SyllabusHeatmap = memo(({ sessions, isPro, onOpenUpgrade }: { sessions: Session[], isPro: boolean, onOpenUpgrade: () => void }) => {
   const topicStats = useMemo(() => {
     const stats: Record<string, { attempted: number, correct: number }> = {};
     sessions.forEach(s => {
@@ -79,11 +81,13 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
   }, [sessions]);
 
   return (
-    <div className="mt-8 space-y-6">
+    <div className="mt-8 space-y-6 relative">
       <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
          <Grid size={14} /> Topic Mastery Heatmap
+         {!isPro && <span className="bg-amber-500/10 text-amber-500 text-[9px] px-2 py-0.5 rounded border border-amber-500/20">PRO</span>}
       </h3>
-      <div className="grid grid-cols-1 gap-6">
+      
+      <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${!isPro ? 'preserve-filter blur-sm opacity-60 pointer-events-none select-none grayscale-[0.2]' : ''}`}>
          {Object.entries(JEE_SYLLABUS).map(([subject, topics]) => (
             <div key={subject} className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-slate-200 dark:border-white/5">
                 <div className="flex items-center gap-2 mb-4">
@@ -126,11 +130,30 @@ const SyllabusHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
             </div>
          ))}
       </div>
+
+      {/* Paywall Overlay */}
+      {!isPro && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+              <div className="p-6 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl flex flex-col items-center text-center max-w-xs animate-in fade-in duration-300">
+                  <div className="p-3 bg-amber-500/20 rounded-2xl mb-4 text-amber-500">
+                      <Lock size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-1">Advanced Analytics</h3>
+                  <p className="text-xs text-slate-400 mb-6">See exactly which chapters need work with the Topic Heatmap.</p>
+                  <button 
+                    onClick={onOpenUpgrade}
+                    className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-amber-500/20 active:scale-95"
+                  >
+                      <Crown size={14} /> Unlock Pro
+                  </button>
+              </div>
+          </div>
+      )}
     </div>
   )
 });
 
-export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) => {
+export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests, isPro, onOpenUpgrade }) => {
   const stats = useMemo(() => {
     const totalAttempted = sessions.reduce((acc, s) => acc + (Number(s.attempted) || 0), 0);
     const totalCorrect = sessions.reduce((acc, s) => acc + (Number(s.correct) || 0), 0);
@@ -244,8 +267,8 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests }) =>
                 </div>
             </div>
             
-            {/* Syllabus Heatmap Section */}
-            <SyllabusHeatmap sessions={sessions} />
+            {/* Syllabus Heatmap Section - Locked if not Pro */}
+            <SyllabusHeatmap sessions={sessions} isPro={isPro} onOpenUpgrade={onOpenUpgrade} />
       </div>
     </div>
   );
