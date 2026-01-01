@@ -82,7 +82,7 @@ const TestAnalytics = memo(({ tests }: { tests: TestResult[] }) => {
             (['Physics', 'Chemistry', 'Maths'] as const).forEach(sub => {
                 const mistakes = t.breakdown?.[sub]?.mistakes || {};
                 Object.entries(mistakes).forEach(([type, count]) => {
-                    counts[type] = (counts[type] || 0) + (count || 0);
+                    counts[type] = (counts[type] || 0) + (Number(count) || 0);
                 });
             });
         });
@@ -95,10 +95,11 @@ const TestAnalytics = memo(({ tests }: { tests: TestResult[] }) => {
     if (dataPoints.length < 2) return null;
 
     // Graph Dimensions
+    // We use a normalized coordinate system for the SVG logic
     const width = 1000;
-    const height = 320;
-    const paddingX = 60;
-    const paddingY = 50;
+    const height = 300; 
+    const paddingX = 20; // Reduced padding as axis is external
+    const paddingY = 40; // Top/Bottom buffer for lines
     const graphWidth = width - (paddingX * 2);
     const graphHeight = height - (paddingY * 2);
 
@@ -146,7 +147,7 @@ const TestAnalytics = memo(({ tests }: { tests: TestResult[] }) => {
                 </div>
             </div>
 
-            <div className="relative w-full h-[340px] bg-white dark:bg-[#0f172a] transition-colors">
+            <div className="relative w-full h-[340px] bg-white dark:bg-[#0f172a] transition-colors flex">
                 {activeTab === 'mistakes' ? (
                     <div className="h-full w-full p-8 flex items-center justify-center">
                         <div className="w-full max-w-3xl grid grid-cols-2 gap-6">
@@ -176,152 +177,155 @@ const TestAnalytics = memo(({ tests }: { tests: TestResult[] }) => {
                     </div>
                 ) : (
                     <>
-                        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible preserve-3d">
-                            <defs>
-                                <linearGradient id="grad-overall" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4"/>
-                                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0"/>
-                                </linearGradient>
-                                <linearGradient id="grad-phys" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3"/>
-                                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
-                                </linearGradient>
-                                <linearGradient id="grad-chem" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"/>
-                                    <stop offset="100%" stopColor="#f97316" stopOpacity="0"/>
-                                </linearGradient>
-                                <linearGradient id="grad-math" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.3"/>
-                                    <stop offset="100%" stopColor="#f43f5e" stopOpacity="0"/>
-                                </linearGradient>
-                            </defs>
-
-                            {/* Grid & Axis */}
+                        {/* --- Y-Axis Overlay (HTML) --- */}
+                        <div className="w-12 h-full relative border-r border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-black/20 flex-shrink-0 z-10">
                             {[0, 25, 50, 75, 100].map(tick => (
-                                <g key={tick}>
+                                <div 
+                                    key={tick} 
+                                    className="absolute right-2 text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 transform -translate-y-1/2 flex items-center justify-end w-full pr-1"
+                                    style={{ top: `${(getY(tick) / height) * 100}%` }}
+                                >
+                                    {tick}%
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* --- Chart Area --- */}
+                        <div className="flex-1 h-full relative overflow-hidden">
+                            <svg 
+                                viewBox={`0 0 ${width} ${height}`} 
+                                preserveAspectRatio="none" 
+                                className="w-full h-full overflow-visible"
+                            >
+                                <defs>
+                                    <linearGradient id="grad-overall" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#6366f1" stopOpacity="0.4"/>
+                                        <stop offset="100%" stopColor="#6366f1" stopOpacity="0"/>
+                                    </linearGradient>
+                                    <linearGradient id="grad-phys" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3"/>
+                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0"/>
+                                    </linearGradient>
+                                    <linearGradient id="grad-chem" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#f97316" stopOpacity="0.3"/>
+                                        <stop offset="100%" stopColor="#f97316" stopOpacity="0"/>
+                                    </linearGradient>
+                                    <linearGradient id="grad-math" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.3"/>
+                                        <stop offset="100%" stopColor="#f43f5e" stopOpacity="0"/>
+                                    </linearGradient>
+                                </defs>
+
+                                {/* Grid Lines */}
+                                {[0, 25, 50, 75, 100].map(tick => (
                                     <line 
-                                        x1={paddingX} y1={safeNum(getY(tick))} 
-                                        x2={width - paddingX} y2={safeNum(getY(tick))} 
+                                        key={tick}
+                                        x1="0" y1={safeNum(getY(tick))} 
+                                        x2={width} y2={safeNum(getY(tick))} 
                                         stroke="currentColor" 
                                         strokeWidth="1"
-                                        className="text-slate-200 dark:text-white/10" 
+                                        className="text-slate-100 dark:text-white/5" 
+                                        vectorEffect="non-scaling-stroke"
                                     />
-                                    <text 
-                                        x={paddingX - 12} y={safeNum(getY(tick))} dy="4" 
-                                        textAnchor="end" className="text-[11px] font-mono fill-slate-400 dark:fill-slate-500 font-bold"
-                                    >{tick}%</text>
-                                </g>
-                            ))}
+                                ))}
 
-                            {/* Lines with Area Gradients */}
-                            {activeTab === 'overview' ? (
-                                <>
-                                    <path d={generateAreaPath('overall')} fill="url(#grad-overall)" className="transition-all duration-500" />
-                                    <path 
-                                        d={generatePath('overall')} 
-                                        fill="none" stroke="#6366f1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"
-                                        className="drop-shadow-lg animate-in fade-in duration-1000"
-                                    />
-                                </>
-                            ) : (
-                                <>
-                                    {/* Layers background to foreground */}
-                                    <path d={generateAreaPath('Physics')} fill="url(#grad-phys)" className="transition-all duration-500" />
-                                    <path d={generatePath('Physics')} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                                    
-                                    <path d={generateAreaPath('Chemistry')} fill="url(#grad-chem)" className="transition-all duration-500" />
-                                    <path d={generatePath('Chemistry')} fill="none" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                                    
-                                    <path d={generateAreaPath('Maths')} fill="url(#grad-math)" className="transition-all duration-500" />
-                                    <path d={generatePath('Maths')} fill="none" stroke="#f43f5e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                                </>
-                            )}
+                                {/* Lines with Area Gradients */}
+                                {activeTab === 'overview' ? (
+                                    <>
+                                        <path d={generateAreaPath('overall')} fill="url(#grad-overall)" className="transition-all duration-500" />
+                                        <path 
+                                            d={generatePath('overall')} 
+                                            fill="none" stroke="#6366f1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                                            className="drop-shadow-lg animate-in fade-in duration-1000"
+                                            vectorEffect="non-scaling-stroke"
+                                        />
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Layers background to foreground */}
+                                        <path d={generateAreaPath('Physics')} fill="url(#grad-phys)" className="transition-all duration-500" />
+                                        <path d={generatePath('Physics')} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                                        
+                                        <path d={generateAreaPath('Chemistry')} fill="url(#grad-chem)" className="transition-all duration-500" />
+                                        <path d={generatePath('Chemistry')} fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                                        
+                                        <path d={generateAreaPath('Maths')} fill="url(#grad-math)" className="transition-all duration-500" />
+                                        <path d={generatePath('Maths')} fill="none" stroke="#f43f5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                                    </>
+                                )}
+                            </svg>
 
-                            {/* Interaction Layer */}
-                            {dataPoints.map((d, i) => (
-                                <g key={i}>
-                                    {/* Mood Indicators (Only on Overview) */}
-                                    {activeTab === 'overview' && (
-                                        <foreignObject x={safeNum(getX(i)) - 10} y={height - 25} width="20" height="20">
+                            {/* Interaction Layer - HTML Overlay for Crisp Dots */}
+                            {dataPoints.map((d, i) => {
+                                // Calculate percentages for positioning
+                                const leftPct = (getX(i) / width) * 100;
+                                const topPct = (getY(activeTab === 'overview' ? d.overall : d.Physics) / height) * 100; // Only showing primary dots for overview or just base dots?
+                                
+                                return (
+                                    <React.Fragment key={i}>
+                                        {/* Interaction Zone (Full Height Bar) */}
+                                        <div 
+                                            className="absolute top-0 bottom-0 w-[10%] hover:bg-white/5 dark:hover:bg-white/5 cursor-pointer z-20 group"
+                                            style={{ left: `calc(${leftPct}% - 5%)` }} // Centered interaction zone
+                                            onMouseEnter={() => setHoveredIndex(i)}
+                                            onMouseLeave={() => setHoveredIndex(null)}
+                                        />
+
+                                        {/* Vertical Guide Line (Visible on Hover) */}
+                                        {hoveredIndex === i && (
                                             <div 
-                                                className={`w-2 h-2 mx-auto rounded-full mt-2 ring-2 ring-white dark:ring-[#0f172a] ${
-                                                    d.temperament === 'Calm' ? 'bg-emerald-400' : 
-                                                    d.temperament === 'Anxious' ? 'bg-rose-400' : 
-                                                    d.temperament === 'Focused' ? 'bg-indigo-400' : 'bg-amber-400'
-                                                }`} 
-                                                title={d.temperament}
+                                                className="absolute top-[40px] bottom-[40px] border-l-2 border-dashed border-slate-300 dark:border-white/20 pointer-events-none z-0"
+                                                style={{ left: `${leftPct}%` }}
                                             />
-                                        </foreignObject>
-                                    )}
+                                        )}
 
-                                    <rect
-                                        x={safeNum(getX(i)) - (graphWidth / (dataPoints.length * 2))}
-                                        y={paddingY}
-                                        width={safeNum(graphWidth / dataPoints.length)}
-                                        height={graphHeight}
-                                        fill="transparent"
-                                        onMouseEnter={() => setHoveredIndex(i)}
-                                        onMouseLeave={() => setHoveredIndex(null)}
-                                        className="cursor-pointer"
-                                    />
+                                        {/* Dots */}
+                                        {activeTab === 'overview' ? (
+                                            <div 
+                                                className={`
+                                                    absolute w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 shadow-md transition-all duration-300 pointer-events-none z-10
+                                                    ${hoveredIndex === i ? 'scale-150 bg-indigo-500' : 'bg-indigo-500 scale-100'}
+                                                `}
+                                                style={{ 
+                                                    left: `${leftPct}%`, 
+                                                    top: `${(getY(d.overall) / height) * 100}%`,
+                                                    transform: 'translate(-50%, -50%)'
+                                                }}
+                                            />
+                                        ) : (
+                                            <>
+                                                <div 
+                                                    className="absolute w-2 h-2 rounded-full bg-blue-500 border border-white dark:border-slate-900 pointer-events-none"
+                                                    style={{ left: `${leftPct}%`, top: `${(getY(d.Physics) / height) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                                                />
+                                                <div 
+                                                    className="absolute w-2 h-2 rounded-full bg-orange-500 border border-white dark:border-slate-900 pointer-events-none"
+                                                    style={{ left: `${leftPct}%`, top: `${(getY(d.Chemistry) / height) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                                                />
+                                                <div 
+                                                    className="absolute w-2 h-2 rounded-full bg-rose-500 border border-white dark:border-slate-900 pointer-events-none"
+                                                    style={{ left: `${leftPct}%`, top: `${(getY(d.Maths) / height) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                                                />
+                                            </>
+                                        )}
+                                    </React.Fragment>
+                                )
+                            })}
 
-                                    {hoveredIndex === i && (
-                                        <line 
-                                            x1={safeNum(getX(i))} y1={paddingY} 
-                                            x2={safeNum(getX(i))} y2={height - paddingY} 
-                                            stroke="currentColor" strokeWidth="2" strokeDasharray="4 4"
-                                            className="text-slate-400 dark:text-white/40"
-                                        />
-                                    )}
-
-                                    {/* Points */}
-                                    {activeTab === 'overview' ? (
-                                        <circle 
-                                            cx={safeNum(getX(i))} cy={safeNum(getY(d.overall))} r={hoveredIndex === i ? 8 : 5}
-                                            className="fill-indigo-500 stroke-white dark:stroke-[#0f172a] stroke-[3px] shadow-sm transition-all duration-200"
-                                        />
-                                    ) : (
-                                        <>
-                                            <circle cx={safeNum(getX(i))} cy={safeNum(getY(d.Physics))} r={hoveredIndex === i ? 6 : 4} className="fill-blue-500 stroke-white dark:stroke-[#0f172a] stroke-2" />
-                                            <circle cx={safeNum(getX(i))} cy={safeNum(getY(d.Chemistry))} r={hoveredIndex === i ? 6 : 4} className="fill-orange-500 stroke-white dark:stroke-[#0f172a] stroke-2" />
-                                            <circle cx={safeNum(getX(i))} cy={safeNum(getY(d.Maths))} r={hoveredIndex === i ? 6 : 4} className="fill-rose-500 stroke-white dark:stroke-[#0f172a] stroke-2" />
-                                        </>
-                                    )}
-                                </g>
-                            ))}
-                        </svg>
-
-                        {/* Tooltip Overlay */}
-                        {hoveredIndex !== null && dataPoints[hoveredIndex] && (
-                            <div 
-                                className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none bg-slate-900/95 dark:bg-black/90 backdrop-blur text-white px-5 py-3 rounded-2xl shadow-2xl border border-white/10 z-10 flex gap-5 items-center min-w-[200px]"
-                            >
-                                <div>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{dataPoints[hoveredIndex].date}</p>
-                                    <p className="text-sm font-bold truncate max-w-[120px]">{dataPoints[hoveredIndex].name}</p>
-                                </div>
-                                <div className="h-8 w-px bg-white/10" />
-                                <div className="text-right">
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{dataPoints[hoveredIndex].temperament}</p>
-                                    <p className="text-xl font-mono font-bold text-indigo-400">{Math.round(dataPoints[hoveredIndex].overall)}%</p>
-                                </div>
-                            </div>
-                        )}
-                        
-                        {/* Legend */}
-                        <div className="absolute bottom-2 w-full flex justify-center gap-4 pointer-events-none">
-                            {activeTab === 'subjects' && (
-                                <div className="flex gap-4 bg-white/90 dark:bg-slate-900/90 px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 shadow-lg backdrop-blur-md">
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-blue-600 dark:text-blue-400"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"/> Phys</span>
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-orange-600 dark:text-orange-400"><div className="w-2.5 h-2.5 rounded-full bg-orange-500"/> Chem</span>
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"/> Math</span>
-                                </div>
-                            )}
-                            {activeTab === 'overview' && (
-                                <div className="flex gap-4 bg-white/90 dark:bg-slate-900/90 px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 shadow-lg backdrop-blur-md">
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400"><div className="w-2 h-2 rounded-full bg-emerald-500"/> Calm</span>
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400"><div className="w-2 h-2 rounded-full bg-rose-500"/> Anx</span>
-                                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase text-indigo-600 dark:text-indigo-400"><div className="w-2 h-2 rounded-full bg-indigo-500"/> Focus</span>
+                            {/* Tooltip Overlay */}
+                            {hoveredIndex !== null && dataPoints[hoveredIndex] && (
+                                <div 
+                                    className="absolute top-4 left-1/2 -translate-x-1/2 pointer-events-none bg-slate-900/95 dark:bg-black/90 backdrop-blur text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/10 z-30 flex gap-4 items-center min-w-[180px]"
+                                >
+                                    <div>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{dataPoints[hoveredIndex].date}</p>
+                                        <p className="text-sm font-bold truncate max-w-[120px]">{dataPoints[hoveredIndex].name}</p>
+                                    </div>
+                                    <div className="h-8 w-px bg-white/10" />
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{dataPoints[hoveredIndex].temperament}</p>
+                                        <p className="text-xl font-mono font-bold text-indigo-400">{Math.round(dataPoints[hoveredIndex].overall)}%</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
