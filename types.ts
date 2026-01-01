@@ -50,6 +50,8 @@ export interface TestResult {
   attachment?: string; // Base64 string of the file
   attachmentType?: 'image' | 'pdf';
   fileName?: string;
+  testType?: 'Full' | 'Part';
+  syllabus?: string[];
 }
 
 export interface Target {

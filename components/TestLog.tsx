@@ -1,9 +1,9 @@
 import React, { useState, useMemo, memo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown, Crown, Lock, GripHorizontal, Check, Brain, Activity } from 'lucide-react';
+import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown, Crown, Lock, GripHorizontal, Check, Brain, Activity, Layers, ListChecks, CheckSquare } from 'lucide-react';
 import { TestResult, Target as TargetType, SubjectBreakdown, MistakeCounts } from '../types';
 import { Card } from './Card';
-import { MISTAKE_TYPES } from '../constants';
+import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
 
 // Helper for local date string YYYY-MM-DD
 const getLocalDate = () => {
@@ -344,6 +344,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
   const [viewingReport, setViewingReport] = useState<TestResult | null>(null);
   const [reportSubject, setReportSubject] = useState<'Physics' | 'Chemistry' | 'Maths' | null>(null);
   const [activeTab, setActiveTab] = useState<'Physics' | 'Chemistry' | 'Maths'>('Physics');
+  const [syllabusTab, setSyllabusTab] = useState<'Physics' | 'Chemistry' | 'Maths'>('Physics');
   const [globalQCount, setGlobalQCount] = useState<number>(75); 
 
   const [formData, setFormData] = useState<Omit<TestResult, 'id' | 'timestamp'>>({
@@ -355,6 +356,8 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     attachment: undefined,
     attachmentType: undefined,
     fileName: undefined,
+    testType: 'Full',
+    syllabus: [],
     breakdown: {
       Physics: { ...DEFAULT_BREAKDOWN, unattempted: 25 },
       Chemistry: { ...DEFAULT_BREAKDOWN, unattempted: 25 },
@@ -538,6 +541,17 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
     });
   };
 
+  const toggleSyllabusChapter = (chapter: string) => {
+      setFormData(prev => {
+          const current = prev.syllabus || [];
+          if (current.includes(chapter)) {
+              return { ...prev, syllabus: current.filter(c => c !== chapter) };
+          } else {
+              return { ...prev, syllabus: [...current, chapter] };
+          }
+      });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name) return;
@@ -553,6 +567,8 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
       attachment: undefined,
       attachmentType: undefined,
       fileName: undefined,
+      testType: 'Full',
+      syllabus: [],
       breakdown: {
         Physics: { ...DEFAULT_BREAKDOWN, unattempted: 25 },
         Chemistry: { ...DEFAULT_BREAKDOWN, unattempted: 25 },
@@ -617,7 +633,6 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
       {isAdding && (
         <Card className="bg-slate-900/50 dark:bg-slate-900/50 border border-slate-800 max-w-2xl mx-auto shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* ... (Form Content Same as before) ... */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Test Name</label>
@@ -637,6 +652,77 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                   onChange={e => setFormData({...formData, date: e.target.value})}
                 />
               </div>
+
+              {/* Test Type Selector */}
+              <div className="md:col-span-2 space-y-2">
+                 <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Test Format</label>
+                 <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                     <button
+                        type="button"
+                        onClick={() => setFormData({...formData, testType: 'Full'})}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${formData.testType === 'Full' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                     >
+                         Full Syllabus
+                     </button>
+                     <button
+                        type="button"
+                        onClick={() => setFormData({...formData, testType: 'Part'})}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-all ${formData.testType === 'Part' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                     >
+                         Part Test
+                     </button>
+                 </div>
+              </div>
+
+              {/* Syllabus Picker (Only visible for Part Tests) */}
+              {formData.testType === 'Part' && (
+                  <div className="md:col-span-2 bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden animate-in slide-in-from-top-2">
+                      <div className="p-3 border-b border-slate-700 bg-slate-800 flex justify-between items-center">
+                          <label className="text-[10px] uppercase font-bold text-indigo-400 ml-1 flex items-center gap-2">
+                              <ListChecks size={14} /> Select Syllabus
+                          </label>
+                          <span className="text-[10px] font-mono text-slate-400">{formData.syllabus?.length || 0} Chapters Selected</span>
+                      </div>
+                      
+                      <div className="flex border-b border-slate-700">
+                           {(['Physics', 'Chemistry', 'Maths'] as const).map(sub => (
+                               <button
+                                  key={sub}
+                                  type="button"
+                                  onClick={() => setSyllabusTab(sub)}
+                                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors ${syllabusTab === sub ? 'bg-slate-700 text-white' : 'text-slate-500 hover:bg-slate-800'}`}
+                               >
+                                   {sub}
+                               </button>
+                           ))}
+                      </div>
+
+                      <div className="p-3 max-h-48 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {JEE_SYLLABUS[syllabusTab].map(chapter => {
+                              const isSelected = formData.syllabus?.includes(chapter);
+                              return (
+                                  <button
+                                      key={chapter}
+                                      type="button"
+                                      onClick={() => toggleSyllabusChapter(chapter)}
+                                      className={`
+                                          flex items-center gap-2 p-2 rounded-lg text-left transition-all
+                                          ${isSelected 
+                                              ? 'bg-indigo-500/20 border border-indigo-500/50 text-indigo-200' 
+                                              : 'bg-slate-800 border border-slate-700 text-slate-400 hover:bg-slate-700'
+                                          }
+                                      `}
+                                  >
+                                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-slate-500'}`}>
+                                          {isSelected && <Check size={10} className="text-white" />}
+                                      </div>
+                                      <span className="text-xs font-medium truncate">{chapter}</span>
+                                  </button>
+                              )
+                          })}
+                      </div>
+                  </div>
+              )}
               
               <div className="md:col-span-2 grid grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -880,13 +966,24 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                     <div className="flex flex-col">
                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">{t.date}</span>
                          <h3 className="text-slate-900 dark:text-white font-bold text-base line-clamp-1 leading-tight">{t.name}</h3>
-                         <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider mt-2 w-fit ${
-                             t.temperament === 'Calm' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' :
-                             t.temperament === 'Anxious' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400' :
-                             'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400'
-                         }`}>
-                             {t.temperament}
-                         </span>
+                         <div className="flex items-center gap-2 mt-2">
+                             <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                 t.temperament === 'Calm' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' :
+                                 t.temperament === 'Anxious' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400' :
+                                 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400'
+                             }`}>
+                                 {t.temperament}
+                             </span>
+                             {/* Test Type Badge */}
+                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${
+                                 t.testType === 'Part' 
+                                 ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' 
+                                 : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400 border-slate-200 dark:border-white/10'
+                             }`}>
+                                 {t.testType === 'Part' ? <PieChart size={10} /> : <CheckSquare size={10} />}
+                                 {t.testType || 'Full'}
+                             </span>
+                         </div>
                     </div>
                     <div className="flex flex-col items-end">
                       <div className="text-3xl font-display font-bold text-slate-900 dark:text-white leading-none">
@@ -974,6 +1071,12 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                                   <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{viewingReport.date}</span>
                                   <span className="w-1 h-1 bg-white/40 rounded-full" />
                                   <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{viewingReport.temperament}</span>
+                                  {viewingReport.testType && (
+                                      <>
+                                          <span className="w-1 h-1 bg-white/40 rounded-full" />
+                                          <span className="text-[10px] font-bold text-purple-300 uppercase tracking-widest">{viewingReport.testType} Test</span>
+                                      </>
+                                  )}
                               </div>
                               <h2 className="text-2xl font-bold text-white leading-tight">{viewingReport.name}</h2>
                           </div>
@@ -998,6 +1101,29 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                   {/* Body */}
                   <div className="p-6 overflow-y-auto bg-slate-50 dark:bg-[#0f172a]">
                       
+                      {/* Syllabus Covered Section */}
+                      {viewingReport.testType === 'Part' && viewingReport.syllabus && viewingReport.syllabus.length > 0 && (
+                          <div className="mb-6">
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2 mb-3">
+                                  <ListChecks size={14} /> Syllabus Covered
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                  {viewingReport.syllabus.map(chapter => {
+                                      const subject = Object.keys(JEE_SYLLABUS).find(sub => JEE_SYLLABUS[sub as keyof typeof JEE_SYLLABUS].includes(chapter));
+                                      const color = subject === 'Physics' ? 'text-blue-500 bg-blue-500/10 border-blue-500/20' : 
+                                                    subject === 'Chemistry' ? 'text-orange-500 bg-orange-500/10 border-orange-500/20' :
+                                                    'text-rose-500 bg-rose-500/10 border-rose-500/20';
+                                      
+                                      return (
+                                          <span key={chapter} className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wide rounded-lg border ${color}`}>
+                                              {chapter}
+                                          </span>
+                                      )
+                                  })}
+                              </div>
+                          </div>
+                      )}
+
                       {/* Subject Breakdown List */}
                       <div className="mb-8">
                           <div className="flex justify-between items-center mb-4">
