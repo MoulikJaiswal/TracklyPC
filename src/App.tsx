@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
@@ -21,7 +22,8 @@ import {
   ArrowRight,
   Crown,
   Wifi,
-  Menu
+  Menu,
+  HardDrive
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId, QuestionLog, MistakeCounts } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
@@ -387,6 +389,225 @@ const AnimatedBackground = React.memo(({
   );
 });
 
+const TABS = [
+  { id: 'daily', label: 'Home', icon: LayoutDashboard },
+  { id: 'planner', label: 'Plan', icon: CalendarIcon },
+  { id: 'focus', label: 'Focus', icon: Timer },
+  { id: 'tests', label: 'Tests', icon: PenTool },
+  { id: 'analytics', label: 'Stats', icon: BarChart3 },
+];
+
+const TOUR_STEPS: TutorialStep[] = [
+  { view: 'daily', targetId: 'trackly-logo', title: 'Welcome to Trackly', description: 'Your command center for academic excellence. This guided tour will show you how to maximize your study efficiency.', icon: LayoutDashboard },
+  { view: 'daily', targetId: 'dashboard-subjects', title: 'Track Subjects', description: 'These pods are your daily drivers. Click on Physics, Chemistry, or Maths to log your sessions and track syllabus progress.', icon: Atom },
+  { view: 'planner', targetId: 'planner-container', title: 'Strategic Planning', description: 'Use the Planner to schedule tasks for the week or month ahead. Switch views to see your entire month at a glance.', icon: CalendarIcon },
+  { view: 'focus', targetId: 'timer-container', title: 'Deep Focus Timer', description: 'Select a specific task from your planner to work on. Enable Brown Noise for isolation and track your flow state.', icon: Timer },
+  { view: 'tests', targetId: 'test-log-container', title: 'Test Analysis', description: 'Log your mock test scores here. Record not just your marks, but your temperament and specific mistake patterns.', icon: PenTool },
+  { view: 'analytics', targetId: 'analytics-container', title: 'Smart Analytics', description: 'Visualize your syllabus mastery with the new Topic Heatmap. See exactly which chapters are green (mastered) or red (needs work).', icon: BarChart3 },
+  { view: 'daily', targetId: 'settings-btn', title: 'Themes & Controls', description: 'Customize your workspace. Switch themes, toggle Parallax Effects and Background Elements, or enable High Performance mode.', icon: Settings }
+];
+
+const Sidebar = React.memo(({ 
+    view, 
+    setView, 
+    onOpenSettings, 
+    isCollapsed, 
+    toggleCollapsed,
+    user,
+    isGuest,
+    onLogin,
+    onLogout,
+    isInstalled,
+    onInstall,
+    userName,
+    isPro,
+    onOpenUpgrade
+}: { 
+    view: ViewType, 
+    setView: (v: ViewType) => void, 
+    onOpenSettings: () => void,
+    isCollapsed: boolean,
+    toggleCollapsed: () => void,
+    user: User | null,
+    isGuest: boolean,
+    onLogin: () => void,
+    onLogout: () => void,
+    isInstalled: boolean,
+    onInstall: () => void,
+    userName: string | null,
+    isPro: boolean,
+    onOpenUpgrade: () => void
+}) => {
+  return (
+    <aside 
+        className={`hidden md:flex flex-col h-screen fixed left-0 top-0 z-40 border-r border-slate-200 dark:border-white/5 backdrop-blur-xl transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isCollapsed ? 'w-20 items-center' : 'w-64'} overflow-visible transform-gpu will-change-transform`}
+        style={{ backgroundColor: 'rgba(var(--theme-card-rgb), 0.5)' }}
+    >
+      <div className={`h-20 flex items-center relative shrink-0 ${isCollapsed ? 'justify-center px-0 w-full' : 'justify-between px-6'}`}>
+        <TracklyLogo collapsed={isCollapsed} id="trackly-logo" />
+        <button 
+           onClick={toggleCollapsed}
+           className={`absolute top-1/2 -translate-y-1/2 -right-3 z-50 w-6 h-6 flex items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-full text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all shadow-sm hover:shadow-md hover:scale-110 active:scale-95`}
+           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+           {isCollapsed ? <ChevronRight size={12} strokeWidth={3} /> : <ChevronLeft size={12} strokeWidth={3} />}
+        </button>
+      </div>
+
+      <nav className="flex-1 px-3 py-6 space-y-2 w-full">
+        {TABS.map(tab => {
+          const isActive = view === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setView(tab.id as ViewType)}
+              className={`w-full flex items-center px-3 py-3 rounded-xl transition-all duration-300 group relative
+                ${isActive 
+                  ? 'bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }
+                ${isCollapsed ? 'justify-center gap-0' : 'gap-4'}
+              `}
+              title={isCollapsed ? tab.label : ''}
+            >
+              <div className={`p-2 rounded-xl transition-all duration-300 flex-shrink-0 relative z-10 will-change-transform
+                  ${isActive 
+                     ? 'bg-white dark:bg-white/10 shadow-indigo-500/20 shadow-lg' 
+                     : 'group-hover:text-indigo-500 dark:group-hover:text-indigo-400 group-hover:bg-indigo-50/50 dark:group-hover:bg-indigo-500/10 group-hover:shadow-[0_0_15px_rgba(99,102,241,0.2)]'
+                  }
+              `}>
+                <tab.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+              </div>
+              
+              <span className={`text-sm font-bold tracking-wide transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>
+                  {tab.label}
+              </span>
+              
+              {isActive && !isCollapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Pro Badge */}
+      <div className={`px-4 mb-2 ${isCollapsed ? 'hidden' : 'block'}`}>
+          {!isPro ? (
+              <button 
+                onClick={onOpenUpgrade}
+                className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl group transition-all hover:scale-[1.02]"
+              >
+                  <div className="p-1.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg text-white shadow-lg shadow-amber-500/30">
+                      <Crown size={14} fill="currentColor" />
+                  </div>
+                  <div className="text-left">
+                      <p className="text-xs font-bold text-amber-600 dark:text-amber-400">Upgrade to Pro</p>
+                      <p className="text-[9px] text-amber-600/70 dark:text-amber-400/70 font-bold uppercase tracking-wider">Unleash Power</p>
+                  </div>
+              </button>
+          ) : (
+              <div className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-xl">
+                  <div className="p-1.5 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-lg text-white shadow-lg shadow-emerald-500/30">
+                      <Crown size={14} fill="currentColor" />
+                  </div>
+                  <div>
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Pro Active</p>
+                      <p className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 font-bold uppercase tracking-wider">Power User</p>
+                  </div>
+              </div>
+          )}
+      </div>
+
+      {/* Auth Status Section */}
+      <div className={`px-4 py-2 ${isCollapsed ? 'hidden' : 'block'}`}>
+          {user ? (
+            <div className="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                <ShieldCheck size={16} className="text-emerald-500" />
+                <div className="flex-1 overflow-hidden">
+                    <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Sync Active</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{userName || 'User'}</p>
+                </div>
+                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
+                    <LogOut size={14} />
+                </button>
+            </div>
+          ) : isGuest ? (
+            <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <WifiOff size={16} className="text-slate-500" />
+                <div className="flex-1 overflow-hidden">
+                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Offline Mode</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{userName || 'Guest'}</p>
+                </div>
+                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
+                    <LogOut size={14} />
+                </button>
+            </div>
+          ) : (
+            <button 
+                onClick={onLogin}
+                className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+            >
+                Sign In to Save
+            </button>
+          )}
+      </div>
+
+      <div className="p-4 border-t border-slate-200 dark:border-white/5 w-full space-y-2">
+        {/* Install Button (Visible if not installed) */}
+        {!isInstalled && (
+            <button 
+              onClick={onInstall}
+              className={`w-full flex items-center px-3 py-3 rounded-xl text-indigo-500 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all group ${isCollapsed ? 'justify-center gap-0' : 'gap-3'}`}
+            >
+               <div className="p-2 rounded-xl flex-shrink-0">
+                 <Download size={20} />
+               </div>
+               <span className={`text-sm font-bold transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Install App</span>
+            </button>
+        )}
+
+        <button 
+          id="settings-btn"
+          onClick={onOpenSettings}
+          className={`w-full flex items-center px-3 py-3 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-all group ${isCollapsed ? 'justify-center gap-0' : 'gap-3'}`}
+          title={isCollapsed ? "Settings" : ''}
+        >
+          <div className="p-2 rounded-xl transition-all duration-300 flex-shrink-0 relative z-10 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 group-hover:bg-indigo-50/50 dark:group-hover:bg-indigo-500/10 group-hover:shadow-[0_0_15px_rgba(99,102,241,0.2)] will-change-transform">
+             <Settings size={20} className="group-hover:rotate-90 transition-transform duration-500" />
+          </div>
+          <span className={`text-sm font-bold transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0 translate-x-4' : 'w-auto opacity-100 translate-x-0'}`}>Settings</span>
+        </button>
+      </div>
+    </aside>
+  );
+});
+
+// Optimized slide variants
+const slideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? 30 : -30,
+    opacity: 0,
+    position: 'absolute' as 'absolute'
+  }),
+  center: {
+    zIndex: 1,
+    x: 0,
+    opacity: 1,
+    position: 'relative' as 'relative'
+  },
+  exit: (direction: number) => ({
+    zIndex: 0,
+    x: direction < 0 ? 30 : -30, 
+    opacity: 0,
+    position: 'absolute' as 'absolute'
+  }),
+};
+
+const fadeVariants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1, x: 0 },
+  exit: { opacity: 0 },
+};
+
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('daily');
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -428,7 +649,7 @@ const App: React.FC = () => {
   // Audio Settings (Ambient)
   const [activeSound, setActiveSound] = useState<'off' | 'rain' | 'forest' | 'lofi' | 'cafe'>('off');
   
-  // NEW: Custom Background
+  // Custom Background
   const [customBackground, setCustomBackground] = useState<string | null>(null);
   const [customBackgroundEnabled, setCustomBackgroundEnabled] = useState(false);
   const [customBackgroundAlign, setCustomBackgroundAlign] = useState<'center' | 'top' | 'bottom'>('center');
@@ -472,10 +693,14 @@ const App: React.FC = () => {
 
   const { isLagging, dismiss: dismissLag } = usePerformanceMonitor(graphicsEnabled && lagDetectionEnabled);
 
-  // Helper function to change view
   const changeView = useCallback((newView: ViewType) => {
-    setView(newView);
-  }, []);
+     if (view === newView) return;
+     const currentIdx = TABS.findIndex(t => t.id === view);
+     const newIdx = TABS.findIndex(t => t.id === newView);
+     setDirection(newIdx > currentIdx ? 1 : -1);
+     setView(newView);
+     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [view]);
 
   const activateLiteMode = useCallback(() => {
       setGraphicsEnabled(false);
@@ -724,70 +949,465 @@ const App: React.FC = () => {
 
   const handleAddLog = useCallback((log: QuestionLog, subject: string) => {
       setSessionLogs(prev => [log, ...prev]);
-      setTodayStats(prev => ({ ...prev, [subject]: (prev[subject as keyof typeof prev] || 0) + 1 }));
+      setTodayStats(prev => ({ ...prev, [subject]: (prev as any)[subject] + 1 }));
+      setLastLogTime(Date.now());
   }, []);
 
-  // Data Handlers
-  const handleSaveSession = (data: Omit<Session, 'id' | 'timestamp'>) => {
-    const newSession: Session = {
-      id: generateUUID(),
-      timestamp: Date.now(),
-      ...data
+  // 3. Database Operations (Universal: Works for Local Storage)
+  const handleSaveSession = useCallback(async (newSession: Omit<Session, 'id' | 'timestamp'>) => {
+    const id = generateUUID();
+    const timestamp = Date.now();
+    const session: Session = { ...newSession, id, timestamp };
+
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'sessions', id), session);
+    } else if (isGuest) {
+        const currentSessions = safeJSONParse('trackly_guest_sessions', []);
+        const updated = [session, ...currentSessions];
+        setSessions(updated);
+        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+    }
+  }, [user, isGuest, sessions]);
+
+  const handleCompleteSession = useCallback(() => {
+      if (sessionLogs.length === 0) return;
+
+      const subjectGroups: Record<string, QuestionLog[]> = {};
+      sessionLogs.forEach(log => {
+          if (!subjectGroups[log.subject]) subjectGroups[log.subject] = [];
+          subjectGroups[log.subject].push(log);
+      });
+
+      Object.entries(subjectGroups).forEach(([subject, logs]) => {
+          const attempted = logs.length;
+          const correct = logs.filter(l => l.result === 'correct').length;
+          const mistakes: MistakeCounts = {};
+          
+          logs.forEach(l => {
+              if (l.result !== 'correct') {
+                  mistakes[l.result] = (mistakes[l.result] || 0) + 1;
+              }
+          });
+
+          handleSaveSession({
+              subject,
+              topic: 'Focus Session', 
+              attempted,
+              correct,
+              mistakes
+          });
+      });
+
+      setSessionLogs([]);
+      handleTimerReset();
+  }, [sessionLogs, handleSaveSession, handleTimerReset]);
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone || document.referrer.includes('android-app://');
+    setIsInstalled(isStandalone);
+    
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const changeHandler = (e: any) => setIsInstalled(e.matches);
+    mediaQuery.addEventListener('change', changeHandler);
+    return () => mediaQuery.removeEventListener('change', changeHandler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
     };
-    setSessions(prev => [newSession, ...prev]);
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+      if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+              setDeferredPrompt(null);
+          }
+      } else {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        if (isIOS) {
+             alert("To install Trackly:\n\n1. Tap the Share button below\n2. Scroll down and tap 'Add to Home Screen'");
+        } else {
+             alert("To install Trackly:\n\nLook for the Install icon (⊕) in your browser's address bar, or tap the menu (⋮) and select 'Install App'.");
+        }
+      }
   };
 
-  const handleDeleteSession = (id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-  };
+  // Auth Handlers (Kept but button removed from UI)
+  const handleLogin = useCallback(async () => {
+    try {
+        await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+        console.error("Login error:", error);
+        if (error.code === 'auth/unauthorized-domain') {
+            alert("Domain not authorized for Firebase Auth. \n\nPlease use 'Continue Offline' (Guest Mode) if you are running a preview or local build.");
+        }
+    }
+  }, []);
 
-  const handleSaveTest = (data: Omit<TestResult, 'id' | 'timestamp'>) => {
-    const newTest: TestResult = {
-      id: generateUUID(),
-      timestamp: Date.now(),
-      ...data
+  const handleGuestLogin = useCallback(() => {
+      if (!guestNameInput.trim()) return;
+      localStorage.setItem('trackly_guest_name', guestNameInput.trim());
+      setIsGuest(true);
+      setUserName(guestNameInput.trim());
+      localStorage.setItem('trackly_is_guest', 'true');
+  }, [guestNameInput]);
+
+  const handleLogout = useCallback(async () => {
+      if (user) {
+          await signOut(auth);
+      }
+      setIsGuest(false);
+      localStorage.removeItem('trackly_is_guest');
+      localStorage.removeItem('trackly_guest_name');
+      setUserName(null);
+      setSessions([]);
+      setTests([]);
+      setTargets([]);
+  }, [user]);
+
+  const handleUpgrade = useCallback(() => {
+      setIsPro(true);
+      localStorage.setItem('trackly_pro_status', 'true');
+  }, []);
+
+  useEffect(() => {
+    const handleClick = () => {
+       if (!soundEnabled) return;
+
+       if (!clickAudioCtxRef.current) {
+          clickAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+       }
+       const ctx = clickAudioCtxRef.current;
+       if (ctx.state === 'suspended') ctx.resume();
+
+       const osc = ctx.createOscillator();
+       const gain = ctx.createGain();
+       
+       osc.connect(gain);
+       gain.connect(ctx.destination);
+
+       osc.type = 'sine';
+       osc.frequency.setValueAtTime(soundPitch, ctx.currentTime);
+
+       gain.gain.setValueAtTime(0, ctx.currentTime);
+       gain.gain.linearRampToValueAtTime(soundVolume * 0.5, ctx.currentTime + 0.005); 
+       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08); 
+
+       osc.start(ctx.currentTime);
+       osc.stop(ctx.currentTime + 0.08);
     };
-    setTests(prev => [...prev, newTest]);
+
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, [soundEnabled, soundPitch, soundVolume]);
+
+  // 1. Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+          setIsGuest(false);
+          setUserName(currentUser.displayName || 'User');
+      }
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Check for existing guest session
+  useEffect(() => {
+      const storedGuest = localStorage.getItem('trackly_is_guest');
+      if (storedGuest === 'true' && !user) {
+          setIsGuest(true);
+          setUserName(localStorage.getItem('trackly_guest_name') || 'Guest');
+      }
+  }, [user]);
+
+  // 2. Data Syncing (Firestore OR LocalStorage)
+  useEffect(() => {
+    if (user) {
+        const sessionsQ = query(collection(db, 'users', user.uid, 'sessions'), orderBy('timestamp', 'desc'));
+        const unsubSessions = onSnapshot(sessionsQ, (snapshot: QuerySnapshot<DocumentData>) => {
+            setSessions(snapshot.docs.map(d => d.data() as Session));
+        });
+
+        const testsQ = query(collection(db, 'users', user.uid, 'tests'), orderBy('timestamp', 'desc'));
+        const unsubTests = onSnapshot(testsQ, (snapshot: QuerySnapshot<DocumentData>) => {
+            setTests(snapshot.docs.map(d => d.data() as TestResult));
+        });
+
+        const targetsQ = query(collection(db, 'users', user.uid, 'targets'), orderBy('timestamp', 'desc'));
+        const unsubTargets = onSnapshot(targetsQ, (snapshot: QuerySnapshot<DocumentData>) => {
+            setTargets(snapshot.docs.map(d => d.data() as Target));
+        });
+
+        return () => {
+            unsubSessions();
+            unsubTests();
+            unsubTargets();
+        }
+    } else if (isGuest) {
+        setSessions(safeJSONParse('trackly_guest_sessions', []));
+        setTests(safeJSONParse('trackly_guest_tests', []));
+        setTargets(safeJSONParse('trackly_guest_targets', []));
+        setGoals(safeJSONParse('trackly_guest_goals', { Physics: 30, Chemistry: 30, Maths: 30 }));
+    } else {
+        setSessions([]); 
+        setTests([]);
+        setTargets([]);
+    }
+  }, [user, isGuest]);
+
+  useEffect(() => {
+    if(isGuest) {
+        localStorage.setItem('trackly_guest_goals', JSON.stringify(goals));
+    }
+  }, [goals, isGuest]);
+
+  const handleDeleteSession = useCallback(async (id: string) => {
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
+    } else if (isGuest) {
+        const updated = sessions.filter(s => s.id !== id);
+        setSessions(updated);
+        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+    }
+  }, [user, isGuest, sessions]);
+
+  const handleSaveTest = useCallback(async (newTest: Omit<TestResult, 'id' | 'timestamp'>) => {
+    const id = generateUUID();
+    const timestamp = Date.now();
+    const test: TestResult = { ...newTest, id, timestamp };
+
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'tests', id), test);
+    } else if (isGuest) {
+        const updated = [test, ...tests];
+        setTests(updated);
+        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+    }
+  }, [user, isGuest, tests]);
+
+  const handleDeleteTest = useCallback(async (id: string) => {
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'tests', id));
+    } else if (isGuest) {
+        const updated = tests.filter(t => t.id !== id);
+        setTests(updated);
+        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+    }
+  }, [user, isGuest, tests]);
+
+  const handleSaveTarget = useCallback(async (target: Target) => {
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'targets', target.id), target);
+    } else if (isGuest) {
+        const updated = [...targets, target];
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
+
+  const handleUpdateTarget = useCallback(async (id: string, completed: boolean) => {
+    const target = targets.find(t => t.id === id);
+    if (target && target.type === 'test' && completed && !target.completed) {
+        const messages = [
+            "Test completed! Don't forget to analyze it.",
+            "Test completed! Log your marks and prepare for the next one.",
+            "Finish line crossed. Now, let's look at the data.",
+            "Great effort! Record your score to unlock insights.",
+            "One step closer to your goal. Log this test now."
+        ];
+        setReminderMessage(messages[Math.floor(Math.random() * messages.length)]);
+        setShowTestReminder(true);
+        setTimeout(() => setShowTestReminder(false), 8000);
+    }
+
+    if (user) {
+        if (target) {
+            await setDoc(doc(db, 'users', user.uid, 'targets', id), { ...target, completed });
+        }
+    } else if (isGuest) {
+        const updated = targets.map(t => t.id === id ? { ...t, completed } : t);
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
+
+  const handleDeleteTarget = useCallback(async (id: string) => {
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'targets', id));
+    } else if (isGuest) {
+        const updated = targets.filter(t => t.id !== id);
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
+
+  // Load Settings from LocalStorage
+  useEffect(() => {
+    setAnimationsEnabled(safeJSONParse('zenith_animations', true));
+    setGraphicsEnabled(safeJSONParse('zenith_graphics', true));
+    setLagDetectionEnabled(safeJSONParse('zenith_lag_detection', true)); 
+    const savedTheme = localStorage.getItem('zenith_theme_id');
+    if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
+    setSidebarCollapsed(safeJSONParse('zenith_sidebar_collapsed', false));
+    setShowAurora(safeJSONParse('zenith_aurora', true));
+    setParallaxEnabled(safeJSONParse('zenith_parallax', true));
+    setShowParticles(safeJSONParse('zenith_particles', true));
+    setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
+    
+    setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)) || 6000);
+    setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)) || 300);    
+    
+    setIsPro(safeJSONParse('trackly_pro_status', false));
+    
+    setSoundEnabled(safeJSONParse('zenith_sound_enabled', true));
+    setSoundPitch(Number(safeJSONParse('zenith_sound_pitch', 600)));
+    setSoundVolume(Number(safeJSONParse('zenith_sound_volume', 0.5)));
+    setTimerDurations(safeJSONParse('zenith_timer_durations', { focus: 25, short: 5, long: 15 }));
+
+    const savedSound = localStorage.getItem('zenith_active_sound');
+    if (savedSound) {
+       setActiveSound(savedSound as any);
+    }
+
+    const savedBg = localStorage.getItem('zenith_custom_bg');
+    if (savedBg) setCustomBackground(savedBg);
+    
+    setCustomBackgroundEnabled(safeJSONParse('zenith_custom_bg_enabled', false));
+
+    const savedBgAlign = localStorage.getItem('zenith_custom_bg_align');
+    if (savedBgAlign) setCustomBackgroundAlign(savedBgAlign as any);
+  }, []);
+
+  // Persist Settings
+  useEffect(() => {
+    localStorage.setItem('zenith_animations', JSON.stringify(animationsEnabled));
+    document.body.classList.toggle('reduce-motion', !animationsEnabled);
+  }, [animationsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('zenith_graphics', JSON.stringify(graphicsEnabled));
+    document.body.classList.toggle('low-graphics', !graphicsEnabled);
+  }, [graphicsEnabled]);
+
+  useEffect(() => { localStorage.setItem('zenith_lag_detection', JSON.stringify(lagDetectionEnabled)); }, [lagDetectionEnabled]); 
+
+  useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
+  useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
+  useEffect(() => { localStorage.setItem('zenith_parallax', JSON.stringify(parallaxEnabled)); }, [parallaxEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_particles', JSON.stringify(showParticles)); }, [showParticles]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_animation', JSON.stringify(swipeAnimationEnabled)); }, [swipeAnimationEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_stiffness', String(swipeStiffness)); }, [swipeStiffness]);
+  useEffect(() => { localStorage.setItem('zenith_swipe_damping', String(swipeDamping)); }, [swipeDamping]);
+  useEffect(() => { localStorage.setItem('zenith_sound_enabled', JSON.stringify(soundEnabled)); }, [soundEnabled]);
+  useEffect(() => { localStorage.setItem('zenith_sound_pitch', String(soundPitch)); }, [soundPitch]);
+  useEffect(() => { localStorage.setItem('zenith_sound_volume', String(soundVolume)); }, [soundVolume]);
+  useEffect(() => { localStorage.setItem('zenith_sidebar_collapsed', JSON.stringify(sidebarCollapsed)); }, [sidebarCollapsed]);
+  useEffect(() => { localStorage.setItem('zenith_timer_durations', JSON.stringify(timerDurations)); }, [timerDurations]);
+  useEffect(() => { localStorage.setItem('zenith_active_sound', activeSound); }, [activeSound]);
+  
+  useEffect(() => {
+      if (customBackground) {
+          try {
+              localStorage.setItem('zenith_custom_bg', customBackground);
+          } catch(e) {
+              console.error("Failed to save background image", e);
+          }
+      } else {
+          localStorage.removeItem('zenith_custom_bg');
+      }
+  }, [customBackground]);
+
+  useEffect(() => {
+      localStorage.setItem('zenith_custom_bg_enabled', JSON.stringify(customBackgroundEnabled));
+  }, [customBackgroundEnabled]);
+
+  useEffect(() => {
+      localStorage.setItem('zenith_custom_bg_align', customBackgroundAlign);
+  }, [customBackgroundAlign]);
+
+  const toggleCustomBackground = useCallback(() => {
+      setCustomBackgroundEnabled(prev => {
+          const next = !prev;
+          if (next) {
+              setShowAurora(false);
+              setParallaxEnabled(false);
+          }
+          return next;
+      });
+  }, []);
+
+
+  const toggleSidebar = useCallback(() => {
+      setSidebarCollapsed(prev => !prev);
+  }, []);
+
+  const startTutorial = () => {
+    setIsTutorialActive(true);
+    setTutorialStep(0);
+    setView('daily'); 
   };
 
-  const handleDeleteTest = (id: string) => {
-    setTests(prev => prev.filter(t => t.id !== id));
+  const nextTutorialStep = () => {
+    const nextStep = tutorialStep + 1;
+    if (nextStep >= TOUR_STEPS.length) {
+      setIsTutorialActive(false);
+      setTutorialStep(0);
+      setView('daily');
+    } else {
+      setTutorialStep(nextStep);
+      if (TOUR_STEPS[nextStep].view) {
+        setView(TOUR_STEPS[nextStep].view as ViewType);
+      }
+    }
   };
 
-  const handleAddTarget = (target: Target) => {
-    setTargets(prev => [...prev, target]);
-  };
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null); 
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  }
 
-  const handleToggleTarget = (id: string, completed: boolean) => {
-    setTargets(prev => prev.map(t => t.id === id ? { ...t, completed } : t));
-  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  }
 
-  const handleDeleteTarget = (id: string) => {
-    setTargets(prev => prev.filter(t => t.id !== id));
-  };
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const xDistance = touchStart.x - touchEnd.x;
+    const yDistance = touchStart.y - touchEnd.y;
+    if (Math.abs(yDistance) > Math.abs(xDistance)) return;
 
-  // UI Handlers
-  const toggleSound = () => setSoundEnabled(prev => !prev);
-  const toggleAnimations = () => setAnimationsEnabled(prev => !prev);
-  const toggleGraphics = () => setGraphicsEnabled(prev => !prev);
-  const toggleLagDetection = () => setLagDetectionEnabled(prev => !prev);
-  const toggleAurora = () => setShowAurora(prev => !prev);
-  const toggleParallax = () => setParallaxEnabled(prev => !prev);
-  const toggleParticles = () => setShowParticles(prev => !prev);
-  const toggleSwipeAnimation = () => setSwipeAnimationEnabled(prev => !prev);
-  const toggleCustomBackground = () => setCustomBackgroundEnabled(prev => !prev);
-  const openProModal = () => setShowProModal(true);
+    const isLeftSwipe = xDistance > minSwipeDistance;
+    const isRightSwipe = xDistance < -minSwipeDistance;
 
-  // Dynamic Styles Calculation for Themes
+    if (isLeftSwipe || isRightSwipe) {
+      const currentIndex = TABS.findIndex(t => t.id === view);
+      if (isLeftSwipe && currentIndex < TABS.length - 1) changeView(TABS[currentIndex + 1].id as ViewType);
+      if (isRightSwipe && currentIndex > 0) changeView(TABS[currentIndex - 1].id as ViewType);
+    }
+    setTouchStart(null);
+    setTouchEnd(null);
+  }
+
   const themeConfig = THEME_CONFIG[theme];
+  const effectiveShowAurora = graphicsEnabled && showAurora;
+  const effectiveParallax = animationsEnabled && parallaxEnabled;
+  const effectiveShowParticles = graphicsEnabled && showParticles;
+  const effectiveSwipe = swipeAnimationEnabled; 
+
   const dynamicStyles = useMemo(() => {
     const rgbBg = hexToRgb(themeConfig.colors.bg);
     const rgbCard = hexToRgb(themeConfig.colors.card);
     const rgbAccent = hexToRgb(themeConfig.colors.accent);
     
-    // Determine optimal text color for accent backgrounds
-    // Themes with light/bright accents (like white, yellow, lime) need dark text.
-    // Themes with dark/deep accents (like indigo, blue) need white text.
     const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void', 'obsidian', 'earth', 'morning'];
     const onAccentColor = lightAccentThemes.includes(theme) ? '#020617' : '#ffffff';
 
@@ -806,271 +1426,385 @@ const App: React.FC = () => {
         .text-indigo-50, .text-indigo-100, .text-indigo-200, .text-indigo-300, .text-indigo-400, .text-indigo-500, .text-indigo-600, .text-indigo-700, .text-indigo-800, .text-indigo-900 {
             color: var(--theme-accent) !important;
         }
-        
-        /* Force Text Contrast on Theme Accent Buttons */
         .bg-indigo-400, .bg-indigo-500, .bg-indigo-600, .bg-indigo-700 {
             background-color: var(--theme-accent) !important;
-            color: var(--theme-on-accent) !important;
         }
-        
-        /* Fix internal icons in buttons */
-        .bg-indigo-600 svg, .bg-indigo-500 svg {
-            color: var(--theme-on-accent) !important;
-        }
-
         .border-indigo-100, .border-indigo-200, .border-indigo-300, .border-indigo-400, .border-indigo-500, .border-indigo-600 {
             border-color: var(--theme-accent) !important;
         }
-        /* Override Ring Colors for Focus Rings */
         .ring-indigo-500 {
             --tw-ring-color: var(--theme-accent) !important;
         }
-        
-        /* Override specific shadow opacities */
-        .shadow-indigo-500\\/30, .shadow-indigo-600\\/30 {
+        .shadow-indigo-500\\/30 {
             --tw-shadow-color: rgba(var(--theme-accent-rgb), 0.3) !important;
         }
-        .shadow-indigo-500\\/20, .shadow-indigo-600\\/20 {
+        .shadow-indigo-500\\/20 {
             --tw-shadow-color: rgba(var(--theme-accent-rgb), 0.2) !important;
         }
-        
-        /* Specific glow for Midnight/Light themes where shadow might be too subtle */
-        ${['midnight', 'default-light', 'morning'].includes(theme) ? `
-            .shadow-indigo-600\\/20, .shadow-indigo-500\\/20 {
-                box-shadow: 0 10px 15px -3px rgba(var(--theme-accent-rgb), 0.3), 0 4px 6px -2px rgba(var(--theme-accent-rgb), 0.1) !important;
-            }
-        ` : ''}
   `}, [themeConfig, theme]);
 
+  if (isAuthLoading) {
+    return (
+        <div className={`min-h-screen flex items-center justify-center ${themeConfig.mode === 'dark' ? 'bg-[#020617]' : 'bg-slate-50'}`}>
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <span className="text-sm font-bold uppercase tracking-widest text-slate-500">Syncing Data...</span>
+            </div>
+        </div>
+    );
+  }
+
+  // Not Logged In View
+  if (!user && !isGuest) {
+    return (
+        <div className={`min-h-screen font-sans flex flex-col relative overflow-hidden transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}>
+             <style>{dynamicStyles}</style>
+             <AnimatedBackground 
+                themeId={theme} 
+                showAurora={effectiveShowAurora}
+                parallaxEnabled={effectiveParallax}
+                showParticles={effectiveShowParticles}
+                graphicsEnabled={graphicsEnabled}
+                animationsEnabled={animationsEnabled}
+                customBackground={customBackgroundEnabled ? customBackground : null}
+                customBackgroundAlign={customBackgroundAlign}
+             />
+             <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
+                <TracklyLogo id="login-logo" />
+                <div className="mt-8 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-slate-200 dark:border-white/10 text-center max-w-sm w-full shadow-2xl cv-auto">
+                    <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Welcome</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                        Your private, high-performance study tracker. 
+                        <br/><span className="text-[10px] uppercase font-bold opacity-70">Enter your name to begin.</span>
+                    </p>
+                    
+                    <div className="space-y-4">
+                        <input
+                            type="text"
+                            placeholder="Enter your name..."
+                            value={guestNameInput}
+                            onChange={(e) => setGuestNameInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleGuestLogin()}
+                            className="w-full p-4 bg-white/10 text-slate-900 dark:text-white rounded-2xl border border-slate-200 dark:border-white/10 transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder:text-slate-400"
+                        />
+                        <button 
+                            onClick={handleGuestLogin}
+                            disabled={!guestNameInput.trim()}
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span>Start Tracking</span>
+                            <ArrowRightIcon />
+                        </button>
+                    </div>
+
+                </div>
+             </div>
+        </div>
+    );
+  }
+
   return (
-    <div className={`app-container ${theme} min-h-screen text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-500/30 overflow-x-hidden`} style={THEME_CONFIG[theme].mode === 'dark' ? { colorScheme: 'dark' } : { colorScheme: 'light' }}>
+    <div 
+        className={`min-h-screen font-sans overflow-x-hidden relative flex flex-col transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}
+    >
       <style>{dynamicStyles}</style>
-      
+
+      {/* Lag Monitor Toast */}
+      <PerformanceToast 
+        isVisible={isLagging} 
+        onSwitch={activateLiteMode}
+        onDismiss={dismissLag} 
+      />
+
+      {/* Smart Recommendation Toast */}
+      <SmartRecommendationToast
+        isVisible={showRecommendation}
+        data={recommendation}
+        onDismiss={handleDismissRecommendation}
+        onPractice={handlePracticeRecommendation}
+      />
+
+      {/* Network Status Toast */}
+      <AnimatePresence>
+        {showNetworkToast && (
+          <motion.div
+            initial={{ y: -50, opacity: 0, x: '-50%' }}
+            animate={{ y: 20, opacity: 1, x: '-50%' }}
+            exit={{ y: -50, opacity: 0, x: '-50%' }}
+            className="fixed top-0 left-1/2 z-[200] px-4 py-2 rounded-full shadow-lg border backdrop-blur-md flex items-center gap-2"
+            style={{
+              backgroundColor: isOnline ? 'rgba(16, 185, 129, 0.1)' : 'rgba(244, 63, 94, 0.1)',
+              borderColor: isOnline ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)'
+            }}
+          >
+             {isOnline ? (
+               <>
+                 <Wifi size={14} className="text-emerald-500" />
+                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">Back Online</span>
+               </>
+             ) : (
+               <>
+                 <WifiOff size={14} className="text-rose-500" />
+                 <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide">No Internet Connection</span>
+               </>
+             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatedBackground 
-         themeId={theme}
-         showAurora={showAurora}
-         parallaxEnabled={parallaxEnabled}
-         showParticles={showParticles}
-         graphicsEnabled={graphicsEnabled}
-         animationsEnabled={animationsEnabled}
-         customBackground={customBackgroundEnabled ? customBackground : null}
-         customBackgroundAlign={customBackgroundAlign}
+        themeId={theme} 
+        showAurora={effectiveShowAurora}
+        parallaxEnabled={effectiveParallax}
+        showParticles={effectiveShowParticles}
+        graphicsEnabled={graphicsEnabled}
+        animationsEnabled={animationsEnabled}
+        customBackground={customBackgroundEnabled ? customBackground : null}
+        customBackgroundAlign={customBackgroundAlign}
       />
       
-      <div className="relative z-10 flex h-screen overflow-hidden">
-        
-        {/* Sidebar (Desktop) */}
-        <aside className={`
-            hidden md:flex flex-col border-r border-slate-200 dark:border-white/5 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl transition-all duration-300 ease-spring
-            ${sidebarCollapsed ? 'w-20' : 'w-72'}
-        `}>
-          <div className="p-6 flex items-center justify-between">
-            <TracklyLogo collapsed={sidebarCollapsed} />
-            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 transition-colors">
-               {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+      <Sidebar 
+          view={view} 
+          setView={changeView} 
+          onOpenSettings={() => setIsSettingsOpen(true)} 
+          isCollapsed={sidebarCollapsed}
+          toggleCollapsed={toggleSidebar}
+          user={user}
+          isGuest={isGuest}
+          onLogin={handleLogin}
+          onLogout={handleLogout}
+          isInstalled={isInstalled}
+          onInstall={handleInstallClick}
+          userName={userName}
+          isPro={isPro}
+          onOpenUpgrade={() => setShowProModal(true)}
+      />
+
+      {/* Mobile Header - Fixed */}
+      <div className="md:hidden fixed top-0 left-0 w-full z-50 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/5 px-6 py-4 flex justify-between items-center transition-colors duration-500">
+        <TracklyLogo id="trackly-logo-mobile" />
+        <div className="flex items-center gap-3">
+            {!isPro && (
+                <button 
+                    onClick={() => setShowProModal(true)}
+                    className="p-2 rounded-full bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all shadow-sm shadow-amber-500/10 active:scale-95"
+                >
+                    <Crown size={20} fill="currentColor" />
+                </button>
+            )}
+            <button onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+                <Settings size={24} className="text-slate-600 dark:text-slate-300" />
             </button>
-          </div>
-          
-          <nav className="flex-1 px-3 space-y-2 overflow-y-auto no-scrollbar py-4">
-             {[
-               { id: 'daily', label: 'Dashboard', icon: LayoutDashboard },
-               { id: 'planner', label: 'Planner', icon: CalendarIcon },
-               { id: 'focus', label: 'Focus Timer', icon: Timer },
-               { id: 'tests', label: 'Test Log', icon: PenTool },
-               { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-               { id: 'resources', label: 'Resources', icon: ShoppingBag }
-             ].map((item) => (
-               <button
-                 key={item.id}
-                 onClick={() => changeView(item.id as ViewType)}
-                 className={`
-                   w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden
-                   ${view === item.id 
-                     ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
-                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}
-                 `}
-               >
-                 <item.icon size={20} className={`shrink-0 transition-transform duration-300 ${view === item.id ? 'scale-110' : 'group-hover:scale-110'}`} />
-                 <span className={`font-bold text-sm tracking-wide transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0 translate-x-4' : 'opacity-100 w-auto translate-x-0'}`}>
-                   {item.label}
-                 </span>
-                 {view === item.id && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/20 rounded-r-full" />
-                 )}
-               </button>
-             ))}
-          </nav>
-
-          <div className="p-4 border-t border-slate-200 dark:border-white/5">
-            <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all`}
-            >
-                <Settings size={20} className="shrink-0" />
-                <span className={`font-bold text-sm tracking-wide transition-all duration-300 ${sidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>Settings</span>
-            </button>
-          </div>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth" id="main-content">
-          
-          {/* Mobile Header */}
-          <header className="md:hidden sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-b border-slate-200 dark:border-white/5 px-4 py-3 flex items-center justify-between">
-             <TracklyLogo id="mobile-logo" />
-             <div className="flex gap-2">
-                 {!isPro && (
-                     <button onClick={() => setShowProModal(true)} className="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
-                         <Crown size={20} />
-                     </button>
-                 )}
-                 <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg text-slate-600 dark:text-slate-300 transition-colors">
-                    <Settings size={24} />
-                 </button>
-             </div>
-          </header>
-
-          <div className="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 pb-24 md:pb-12 min-h-full flex flex-col">
-            <Suspense fallback={
-                <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh]">
-                    <Loader2 size={40} className="animate-spin text-indigo-500 mb-4" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs animate-pulse">Loading Experience...</p>
-                </div>
-            }>
-                <AnimatePresence mode="wait">
-                    {view === 'daily' && (
-                        <motion.div key="daily" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
-                            <Dashboard 
-                                sessions={sessions} 
-                                targets={targets} 
-                                quote={QUOTES[quoteIdx]} 
-                                onDelete={handleDeleteSession}
-                                goals={goals}
-                                setGoals={setGoals}
-                                onSaveSession={handleSaveSession}
-                                userName={userName}
-                            />
-                        </motion.div>
-                    )}
-                    {view === 'planner' && (
-                        <motion.div key="planner" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                            <Planner 
-                                targets={targets} 
-                                onAdd={handleAddTarget} 
-                                onToggle={handleToggleTarget} 
-                                onDelete={handleDeleteTarget} 
-                            />
-                        </motion.div>
-                    )}
-                    {view === 'focus' && (
-                        <motion.div key="focus" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3 }}>
-                            <FocusTimer 
-                                targets={targets}
-                                mode={timerMode}
-                                timeLeft={timeLeft}
-                                isActive={isTimerActive}
-                                durations={timerDurations}
-                                activeSound={activeSound}
-                                sessionLogs={sessionLogs}
-                                lastLogTime={lastLogTime}
-                                onToggleTimer={handleTimerToggle}
-                                onResetTimer={handleTimerReset}
-                                onSwitchMode={handleModeSwitch}
-                                onSetSound={setActiveSound}
-                                onUpdateDurations={handleDurationUpdate}
-                                onAddLog={handleAddLog}
-                                onCompleteSession={handleTimerReset}
-                                onToggleSound={() => setSoundEnabled(p => !p)}
-                                isPro={isPro}
-                                sessionCount={sessions.length}
-                                onOpenUpgrade={openProModal}
-                            />
-                        </motion.div>
-                    )}
-                    {view === 'tests' && (
-                        <motion.div key="tests" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
-                            <TestLog 
-                                tests={tests} 
-                                targets={targets}
-                                onSave={handleSaveTest} 
-                                onDelete={handleDeleteTest}
-                                isPro={isPro}
-                                onOpenUpgrade={openProModal}
-                            />
-                        </motion.div>
-                    )}
-                    {view === 'analytics' && (
-                        <motion.div key="analytics" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}>
-                            <Analytics 
-                                sessions={sessions} 
-                                tests={tests} 
-                                isPro={isPro}
-                                onOpenUpgrade={openProModal}
-                            />
-                        </motion.div>
-                    )}
-                    {view === 'resources' && (
-                        <motion.div key="resources" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
-                            <Resources />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </Suspense>
-          </div>
-
-          {/* Mobile Navigation Bar */}
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-white/10 px-6 py-2 flex justify-between items-center z-40 safe-area-bottom shadow-2xl">
-              {[
-                  { id: 'daily', icon: LayoutDashboard },
-                  { id: 'planner', icon: CalendarIcon },
-                  { id: 'focus', icon: Timer },
-                  { id: 'tests', icon: PenTool },
-                  { id: 'analytics', icon: BarChart3 }
-              ].map((item) => (
-                  <button
-                      key={item.id}
-                      onClick={() => changeView(item.id as ViewType)}
-                      className={`
-                          p-3 rounded-2xl transition-all duration-300 relative
-                          ${view === item.id ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 -translate-y-2 shadow-lg shadow-indigo-500/20' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}
-                      `}
-                  >
-                      <item.icon size={24} strokeWidth={view === item.id ? 2.5 : 2} />
-                      {view === item.id && <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500" />}
-                  </button>
-              ))}
-          </nav>
-        </main>
+        </div>
       </div>
 
-      {/* Modals & Overlays */}
+      <main 
+          className={`relative z-10 flex-grow p-4 md:p-10 pt-24 md:pt-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+      >
+        <div className="max-w-7xl mx-auto w-full relative">
+           <AnimatePresence initial={false} mode='wait' custom={direction}>
+             <motion.div
+                key={view}
+                custom={direction}
+                variants={effectiveSwipe ? slideVariants : fadeVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={effectiveSwipe ? (
+                  animationsEnabled ? {
+                    x: { type: "spring", stiffness: swipeStiffness, damping: swipeDamping, mass: 0.8 },
+                    opacity: { duration: 0.15 }
+                  } : {
+                    x: { type: "tween", ease: "circOut", duration: 0.2 },
+                    opacity: { duration: 0.2 }
+                  }
+                ) : { duration: animationsEnabled ? 0.2 : 0 }}
+                className="w-full will-change-transform"
+             >
+                <Suspense fallback={
+                    <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-400">
+                        <Loader2 className="w-10 h-10 animate-spin mb-4 text-indigo-500" />
+                        <span className="text-xs font-bold uppercase tracking-widest">Loading View...</span>
+                    </div>
+                }>
+                  {view === 'daily' && (
+                      <Dashboard 
+                          sessions={sessions}
+                          targets={targets}
+                          quote={QUOTES[quoteIdx]}
+                          onDelete={handleDeleteSession}
+                          goals={goals}
+                          setGoals={setGoals}
+                          onSaveSession={handleSaveSession}
+                          userName={userName}
+                      />
+                  )}
+                  {view === 'planner' && (
+                      <Planner 
+                          targets={targets}
+                          onAdd={handleSaveTarget}
+                          onToggle={handleUpdateTarget}
+                          onDelete={handleDeleteTarget}
+                      />
+                  )}
+                  {view === 'focus' && (
+                      <div className="min-h-[80vh] flex flex-col justify-center">
+                        <FocusTimer 
+                            targets={targets} 
+                            mode={timerMode}
+                            timeLeft={timeLeft}
+                            isActive={isTimerActive}
+                            durations={timerDurations}
+                            activeSound={activeSound}
+                            onSetSound={setActiveSound}
+                            sessionLogs={sessionLogs}
+                            lastLogTime={lastLogTime}
+                            onToggleTimer={handleTimerToggle}
+                            onResetTimer={handleTimerReset}
+                            onSwitchMode={handleModeSwitch}
+                            onToggleSound={() => {/* Deprecated */}}
+                            onUpdateDurations={handleDurationUpdate}
+                            onAddLog={handleAddLog}
+                            onCompleteSession={handleCompleteSession}
+                            isPro={isPro}
+                            sessionCount={sessions.length}
+                            onOpenUpgrade={() => setShowProModal(true)}
+                        />
+                      </div>
+                  )}
+                  {view === 'tests' && (
+                      <TestLog 
+                          tests={tests}
+                          targets={targets} 
+                          onSave={handleSaveTest}
+                          onDelete={handleDeleteTest}
+                          isPro={isPro}
+                          onOpenUpgrade={() => setShowProModal(true)}
+                      />
+                  )}
+                  {view === 'analytics' && (
+                      <Analytics 
+                        sessions={sessions} 
+                        tests={tests} 
+                        isPro={isPro} 
+                        onOpenUpgrade={() => setShowProModal(true)}
+                      />
+                  )}
+                  {view === 'resources' && (
+                      <Resources />
+                  )}
+                </Suspense>
+             </motion.div>
+           </AnimatePresence>
+        </div>
+      </main>
+
+      {/* Test Log Reminder Toast */}
+      <AnimatePresence>
+        {showTestReminder && (
+            <motion.div 
+                initial={{ x: "-50%", y: 100, opacity: 0 }}
+                animate={{ x: "-50%", y: 0, opacity: 1 }}
+                exit={{ x: "-50%", y: 100, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed bottom-24 md:bottom-10 left-1/2 z-[100] w-[90%] max-w-sm"
+            >
+                <div className="bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-500/30 rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 backdrop-blur-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-indigo-500 rounded-xl text-white shadow-lg shadow-indigo-500/20">
+                            <Trophy size={20} />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Test Completed!</h4>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium leading-tight mt-0.5">{reminderMessage}</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => {
+                            changeView('tests');
+                            setShowTestReminder(false);
+                        }}
+                        className="flex-shrink-0 flex items-center gap-1 px-3 py-2 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors"
+                    >
+                        Log Now <ArrowRight size={12} />
+                    </button>
+                </div>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pro Upgrade Modal */}
+      <ProUpgradeModal 
+        isOpen={showProModal} 
+        onClose={() => setShowProModal(false)}
+        onUpgrade={handleUpgrade}
+      />
+
+      {/* Nav and Modals ... */}
+      <nav 
+        className="fixed bottom-0 left-0 w-full z-50 bg-white/95 dark:bg-[#020617]/95 backdrop-blur-xl border-t border-slate-200 dark:border-white/5 px-6 py-3 md:hidden transition-colors duration-500 shadow-[0_-5px_10px_rgba(0,0,0,0.03)] dark:shadow-none"
+        style={{ 
+            paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+            backgroundColor: themeConfig.mode === 'dark' ? themeConfig.colors.bg + 'ee' : 'rgba(255,255,255,0.95)'
+        }}
+      >
+          <div className="flex justify-around items-center">
+            {TABS.map(tab => {
+              const isActive = view === tab.id;
+              return (
+                <button
+                    key={tab.id}
+                    onClick={() => changeView(tab.id as ViewType)}
+                    className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${isActive ? 'text-indigo-600 dark:text-indigo-400 scale-105' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                >
+                    <div className={`p-1.5 rounded-xl transition-all duration-300 ${isActive ? 'bg-indigo-100 dark:bg-indigo-500/20' : 'bg-transparent'}`}>
+                        <tab.icon size={22} strokeWidth={isActive ? 2.5 : 2} className="transition-all" />
+                    </div>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider transition-opacity ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tab.label}</span>
+                </button>
+            )})}
+          </div>
+      </nav>
+
+      {isTutorialActive && (
+        <TutorialOverlay 
+          steps={TOUR_STEPS}
+          currentStep={tutorialStep}
+          onNext={nextTutorialStep}
+          onClose={() => setIsTutorialActive(false)}
+        />
+      )}
+
       <SettingsModal 
         isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+        onClose={() => setIsSettingsOpen(false)}
         animationsEnabled={animationsEnabled}
-        toggleAnimations={toggleAnimations}
+        toggleAnimations={() => setAnimationsEnabled(!animationsEnabled)}
         graphicsEnabled={graphicsEnabled}
-        toggleGraphics={toggleGraphics}
+        toggleGraphics={() => setGraphicsEnabled(!graphicsEnabled)}
         lagDetectionEnabled={lagDetectionEnabled}
-        toggleLagDetection={toggleLagDetection}
+        toggleLagDetection={() => setLagDetectionEnabled(!lagDetectionEnabled)}
         theme={theme}
         setTheme={setTheme}
-        onStartTutorial={() => setIsTutorialActive(true)}
+        onStartTutorial={startTutorial}
         showAurora={showAurora}
-        toggleAurora={toggleAurora}
+        toggleAurora={() => setShowAurora(!showAurora)}
         parallaxEnabled={parallaxEnabled}
-        toggleParallax={toggleParallax}
+        toggleParallax={() => setParallaxEnabled(!parallaxEnabled)}
         showParticles={showParticles}
-        toggleParticles={toggleParticles}
+        toggleParticles={() => setShowParticles(!showParticles)}
         swipeAnimationEnabled={swipeAnimationEnabled}
-        toggleSwipeAnimation={toggleSwipeAnimation}
+        toggleSwipeAnimation={() => setSwipeAnimationEnabled(!swipeAnimationEnabled)}
         swipeStiffness={swipeStiffness}
         setSwipeStiffness={setSwipeStiffness}
         swipeDamping={swipeDamping}
         setSwipeDamping={setSwipeDamping}
         
         soundEnabled={soundEnabled}
-        toggleSound={toggleSound}
+        toggleSound={() => setSoundEnabled(!soundEnabled)}
         soundPitch={soundPitch}
         setSoundPitch={setSoundPitch}
         soundVolume={soundVolume}
@@ -1083,55 +1817,17 @@ const App: React.FC = () => {
         customBackgroundAlign={customBackgroundAlign}
         setCustomBackgroundAlign={setCustomBackgroundAlign}
         isPro={isPro}
-        onOpenUpgrade={openProModal}
+        onOpenUpgrade={() => setShowProModal(true)}
       />
-      
-      <ProUpgradeModal 
-        isOpen={showProModal} 
-        onClose={() => setShowProModal(false)} 
-        onUpgrade={() => { setIsPro(true); setShowProModal(false); }}
-      />
-      
-      {isTutorialActive && (
-        <TutorialOverlay 
-           steps={[
-               { title: "Welcome to Trackly", description: "Your minimal, high-performance study companion for JEE preparation.", view: 'daily', targetId: 'dashboard-subjects', icon: Crown },
-               { title: "Plan Your Day", description: "Set daily goals and track your tasks. Mark items as tests to schedule them.", view: 'planner', targetId: 'planner-container', icon: CalendarIcon },
-               { title: "Deep Focus", description: "Use the timer to study without distractions. Log questions as you solve them.", view: 'focus', targetId: 'timer-container', icon: Timer },
-               { title: "Track Progress", description: "Log your mock test scores and analyze detailed performance metrics.", view: 'tests', targetId: 'test-log-container', icon: PenTool },
-               { title: "Analyze Weakness", description: "Visualize your strengths and weak chapters with the Heatmap.", view: 'analytics', targetId: 'analytics-container', icon: BarChart3 }
-           ]}
-           currentStep={tutorialStep}
-           onNext={() => {
-               if (tutorialStep < 4) {
-                   const views: ViewType[] = ['daily', 'planner', 'focus', 'tests', 'analytics'];
-                   changeView(views[tutorialStep + 1]);
-                   setTutorialStep(p => p + 1);
-               } else {
-                   setIsTutorialActive(false);
-                   changeView('daily');
-                   setTutorialStep(0);
-               }
-           }}
-           onClose={() => { setIsTutorialActive(false); setTutorialStep(0); changeView('daily'); }}
-        />
-      )}
-
-      <PerformanceToast 
-         isVisible={isLagging && !graphicsEnabled} // Only show if lagging AND high graphics are on (wait logic handled in hook)
-         onSwitch={activateLiteMode}
-         onDismiss={dismissLag}
-      />
-
-      <SmartRecommendationToast 
-         isVisible={showRecommendation}
-         data={recommendation}
-         onDismiss={handleDismissRecommendation}
-         onPractice={handlePracticeRecommendation}
-      />
-
     </div>
   );
 };
+
+// Simple Arrow Icon for Login Button
+const ArrowRightIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
 
 export default App;

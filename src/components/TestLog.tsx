@@ -53,7 +53,7 @@ const NumberScrollInput = memo(({
     min?: number, 
     max?: number, 
     presets?: number[],
-    step?: number,
+    step?: number, 
     color?: 'indigo' | 'emerald' | 'rose'
 }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -436,7 +436,7 @@ const TestAnalytics = memo(({ tests }: { tests: TestResult[] }) => {
     );
 });
 
-export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSave, onDelete, isPro, onOpenUpgrade }) => {
+export const TestLog = memo(({ tests, targets = [], onSave, onDelete, isPro, onOpenUpgrade }: TestLogProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewFile, setPreviewFile] = useState<{ name: string; type: 'image' | 'pdf' } | null>(null);

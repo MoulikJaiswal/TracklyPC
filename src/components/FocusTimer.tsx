@@ -50,7 +50,7 @@ interface FocusTimerProps {
   onOpenUpgrade: () => void;
 }
 
-export const FocusTimer: React.FC<FocusTimerProps> = memo(({ 
+export const FocusTimer = memo(({ 
     targets = [], 
     mode, 
     timeLeft, 
@@ -69,7 +69,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
     isPro,
     sessionCount,
     onOpenUpgrade
-}) => {
+}: FocusTimerProps) => {
   const [selectedSubject, setSelectedSubject] = useState<keyof typeof JEE_SYLLABUS>('Physics');
   const [showSettings, setShowSettings] = useState(false);
   const [showSoundMenu, setShowSoundMenu] = useState(false);
@@ -111,7 +111,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
           subject: selectedSubject // Attach subject to log
       };
       
-      onAddLog(newLog, selectedSubject);
+      onAddLog(newLog, String(selectedSubject));
       setShowTagger(false);
   };
 
@@ -632,12 +632,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = memo(({
                   <div className="p-4 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50">
                       <button 
                           onClick={handleSaveAndClose}
-                          className="w-full py-4 rounded-2xl font-bold uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
-                          style={{
-                              backgroundColor: 'var(--theme-accent)',
-                              color: 'var(--theme-on-accent)',
-                              boxShadow: '0 10px 15px -3px rgba(var(--theme-accent-rgb), 0.3), 0 4px 6px -2px rgba(var(--theme-accent-rgb), 0.1)'
-                          }}
+                          className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                       >
                           Save to Dashboard
                       </button>
