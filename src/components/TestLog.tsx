@@ -719,8 +719,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
   const activeMistakes = activeBreakdown.mistakes || {};
   const activeTaggedCount = (Object.values(activeMistakes) as number[]).reduce((a, b) => a + (b || 0), 0);
 
-  // Button Logic for Dynamic Theme Support
-  const isUpgradeButton = !isPro && tests.length >= 2;
+  const isUpgrade = !isPro && tests.length >= 2;
 
   return (
     <div id="test-log-container" className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -744,12 +743,9 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
         <button 
           onClick={handleAddClick} 
           className={`group flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider shadow-lg active:scale-95 transition-all
-            ${isUpgradeButton
-                ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-amber-500/20' 
-                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
-            }
+            ${isUpgrade ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-amber-500/20' : ''}
           `}
-          style={!isUpgradeButton ? {
+          style={!isUpgrade ? {
               backgroundColor: 'var(--theme-accent)',
               color: 'var(--theme-on-accent)',
               boxShadow: '0 10px 15px -3px rgba(var(--theme-accent-rgb), 0.3), 0 4px 6px -2px rgba(var(--theme-accent-rgb), 0.1)'
@@ -757,9 +753,9 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
         >
           {isAdding 
             ? <X size={16} /> 
-            : (isUpgradeButton) ? <Crown size={16} /> : <Plus size={16} className="group-hover:rotate-90 transition-transform" />
+            : (isUpgrade) ? <Crown size={16} /> : <Plus size={16} className="group-hover:rotate-90 transition-transform" />
           }
-          {isAdding ? 'Cancel' : (isUpgradeButton) ? 'Upgrade to Log' : 'Log Test'}
+          {isAdding ? 'Cancel' : (isUpgrade) ? 'Upgrade to Log' : 'Log Test'}
         </button>
       </div>
 
@@ -1509,6 +1505,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                   {upcomingTests.map(t => {
                       const dateObj = new Date(t.date + 'T00:00:00'); 
                       const daysLeft = Math.ceil((dateObj.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      
                       return (
                           <div key={t.id} className="bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 p-4 rounded-2xl relative overflow-hidden group hover:border-amber-300 dark:hover:border-amber-500/40 transition-colors">
                               <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">

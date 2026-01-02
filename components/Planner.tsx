@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, memo, useRef } from 'react';
-import { Plus, Trash2, CheckCircle2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Target, Trophy, List } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Target, Trophy } from 'lucide-react';
 import { Target as TargetType } from '../types';
 import { Card } from './Card';
 
@@ -12,7 +12,7 @@ const getLocalDate = (d = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-// Universal ID Generator (matches App.tsx implementation)
+// Universal ID Generator
 const generateUUID = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -27,23 +27,20 @@ interface PlannerProps {
   onDelete: (id: string) => void;
 }
 
-export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProps) => {
+export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle, onDelete }) => {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [selectedDate, setSelectedDate] = useState(getLocalDate());
-  const [currentMonthDate, setCurrentMonthDate] = useState(new Date()); // For month navigation
+  const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
   const [newTargetText, setNewTargetText] = useState('');
   const [isTest, setIsTest] = useState(false);
   
-  // Ref for the task input to handle auto-focus
   const taskInputRef = useRef<HTMLInputElement>(null);
-
   const todayStr = getLocalDate();
 
-  // Weekly View Logic
   const getWeekDays = () => {
     const days = [];
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 is Sunday
+    const dayOfWeek = today.getDay();
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - dayOfWeek);
 
@@ -57,26 +54,16 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
 
   const weekDays = getWeekDays();
 
-  // Monthly View Logic
   const calendarGrid = useMemo(() => {
     const year = currentMonthDate.getFullYear();
     const month = currentMonthDate.getMonth();
-    
     const firstDayOfMonth = new Date(year, month, 1);
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    // Day of week (0-6) the month starts on
     const startDayOfWeek = firstDayOfMonth.getDay(); 
 
     const days = [];
-    // Add empty placeholders for start padding
-    for (let i = 0; i < startDayOfWeek; i++) {
-        days.push(null);
-    }
-    // Add actual days
-    for (let i = 1; i <= daysInMonth; i++) {
-        days.push(getLocalDate(new Date(year, month, i)));
-    }
+    for (let i = 0; i < startDayOfWeek; i++) days.push(null);
+    for (let i = 1; i <= daysInMonth; i++) days.push(getLocalDate(new Date(year, month, i)));
     return days;
   }, [currentMonthDate]);
 
@@ -102,7 +89,6 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
 
   const handleDateClick = (dateStr: string) => {
     setSelectedDate(dateStr);
-    // Auto-focus the input when a date is selected for better UX
     setTimeout(() => {
         taskInputRef.current?.focus();
     }, 10);
@@ -114,9 +100,8 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
   return (
     <div id="planner-container" className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Planner Controls - Expanded Full Width */}
+      {/* Controls */}
       <div className="flex flex-col md:flex-row gap-4 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-2 rounded-[1.5rem] border border-slate-200 dark:border-white/10 shadow-sm w-full" style={{ backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
-          {/* Segmented Toggle - Grows to fill space */}
           <div className="flex flex-1 p-1 bg-slate-100 dark:bg-black/20 rounded-2xl relative">
               <button 
                 onClick={() => setViewMode('week')}
@@ -154,7 +139,6 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
         
         {/* Calendar Column */}
         <div className="bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-xl select-none transition-colors h-fit" style={{ backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)' }}>
-            {/* Month Header (Visible in Month Mode) */}
             {viewMode === 'month' && (
                 <div className="flex justify-between items-center mb-8 px-2">
                     <button onClick={() => changeMonth(-1)} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
@@ -172,7 +156,6 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
                 </div>
             )}
 
-            {/* Week Header (Visible in Week Mode) */}
             {viewMode === 'week' && (
                 <div className="flex justify-between items-center mb-8 px-2">
                     <div className="flex items-center gap-2">
@@ -184,7 +167,6 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
                 </div>
             )}
 
-            {/* View Grids */}
             {viewMode === 'week' ? (
                 <div className="grid grid-cols-7 gap-2 md:gap-4">
                     {weekDays.map((dateStr) => {
@@ -233,13 +215,11 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
                 </div>
             ) : (
                 <div>
-                    {/* Day Labels */}
                     <div className="grid grid-cols-7 mb-4">
                         {['S','M','T','W','T','F','S'].map((d, i) => (
                             <div key={i} className="text-center text-xs font-bold text-slate-400 dark:text-slate-600">{d}</div>
                         ))}
                     </div>
-                    {/* Calendar Grid */}
                     <div className="grid grid-cols-7 gap-2">
                         {calendarGrid.map((dateStr, index) => {
                             if (!dateStr) return <div key={`empty-${index}`} className="p-2" />;
@@ -286,7 +266,6 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
 
         {/* Tasks Column */}
         <Card className="min-h-[400px] md:min-h-[500px]">
-            {/* Add Input Area */}
             <div className="mb-6 md:mb-8">
                 <div className="flex gap-3 mb-3">
                     <input 
@@ -307,7 +286,6 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
                         <Plus size={20} />
                     </button>
                 </div>
-                {/* Type Toggle */}
                 <div className="flex items-center gap-2 pl-1">
                     <button 
                         onClick={() => setIsTest(!isTest)}
@@ -334,5 +312,33 @@ export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProp
                 dayTargets.map(t => (
                 <div key={t.id} className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl group border transition-all ${t.type === 'test' ? 'bg-amber-50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/10' : 'bg-slate-50 dark:bg-white/[0.03] border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10'}`}>
                     <button 
-                    onClick={() => onToggle(t.id, !t.completed)} 
-                    className={`transition-all duration-300 ${t.completed ? 'text-emerald-500 dark:text-emerald-400' : t.type === 'test' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-900 dark:hover:text-white'}`}
+                        onClick={() => onToggle(t.id, !t.completed)} 
+                        className={`transition-all duration-300 ${t.completed ? 'text-emerald-500 dark:text-emerald-400' : t.type === 'test' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-900 dark:hover:text-white'}`}
+                    >
+                    {t.completed ? <CheckCircle2 size={24} /> : <div className="w-6 h-6 border-2 border-current rounded-full"></div>}
+                    </button>
+                    <div className="flex-grow flex flex-col">
+                        <span className={`text-sm md:text-base transition-all duration-300 ${t.completed ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
+                            {t.text}
+                        </span>
+                        {t.type === 'test' && (
+                            <span className="text-[9px] uppercase font-bold text-amber-500 tracking-wider flex items-center gap-1 mt-1">
+                                <Trophy size={10} /> Scheduled Test
+                            </span>
+                        )}
+                    </div>
+                    <button 
+                        onClick={() => onDelete(t.id)} 
+                        className="opacity-0 group-hover:opacity-100 p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-all"
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
+                ))
+            )}
+            </div>
+        </Card>
+      </div>
+    </div>
+  );
+});
