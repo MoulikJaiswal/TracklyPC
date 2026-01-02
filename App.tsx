@@ -29,6 +29,7 @@ import { TutorialOverlay, TutorialStep } from './components/TutorialOverlay';
 import { usePerformanceMonitor } from './hooks/usePerformanceMonitor';
 import { PerformanceToast } from './components/PerformanceToast';
 import { ProUpgradeModal } from './components/ProUpgradeModal';
+import { SmartRecommendationToast } from './components/SmartRecommendationToast';
 
 // Firebase Imports
 import { auth, db, googleProvider } from './firebase';
@@ -105,7 +106,8 @@ const AnimatedBackground = React.memo(({
     showParticles,
     graphicsEnabled,
     animationsEnabled,
-    customBackground
+    customBackground,
+    customBackgroundAlign = 'center'
 }: { 
     themeId: ThemeId,
     showAurora: boolean,
@@ -113,7 +115,8 @@ const AnimatedBackground = React.memo(({
     showParticles: boolean,
     graphicsEnabled: boolean,
     animationsEnabled: boolean,
-    customBackground: string | null
+    customBackground: string | null,
+    customBackgroundAlign?: 'center' | 'top' | 'bottom'
 }) => {
   const config = THEME_CONFIG[themeId];
   
@@ -126,7 +129,7 @@ const AnimatedBackground = React.memo(({
             className="fixed inset-0 z-0 pointer-events-none transition-colors duration-300"
             style={{ 
                 backgroundColor: config.colors.bg,
-                ...(customBackground ? { backgroundImage: `url(${customBackground})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {})
+                ...(customBackground ? { backgroundImage: `url(${customBackground})`, backgroundSize: 'cover', backgroundPosition: customBackgroundAlign } : {})
             }}
         >
             {/* Very cheap radial gradient for minimal depth if no custom bg */}
@@ -249,8 +252,12 @@ const AnimatedBackground = React.memo(({
       {/* CUSTOM BACKGROUND LAYER */}
       {customBackground && (
           <div 
-            className="absolute inset-0 z-[0] bg-cover bg-center bg-no-repeat transition-opacity duration-700"
-            style={{ backgroundImage: `url(${customBackground})`, opacity: 1 }}
+            className="absolute inset-0 z-[0] bg-cover bg-no-repeat transition-opacity duration-700"
+            style={{ 
+                backgroundImage: `url(${customBackground})`, 
+                backgroundPosition: customBackgroundAlign,
+                opacity: 1 
+            }}
           />
       )}
       {/* Dimming layer for custom background to ensure legibility */}
@@ -657,6 +664,8 @@ const App: React.FC = () => {
   const [customBackground, setCustomBackground] = useState<string | null>(null);
   // NEW: Custom Background Toggle
   const [customBackgroundEnabled, setCustomBackgroundEnabled] = useState(false);
+  // NEW: Custom Background Align
+  const [customBackgroundAlign, setCustomBackgroundAlign] = useState<'center' | 'top' | 'bottom'>('center');
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isTutorialActive, setIsTutorialActive] = useState(false);
@@ -673,9 +682,13 @@ const App: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showNetworkToast, setShowNetworkToast] = useState(false);
 
-  // Reminders
+  // Reminders & Recommendations
   const [showTestReminder, setShowTestReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
+  
+  // Recommendation State
+  const [recommendation, setRecommendation] = useState<{subject: string, topic: string, accuracy: number} | null>(null);
+  const [showRecommendation, setShowRecommendation] = useState(false);
 
   // Audio Context Ref (Click sounds)
   const clickAudioCtxRef = useRef<AudioContext | null>(null);
@@ -738,6 +751,87 @@ const App: React.FC = () => {
       const today = getLocalDate();
       localStorage.setItem(`zenith_stats_${today}`, JSON.stringify(todayStats));
   }, [todayStats]);
+
+  // --------------------------------------------------------
+  // Recommendation Logic: Check sessions for weak spots
+  // --------------------------------------------------------
+  useEffect(() => {
+      if (sessions.length < 5) return; // Basic gate to avoid early firing
+
+      const analyze = () => {
+          const subjectTopics = { Physics: new Set<string>(), Chemistry: new Set<string>(), Maths: new Set<string>() };
+          const topicStats: Record<string, { subject: string, correct: number, attempted: number }> = {};
+
+          sessions.forEach(s => {
+              if (!s.topic) return;
+              // Normalize subject names just in case
+              const subj = s.subject as keyof typeof subjectTopics;
+              if (subjectTopics[subj]) {
+                  subjectTopics[subj].add(s.topic);
+                  
+                  const key = `${s.subject}|${s.topic}`;
+                  if (!topicStats[key]) topicStats[key] = { subject: s.subject, correct: 0, attempted: 0 };
+                  topicStats[key].correct += (s.correct || 0);
+                  topicStats[key].attempted += (s.attempted || 0);
+              }
+          });
+
+          // Check trigger condition: 2 or more chapters touched in ALL subjects
+          const pCount = subjectTopics.Physics.size;
+          const cCount = subjectTopics.Chemistry.size;
+          const mCount = subjectTopics.Maths.size;
+
+          if (pCount >= 2 && cCount >= 2 && mCount >= 2) {
+              // Find weakest topic
+              let weakest = null;
+              let minAcc = 100; // Start at max
+
+              Object.entries(topicStats).forEach(([key, stats]) => {
+                  if (stats.attempted < 5) return; // Minimum questions to form an opinion
+                  const acc = (stats.correct / stats.attempted) * 100;
+                  if (acc < minAcc) {
+                      minAcc = acc;
+                      weakest = {
+                          topic: key.split('|')[1],
+                          subject: stats.subject,
+                          accuracy: acc
+                      };
+                  }
+              });
+
+              if (weakest) {
+                  const lastRec = localStorage.getItem('trackly_last_rec_hash');
+                  // Create unique hash for this recommendation state
+                  const currentHash = `${weakest.subject}-${weakest.topic}-${Math.round(weakest.accuracy)}`;
+                  
+                  // Show if it's a different recommendation OR it's been a while
+                  // Logic: If current hash != last dismissed hash, show it.
+                  if (lastRec !== currentHash) {
+                      setRecommendation(weakest);
+                      setShowRecommendation(true);
+                  }
+              }
+          }
+      };
+      
+      // Debounce slightly
+      const timer = setTimeout(analyze, 1500);
+      return () => clearTimeout(timer);
+
+  }, [sessions]);
+
+  const handleDismissRecommendation = () => {
+      setShowRecommendation(false);
+      if (recommendation) {
+          const hash = `${recommendation.subject}-${recommendation.topic}-${Math.round(recommendation.accuracy)}`;
+          localStorage.setItem('trackly_last_rec_hash', hash);
+      }
+  };
+
+  const handlePracticeRecommendation = () => {
+      handleDismissRecommendation();
+      changeView('focus');
+  };
 
   // Persistent Timer Logic
   useEffect(() => {
@@ -1262,6 +1356,10 @@ const App: React.FC = () => {
     
     // Load Custom Background Enabled Toggle
     setCustomBackgroundEnabled(safeJSONParse('zenith_custom_bg_enabled', false));
+
+    // Load Custom Background Alignment
+    const savedBgAlign = localStorage.getItem('zenith_custom_bg_align');
+    if (savedBgAlign) setCustomBackgroundAlign(savedBgAlign as any);
   }, []);
 
   // Persist Settings
@@ -1307,6 +1405,10 @@ const App: React.FC = () => {
   useEffect(() => {
       localStorage.setItem('zenith_custom_bg_enabled', JSON.stringify(customBackgroundEnabled));
   }, [customBackgroundEnabled]);
+
+  useEffect(() => {
+      localStorage.setItem('zenith_custom_bg_align', customBackgroundAlign);
+  }, [customBackgroundAlign]);
 
   const toggleCustomBackground = useCallback(() => {
       setCustomBackgroundEnabled(prev => {
@@ -1457,6 +1559,7 @@ const App: React.FC = () => {
                 graphicsEnabled={graphicsEnabled}
                 animationsEnabled={animationsEnabled}
                 customBackground={customBackgroundEnabled ? customBackground : null}
+                customBackgroundAlign={customBackgroundAlign}
              />
              <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
                 <TracklyLogo id="login-logo" />
@@ -1492,7 +1595,7 @@ const App: React.FC = () => {
                             className="w-full py-4 bg-white/10 hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-2xl font-bold uppercase tracking-widest border border-slate-200 dark:border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <span>Continue Offline</span>
-                            <ArrowRightIcon />
+                            <ArrowRight />
                         </button>
                     </div>
 
@@ -1513,6 +1616,14 @@ const App: React.FC = () => {
         isVisible={isLagging} 
         onSwitch={activateLiteMode}
         onDismiss={dismissLag} 
+      />
+
+      {/* Smart Recommendation Toast */}
+      <SmartRecommendationToast
+        isVisible={showRecommendation}
+        data={recommendation}
+        onDismiss={handleDismissRecommendation}
+        onPractice={handlePracticeRecommendation}
       />
 
       {/* Network Status Toast */}
@@ -1551,6 +1662,7 @@ const App: React.FC = () => {
         graphicsEnabled={graphicsEnabled}
         animationsEnabled={animationsEnabled}
         customBackground={customBackgroundEnabled ? customBackground : null}
+        customBackgroundAlign={customBackgroundAlign}
       />
       
       <Sidebar 
@@ -1570,8 +1682,8 @@ const App: React.FC = () => {
           onOpenUpgrade={() => setShowProModal(true)}
       />
 
-      {/* Mobile Header */}
-      <div className="md:hidden relative z-10 p-6 flex justify-between items-center">
+      {/* Mobile Header - Fixed */}
+      <div className="md:hidden fixed top-0 left-0 w-full z-50 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-xl border-b border-slate-200 dark:border-white/5 px-6 py-4 flex justify-between items-center transition-colors duration-500">
         <TracklyLogo id="trackly-logo-mobile" />
         <div className="flex items-center gap-3">
             {!isPro && (
@@ -1589,7 +1701,7 @@ const App: React.FC = () => {
       </div>
 
       <main 
-          className={`relative z-10 flex-grow p-4 md:p-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
+          className={`relative z-10 flex-grow p-4 md:p-10 pt-24 md:pt-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -1804,6 +1916,8 @@ const App: React.FC = () => {
         setCustomBackground={setCustomBackground}
         customBackgroundEnabled={customBackgroundEnabled}
         toggleCustomBackground={toggleCustomBackground}
+        customBackgroundAlign={customBackgroundAlign}
+        setCustomBackgroundAlign={setCustomBackgroundAlign}
         isPro={isPro}
         onOpenUpgrade={() => setShowProModal(true)}
       />

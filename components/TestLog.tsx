@@ -1,4 +1,4 @@
-import React, { useState, useMemo, memo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, memo, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, X, Trash2, Trophy, Clock, Calendar, UploadCloud, FileText, Image as ImageIcon, Atom, Zap, Calculator, BarChart3, AlertCircle, ChevronRight, PieChart, Filter, Target, Download, TrendingUp, TrendingDown, Crown, Lock, GripHorizontal, Check, Brain, Activity, Layers, BookOpen, ListChecks } from 'lucide-react';
 import { TestResult, Target as TargetType, SubjectBreakdown, MistakeCounts } from '../types';
@@ -35,6 +35,107 @@ const DEFAULT_BREAKDOWN: SubjectBreakdown = {
 // --- SAFE GRAPH UTILS ---
 const safeNum = (n: any) => Number.isFinite(n) ? n : 0;
 const safeDiv = (n: number, d: number) => d === 0 ? 0 : n / d;
+
+// --- CUSTOM INPUT COMPONENT ---
+const NumberScrollInput = memo(({ 
+    label, 
+    value, 
+    onChange, 
+    min = 0, 
+    max = 300, 
+    presets,
+    step = 1,
+    color = 'indigo'
+}: { 
+    label: string, 
+    value: number, 
+    onChange: (val: number) => void, 
+    min?: number, 
+    max?: number, 
+    presets?: number[],
+    step?: number,
+    color?: 'indigo' | 'emerald' | 'rose'
+}) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Theme Configuration
+    const theme = {
+        indigo: { bg: 'bg-slate-800', text: 'text-indigo-400', active: 'text-indigo-400', border: 'focus-within:border-indigo-500' },
+        emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', active: 'text-emerald-400', border: 'border-emerald-500/20 focus-within:border-emerald-500' },
+        rose: { bg: 'bg-rose-500/10', text: 'text-rose-500', active: 'text-rose-400', border: 'border-rose-500/20 focus-within:border-rose-500' }
+    }[color];
+
+    // Generate options - Memoized heavily
+    const options = useMemo(() => {
+        if (presets) return presets;
+        const opts = [];
+        // Generate reverse range (High to Low)
+        for (let i = max; i >= min; i -= step) {
+            opts.push(i);
+        }
+        return opts;
+    }, [min, max, presets, step]);
+
+    // Ensure value is in the scroll list logic (handled via UI selection mostly)
+    // We do NOT rebuild the options list just because 'value' changes, to save Perf.
+    // Instead we trust the list covers the range.
+
+    // Scroll to value on mount or when value changes externally
+    useEffect(() => {
+        if (scrollRef.current) {
+            const btn = scrollRef.current.querySelector(`button[data-value="${value}"]`);
+            if (btn) {
+                // Use behavior: 'auto' for initial render to prevent jump, 'smooth' for updates
+                // Or simplified: just use auto to be snappy and less CPU intensive
+                btn.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+    }, [value]); // Trigger only on value change
+
+    return (
+        <div className={`relative flex h-16 ${theme.bg} rounded-xl overflow-hidden border ${color === 'indigo' ? 'border-slate-700' : ''} ${theme.border} transition-all group shadow-sm will-change-transform`}>
+            <div className="flex-1 flex flex-col justify-center px-3 min-w-0">
+                <label className={`text-[10px] uppercase font-bold ${theme.text} mb-0.5 tracking-wide`}>{label}</label>
+                <input 
+                    type="number" 
+                    className={`bg-transparent text-xl font-mono font-bold ${color === 'indigo' ? 'text-white' : theme.text} outline-none w-full appearance-none`}
+                    value={value.toString()} // Handle leading zeros removal
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        onChange(isNaN(val) ? 0 : val);
+                    }}
+                    onFocus={(e) => e.target.select()}
+                />
+            </div>
+            
+            {/* Scroll Strip */}
+            <div className={`w-px ${color === 'indigo' ? 'bg-slate-700' : 'bg-black/10'}`} />
+            <div 
+                ref={scrollRef}
+                className="w-14 bg-black/10 overflow-y-auto no-scrollbar snap-y snap-mandatory text-center relative hover:bg-black/20 transition-colors"
+                style={{ contain: 'strict' }}
+            >
+                <div className="py-2 space-y-1">
+                    {options.map((opt) => (
+                        <button
+                            key={opt}
+                            data-value={opt}
+                            type="button" 
+                            onClick={() => onChange(opt)}
+                            className={`w-full py-1 text-[10px] font-mono font-bold snap-center transition-all ${value === opt ? `${theme.active} scale-110` : 'text-slate-500 hover:text-slate-400'}`}
+                        >
+                            {opt}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            
+            {/* Fade overlays for scroll hint */}
+            <div className="absolute top-0 right-0 w-14 h-4 bg-gradient-to-b from-black/10 to-transparent pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-14 h-4 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
+        </div>
+    );
+});
 
 // --- ANALYTICS COMPONENT ---
 const TestAnalytics = memo(({ tests }: { tests: TestResult[] }) => {
@@ -779,43 +880,44 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
               <div className="md:col-span-2 grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center h-4 mb-1">
-                    <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Marks</label>
                     <button 
                         type="button" 
                         onClick={handleCalculateMarks}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded border border-indigo-500/30 text-indigo-400 text-[9px] font-bold uppercase hover:bg-indigo-500/10 transition-colors"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded border border-indigo-500/30 text-indigo-400 text-[9px] font-bold uppercase hover:bg-indigo-500/10 transition-colors ml-auto"
                     >
                         <Zap size={10} />
                         Auto-Calc
                     </button>
                   </div>
+                  
                   <input 
-                    type="number" required placeholder="0"
-                    className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-sm font-mono font-bold text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all"
+                    type="number" 
+                    placeholder="0"
+                    className="w-full h-16 bg-slate-800 border border-slate-700 p-3 rounded-xl text-xl font-mono font-bold text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600"
                     value={formData.marks}
-                    onChange={e => setFormData({...formData, marks: parseInt(e.target.value) || 0})}
+                    onChange={(e) => setFormData({...formData, marks: parseInt(e.target.value) || 0})}
                   />
                 </div>
+                
                 <div className="space-y-2">
-                   <div className="flex justify-between items-center h-4 mb-1">
-                      <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Total Marks</label>
-                   </div>
-                  <input 
-                    type="number" required placeholder="300"
-                    className="w-full bg-slate-800 border border-slate-700 p-3 rounded-xl text-sm font-mono font-bold text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 outline-none transition-all"
+                   <div className="flex justify-between items-center h-4 mb-1"><label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Total Marks</label></div>
+                   <input 
+                    type="number" 
+                    placeholder="300"
+                    className="w-full h-16 bg-slate-800 border border-slate-700 p-3 rounded-xl text-xl font-mono font-bold text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600"
                     value={formData.total}
-                    onChange={e => setFormData({...formData, total: parseInt(e.target.value) || 300})}
+                    onChange={(e) => setFormData({...formData, total: parseInt(e.target.value) || 0})}
                   />
                 </div>
+                
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center h-4 mb-1">
-                     <label className="text-[10px] uppercase font-bold text-indigo-400 ml-1">Total Qs</label>
-                  </div>
+                  <div className="flex justify-between items-center h-4 mb-1"><label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Total Qs</label></div>
                   <input 
-                    type="number" placeholder="75"
-                    className="w-full bg-indigo-500/10 border border-indigo-500/40 p-3 rounded-xl text-sm font-mono font-bold text-indigo-300 focus:border-indigo-500 outline-none transition-all"
+                    type="number" 
+                    placeholder="75"
+                    className="w-full h-16 bg-slate-800 border border-slate-700 p-3 rounded-xl text-xl font-mono font-bold text-white focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600"
                     value={globalQCount}
-                    onChange={e => handleGlobalQuestionChange(parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleGlobalQuestionChange(parseInt(e.target.value) || 0)}
                   />
                 </div>
               </div>
@@ -888,21 +990,21 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
 
                      <div className="grid grid-cols-3 gap-4">
                         <div className="space-y-1">
-                           <label className="text-[9px] uppercase font-bold text-emerald-500 ml-1">Correct</label>
-                           <input 
-                              type="number" min="0" placeholder="0"
-                              className="w-full bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl text-center font-mono font-bold text-emerald-300 focus:border-emerald-500 outline-none transition-all"
-                              value={formData.breakdown?.[activeTab].correct || ''}
-                              onChange={(e) => handleStatChange(activeTab, 'correct', parseInt(e.target.value) || 0)}
+                           <NumberScrollInput 
+                              label="Correct"
+                              value={formData.breakdown?.[activeTab].correct || 0}
+                              onChange={(val) => handleStatChange(activeTab, 'correct', val)}
+                              max={activeTotalQuestions}
+                              color="emerald"
                            />
                         </div>
                         <div className="space-y-1">
-                           <label className="text-[9px] uppercase font-bold text-rose-500 ml-1">Wrong</label>
-                           <input 
-                              type="number" min="0" placeholder="0"
-                              className="w-full bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl text-center font-mono font-bold text-rose-300 focus:border-rose-500 outline-none transition-all"
-                              value={formData.breakdown?.[activeTab].incorrect || ''}
-                              onChange={(e) => handleStatChange(activeTab, 'incorrect', parseInt(e.target.value) || 0)}
+                           <NumberScrollInput 
+                              label="Wrong"
+                              value={formData.breakdown?.[activeTab].incorrect || 0}
+                              onChange={(val) => handleStatChange(activeTab, 'incorrect', val)}
+                              max={activeTotalQuestions}
+                              color="rose"
                            />
                         </div>
                         <div className="space-y-1 opacity-60">
@@ -911,7 +1013,7 @@ export const TestLog: React.FC<TestLogProps> = memo(({ tests, targets = [], onSa
                               type="number" 
                               readOnly
                               disabled
-                              className="w-full bg-slate-700/50 border border-slate-700 p-3 rounded-xl text-center font-mono font-bold text-slate-400 cursor-not-allowed"
+                              className="w-full h-16 bg-slate-700/50 border border-slate-700 p-3 rounded-xl text-center text-xl font-mono font-bold text-slate-400 cursor-not-allowed"
                               value={formData.breakdown?.[activeTab].unattempted || 0}
                            />
                         </div>

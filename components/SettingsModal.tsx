@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { X, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle, Eye, Smartphone, Battery, BatteryCharging, Activity, Palette, Zap, SlidersHorizontal, HelpCircle, Image as ImageIcon, Upload, Lock, Crown } from 'lucide-react';
+import { X, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle, Eye, Smartphone, Battery, BatteryCharging, Activity, Palette, Zap, SlidersHorizontal, HelpCircle, Image as ImageIcon, Upload, Lock, Crown, LayoutTemplate } from 'lucide-react';
 import { Card } from './Card';
 import { ThemeId } from '../types';
 import { THEME_CONFIG } from '../constants';
@@ -43,6 +43,8 @@ interface SettingsModalProps {
   setCustomBackground: (bg: string | null) => void;
   customBackgroundEnabled: boolean;
   toggleCustomBackground: () => void;
+  customBackgroundAlign: 'center' | 'top' | 'bottom';
+  setCustomBackgroundAlign: (align: 'center' | 'top' | 'bottom') => void;
   isPro: boolean;
   onOpenUpgrade: () => void;
 }
@@ -83,6 +85,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setCustomBackground,
   customBackgroundEnabled,
   toggleCustomBackground,
+  customBackgroundAlign,
+  setCustomBackgroundAlign,
   isPro,
   onOpenUpgrade
 }) => {
@@ -212,17 +216,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                  </div>
 
                  {isPro && customBackgroundEnabled ? (
-                     <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                          {customBackground ? (
-                             <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 group">
-                                 <img src={customBackground} alt="Custom Background" className="w-full h-full object-cover" />
-                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                     <button 
-                                        onClick={() => setCustomBackground(null)}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-rose-600 transition-colors"
-                                     >
-                                         <Trash2 size={14} /> Remove
-                                     </button>
+                             <div className="space-y-3">
+                                 <div className="relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 dark:border-white/10 group">
+                                     <img 
+                                        src={customBackground} 
+                                        alt="Custom Background" 
+                                        className="w-full h-full object-cover"
+                                        style={{ objectPosition: customBackgroundAlign }} 
+                                     />
+                                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <button 
+                                            onClick={() => setCustomBackground(null)}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-rose-600 transition-colors"
+                                         >
+                                             <Trash2 size={14} /> Remove
+                                         </button>
+                                     </div>
+                                 </div>
+                                 
+                                 {/* Alignment Controls */}
+                                 <div className="space-y-2">
+                                     <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400">
+                                         <LayoutTemplate size={12} /> Alignment
+                                     </div>
+                                     <div className="flex gap-2 p-1 bg-slate-100 dark:bg-black/20 rounded-lg border border-slate-200 dark:border-white/10">
+                                         {(['top', 'center', 'bottom'] as const).map((align) => (
+                                             <button
+                                                 key={align}
+                                                 onClick={() => setCustomBackgroundAlign(align)}
+                                                 className={`flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                                                     customBackgroundAlign === align 
+                                                     ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-sm' 
+                                                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5'
+                                                 }`}
+                                             >
+                                                 {align}
+                                             </button>
+                                         ))}
+                                     </div>
                                  </div>
                              </div>
                          ) : (
