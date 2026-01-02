@@ -90,7 +90,7 @@ const SyllabusHeatmap = memo(({ sessions, isPro, onOpenUpgrade }: { sessions: Se
       </h3>
       
       <div className={`grid grid-cols-1 gap-6 transition-all duration-300 ${!isPro ? 'preserve-filter blur-sm opacity-60 pointer-events-none select-none grayscale-[0.2]' : ''}`}>
-         {Object.entries(JEE_SYLLABUS).map(([subject, topics]) => (
+         {(Object.entries(JEE_SYLLABUS) as [string, string[]][]).map(([subject, topics]) => (
             <div key={subject} className="bg-white/60 dark:bg-slate-900/60 p-4 rounded-3xl border border-slate-200 dark:border-white/5">
                 <div className="flex items-center gap-2 mb-4">
                     <span className={`w-2 h-2 rounded-full ${
@@ -155,7 +155,7 @@ const SyllabusHeatmap = memo(({ sessions, isPro, onOpenUpgrade }: { sessions: Se
   )
 });
 
-export const Analytics = memo(({ sessions, tests, isPro, onOpenUpgrade }: AnalyticsProps) => {
+export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests, isPro, onOpenUpgrade }) => {
   const stats = useMemo(() => {
     const totalAttempted = sessions.reduce((acc, s) => acc + (Number(s.attempted) || 0), 0);
     const totalCorrect = sessions.reduce((acc, s) => acc + (Number(s.correct) || 0), 0);

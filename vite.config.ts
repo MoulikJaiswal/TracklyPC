@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.png', 'robots.txt'],
+      includeAssets: ['logo.png', 'robots.txt', 'favicon.ico', 'apple-touch-icon.png', 'favicon-32x32.png', 'favicon-16x16.png'],
       manifest: {
         short_name: "Trackly",
         name: "Trackly - Student Focus",
@@ -19,12 +19,17 @@ export default defineConfig({
         orientation: "portrait",
         icons: [
           {
-            src: "/logo.png",
+            src: "/android-chrome-192x192.png",
             type: "image/png",
             sizes: "192x192"
           },
           {
-            src: "/logo.png",
+            src: "/android-chrome-512x512.png",
+            type: "image/png",
+            sizes: "512x512"
+          },
+          {
+            src: "/android-chrome-512x512.png",
             type: "image/png",
             sizes: "512x512",
             purpose: "any maskable"
