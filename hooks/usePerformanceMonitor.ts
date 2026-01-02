@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 
 export const usePerformanceMonitor = (isEnabled: boolean = true) => {
@@ -6,8 +7,8 @@ export const usePerformanceMonitor = (isEnabled: boolean = true) => {
   
   const lastFrameTime = useRef(-1);
   const jankScore = useRef(0); 
-  const rafId = useRef<number>();
-  const timeoutId = useRef<any>();
+  const rafId = useRef<number | null>(null);
+  const timeoutId = useRef<any>(null);
 
   useEffect(() => {
     if (!isEnabled || hasDismissed || isLagging) return;

@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, memo, useCallback } from 'react';
 import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History } from 'lucide-react';
 import { Session, Target, MistakeCounts } from '../types';
@@ -208,7 +209,7 @@ const SubjectPod = memo(({
   );
 });
 
-// SubjectDetailModal Component (Abbreviated to focus on fix, but including full content for consistency)
+// SubjectDetailModal Component
 const SubjectDetailModal = memo(({ 
   subject, 
   sessions, 
@@ -465,7 +466,7 @@ const SubjectDetailModal = memo(({
   );
 });
 
-export const Dashboard: React.FC<DashboardProps> = memo(({ 
+export const Dashboard = memo(({ 
   sessions, 
   targets, 
   quote, 
@@ -474,8 +475,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
   setGoals, 
   onSaveSession,
   userName
-}) => {
-  // ... (No changes here, keeping component structure)
+}: DashboardProps) => {
   const todayStr = getLocalDate();
   const todaysSessions = useMemo(() => sessions.filter(s => getLocalDateFromTimestamp(s.timestamp) === todayStr), [sessions, todayStr]);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);

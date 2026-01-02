@@ -27,7 +27,7 @@ interface PlannerProps {
   onDelete: (id: string) => void;
 }
 
-export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle, onDelete }) => {
+export const Planner = memo(({ targets, onAdd, onToggle, onDelete }: PlannerProps) => {
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
   const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date()); // For month navigation
@@ -336,31 +336,3 @@ export const Planner: React.FC<PlannerProps> = memo(({ targets, onAdd, onToggle,
                     <button 
                     onClick={() => onToggle(t.id, !t.completed)} 
                     className={`transition-all duration-300 ${t.completed ? 'text-emerald-500 dark:text-emerald-400' : t.type === 'test' ? 'text-amber-500' : 'text-slate-300 dark:text-slate-600 hover:text-slate-900 dark:hover:text-white'}`}
-                    >
-                    {t.completed ? <CheckCircle2 size={24} /> : <div className="w-6 h-6 border-2 border-current rounded-full"></div>}
-                    </button>
-                    <div className="flex-grow flex flex-col">
-                        <span className={`text-sm md:text-base transition-all duration-300 ${t.completed ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-700 dark:text-slate-200'}`}>
-                            {t.text}
-                        </span>
-                        {t.type === 'test' && (
-                            <span className="text-[9px] uppercase font-bold text-amber-500 tracking-wider flex items-center gap-1 mt-1">
-                                <Trophy size={10} /> Scheduled Test
-                            </span>
-                        )}
-                    </div>
-                    <button 
-                    onClick={() => onDelete(t.id)} 
-                    className="opacity-0 group-hover:opacity-100 p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-all"
-                    >
-                    <Trash2 size={16} />
-                    </button>
-                </div>
-                ))
-            )}
-            </div>
-        </Card>
-      </div>
-    </div>
-  );
-});

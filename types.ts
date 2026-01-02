@@ -1,3 +1,4 @@
+
 export interface MistakeCounts {
   concept?: number;
   formula?: number;
@@ -67,6 +68,6 @@ export interface Target {
   type?: 'task' | 'test';
 }
 
-export type ViewType = 'daily' | 'planner' | 'focus' | 'tests' | 'analytics' | 'log';
+export type ViewType = 'daily' | 'planner' | 'focus' | 'tests' | 'analytics' | 'log' | 'resources';
 
 export type ThemeId = 'midnight' | 'obsidian' | 'void' | 'forest' | 'morning' | 'earth' | 'default-dark' | 'default-light';
