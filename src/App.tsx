@@ -1170,6 +1170,10 @@ const App: React.FC = () => {
         }
   `}, [themeConfig, theme]);
 
+  const handleOpenBreathwork = useCallback(() => {
+      changeView('focus');
+  }, [changeView]);
+
   // Not Logged In View
   if (!userName) {
     return (
@@ -1312,7 +1316,7 @@ const App: React.FC = () => {
       </div>
 
       <main 
-          className={`relative z-10 flex-grow p-4 md:p-10 pt-20 md:pt-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
+          className={`relative z-10 flex-grow p-4 md:p-10 pt-24 md:pt-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
@@ -1353,6 +1357,7 @@ const App: React.FC = () => {
                           setGoals={setGoals}
                           onSaveSession={handleSaveSession}
                           userName={userName}
+                          onOpenBreathwork={handleOpenBreathwork}
                       />
                   )}
                   {view === 'planner' && (
