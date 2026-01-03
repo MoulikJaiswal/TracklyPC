@@ -1,5 +1,6 @@
+
 import React, { useMemo, useState, memo, useCallback } from 'react';
-import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History } from 'lucide-react';
+import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History, ArrowLeft } from 'lucide-react';
 import { Session, Target, MistakeCounts } from '../types';
 import { Card } from './Card';
 import { JEE_SYLLABUS, MISTAKE_TYPES } from '../constants';
@@ -129,7 +130,7 @@ const SubjectPod = memo(({
         if ((e.target as HTMLElement).closest('.goal-input')) return;
         onClick();
       }}
-      className="relative overflow-hidden rounded-[2rem] border border-slate-200 dark:border-white/5 p-4 md:p-6 flex flex-col justify-between min-h-[120px] md:min-h-[220px] group cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:border-slate-300 dark:hover:border-white/20 active:scale-95 backdrop-blur-md transform-gpu will-change-transform transition-[transform,box-shadow,border-color,background-color] duration-300"
+      className="relative overflow-hidden rounded-[2rem] border border-slate-200 dark:border-white/5 p-5 md:p-6 flex flex-col justify-between min-h-[160px] md:min-h-[220px] group cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:border-slate-300 dark:hover:border-white/20 active:scale-95 backdrop-blur-md transform-gpu will-change-transform transition-[transform,box-shadow,border-color,background-color] duration-300"
       style={{ 
         transform: 'translate3d(0,0,0)',
         backgroundColor: 'rgba(var(--theme-card-rgb), 0.4)'
@@ -186,10 +187,10 @@ const SubjectPod = memo(({
         </div>
       </div>
       
-      <div className="z-10 mt-3 md:mt-4 relative">
-        <h4 className={`text-sm md:text-base font-bold uppercase tracking-wider mb-1 ${colors.text}`}>{subject}</h4>
+      <div className="z-10 mt-4 relative">
+        <h4 className={`text-sm md:text-base font-bold uppercase tracking-wider mb-1.5 ${colors.text}`}>{subject}</h4>
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl md:text-5xl font-mono font-bold text-slate-800 dark:text-white tracking-tight">{count}</span>
+          <span className="text-4xl md:text-5xl font-mono font-bold text-slate-800 dark:text-white tracking-tight">{count}</span>
           <span className="text-[10px] md:text-xs font-bold text-slate-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Solved</span>
         </div>
       </div>
@@ -208,7 +209,7 @@ const SubjectPod = memo(({
   );
 });
 
-// SubjectDetailModal Component (Abbreviated to focus on fix, but including full content for consistency)
+// SubjectDetailModal Component
 const SubjectDetailModal = memo(({ 
   subject, 
   sessions, 
@@ -262,12 +263,19 @@ const SubjectDetailModal = memo(({
   }, [sessions]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/30 dark:bg-black/40 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="bg-white/80 dark:bg-[#0f172a]/60 backdrop-blur-3xl border-t md:border border-slate-200 dark:border-white/10 w-full md:max-w-2xl rounded-t-[2rem] md:rounded-3xl shadow-2xl flex flex-col h-[85vh] md:h-auto md:max-h-[90vh] animate-in slide-in-from-bottom-10 duration-300 overflow-hidden transform-gpu">
+    // Outer Container: Full screen fixed on mobile, centered overlay on desktop
+    <div className="fixed inset-0 z-[100] flex flex-col md:flex-row md:items-center md:justify-center bg-white dark:bg-slate-950 md:bg-black/60 md:backdrop-blur-md animate-in fade-in duration-200">
+      
+      {/* Modal/Page Container: Full width/height on mobile, styled card on desktop */}
+      <div className="w-full h-full md:h-auto md:max-h-[85vh] md:max-w-2xl bg-white dark:bg-slate-900 md:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300">
         
         {/* Header */}
-        <div className="p-5 md:p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-gradient-to-r from-indigo-50/50 to-transparent dark:from-indigo-500/10 dark:to-transparent shrink-0">
+        <div className="p-4 md:p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-white dark:bg-slate-900 shrink-0">
           <div className="flex items-center gap-3 md:gap-4">
+             {/* Mobile Back Button */}
+             <button onClick={onClose} className="md:hidden p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400">
+               <ArrowLeft size={20} />
+             </button>
              {subject === 'Physics' && <Atom className="text-blue-500 dark:text-blue-400" size={24} />}
              {subject === 'Chemistry' && <Zap className="text-orange-500 dark:text-orange-400" size={24} />}
              {subject === 'Maths' && <Calculator className="text-rose-500 dark:text-rose-400" size={24} />}
@@ -276,7 +284,8 @@ const SubjectDetailModal = memo(({
                <p className="text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">Chapter Progress</p>
              </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          {/* Desktop Close Button */}
+          <button onClick={onClose} className="hidden md:block p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-white">
             <X size={20} />
           </button>
         </div>
@@ -298,29 +307,32 @@ const SubjectDetailModal = memo(({
         </div>
 
         {/* Content */}
-        <div className="p-5 md:p-6 overflow-y-auto flex-grow overscroll-contain">
+        <div className="flex-1 overflow-y-auto p-5 md:p-6 bg-slate-50/50 dark:bg-black/20 overscroll-contain">
           {activeTab === 'log' ? (
-            <div className="space-y-6 pb-10">
+            <div className="space-y-6 pb-20 md:pb-6">
               {step === 1 ? (
                 <>
                   <div className="space-y-5">
                      <div className="space-y-2">
                         <label className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400 ml-1 tracking-widest">Topic / Chapter</label>
-                        <select 
-                          className="w-full bg-slate-50/50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-all text-sm appearance-none backdrop-blur-sm"
-                          value={logData.topic}
-                          onChange={e => setLogData({...logData, topic: e.target.value})}
-                        >
-                          <option value="">Select Chapter...</option>
-                          {JEE_SYLLABUS[subject as keyof typeof JEE_SYLLABUS].map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
+                        <div className="relative">
+                            <select 
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-all text-sm appearance-none shadow-sm"
+                            value={logData.topic}
+                            onChange={e => setLogData({...logData, topic: e.target.value})}
+                            >
+                            <option value="">Select Chapter...</option>
+                            {JEE_SYLLABUS[subject as keyof typeof JEE_SYLLABUS].map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none rotate-90" size={16} />
+                        </div>
                      </div>
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400 ml-1 tracking-widest">Attempted</label>
                           <input 
                             type="number" min="0" 
-                            className="w-full bg-slate-50/50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white font-mono text-xl outline-none focus:border-indigo-500 backdrop-blur-sm"
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white font-mono text-xl outline-none focus:border-indigo-500 shadow-sm"
                             value={logData.attempted || ''}
                             onChange={e => setLogData({...logData, attempted: parseInt(e.target.value) || 0})}
                           />
@@ -329,7 +341,7 @@ const SubjectDetailModal = memo(({
                           <label className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400 ml-1 tracking-widest">Correct</label>
                           <input 
                             type="number" min="0" 
-                            className="w-full bg-slate-50/50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white font-mono text-xl outline-none focus:border-indigo-500 backdrop-blur-sm"
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white font-mono text-xl outline-none focus:border-indigo-500 shadow-sm"
                             value={logData.correct || ''}
                             onChange={e => setLogData({...logData, correct: Math.min(logData.attempted, parseInt(e.target.value) || 0)})}
                           />
@@ -357,17 +369,17 @@ const SubjectDetailModal = memo(({
                      <span className="text-2xl font-mono text-rose-500 dark:text-rose-400">{incorrectCount - allocatedMistakes} Left</span>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                  <div className="grid grid-cols-1 gap-2 max-h-[40vh] md:max-h-[300px] overflow-y-auto pr-2">
                     {MISTAKE_TYPES.map(type => (
-                      <div key={type.id} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/5">
+                      <div key={type.id} className="flex items-center justify-between p-3 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/5 shadow-sm">
                         <div className="flex items-center gap-3 overflow-hidden">
                            <span className={`${type.color} shrink-0`}>{type.icon}</span>
                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 truncate">{type.label}</span>
                         </div>
-                        <div className="flex items-center gap-3 bg-white dark:bg-black/40 border border-slate-200 dark:border-none rounded-lg p-1 shrink-0">
-                          <button onClick={() => updateMistake(type.id as any, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-md text-slate-500 dark:text-slate-400 transition-colors text-lg active:scale-90">-</button>
+                        <div className="flex items-center gap-3 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-none rounded-lg p-1 shrink-0">
+                          <button onClick={() => updateMistake(type.id as any, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-white/10 rounded-md text-slate-500 dark:text-slate-400 transition-colors text-lg active:scale-90">-</button>
                           <span className="w-6 text-center text-base font-mono text-slate-900 dark:text-white">{logData.mistakes[type.id as any] || 0}</span>
-                          <button onClick={() => updateMistake(type.id as any, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-md text-slate-500 dark:text-slate-400 transition-colors text-lg active:scale-90">+</button>
+                          <button onClick={() => updateMistake(type.id as any, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-white dark:hover:bg-white/10 rounded-md text-slate-500 dark:text-slate-400 transition-colors text-lg active:scale-90">+</button>
                         </div>
                       </div>
                     ))}
@@ -387,16 +399,16 @@ const SubjectDetailModal = memo(({
               )}
             </div>
           ) : (
-            <div className="space-y-6 pb-10">
+            <div className="space-y-6 pb-20 md:pb-6">
               {/* History Stats */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 p-4 rounded-2xl">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/5 p-4 rounded-2xl shadow-sm">
                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Questions Done</p>
                    <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">
                      {sessions.reduce((a,b) => a + b.attempted, 0)}
                    </p>
                 </div>
-                <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 p-4 rounded-2xl">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/5 p-4 rounded-2xl shadow-sm">
                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Success Rate</p>
                    <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">
                      {sessions.length > 0 ? Math.round((sessions.reduce((a,b) => a + b.correct, 0) / sessions.reduce((a,b) => a + b.attempted, 0)) * 100) : 0}%
@@ -408,7 +420,9 @@ const SubjectDetailModal = memo(({
               <div className="space-y-3">
                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2"><Brain size={14} /> Mistake Patterns</h4>
                  {Object.keys(mistakesSummary).length === 0 ? (
-                   <p className="text-xs text-slate-600 italic">No mistakes recorded yet.</p>
+                   <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-dashed border-slate-200 dark:border-white/10 text-center">
+                       <p className="text-xs text-slate-500 italic">No mistakes recorded yet.</p>
+                   </div>
                  ) : (
                    MISTAKE_TYPES.map(type => {
                      const count = mistakesSummary[type.id] || 0;
@@ -442,7 +456,7 @@ const SubjectDetailModal = memo(({
                   </div>
                 ) : (
                   sessions.map(s => (
-                    <div key={s.id} className="bg-slate-50/50 dark:bg-white/5 p-4 rounded-xl flex justify-between items-center group active:scale-[0.98] transition-all">
+                    <div key={s.id} className="bg-white dark:bg-white/5 p-4 rounded-xl flex justify-between items-center group active:scale-[0.98] transition-all border border-slate-100 dark:border-white/5 shadow-sm">
                       <div className="min-w-0 pr-4">
                         <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{s.topic}</p>
                         <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mt-0.5">{new Date(s.timestamp).toLocaleDateString()}</p>
@@ -451,7 +465,7 @@ const SubjectDetailModal = memo(({
                         <div className="text-right">
                           <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-300">{s.correct}/{s.attempted}</span>
                         </div>
-                        <button onClick={() => onDeleteSession(s.id)} className="opacity-0 group-hover:opacity-100 text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-all"><Trash2 size={14} /></button>
+                        <button onClick={() => onDeleteSession(s.id)} className="text-rose-500/50 hover:text-rose-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all p-2"><Trash2 size={14} /></button>
                       </div>
                     </div>
                   ))
@@ -500,8 +514,8 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
 
   return (
     <>
-      <div className="space-y-4 md:space-y-10 animate-in fade-in duration-500">
-        <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-4 md:gap-6">
+      <div className="space-y-6 md:space-y-10 animate-in fade-in duration-500">
+        <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6">
           <div className="flex flex-col items-center md:items-start gap-3 order-2 md:order-1 w-full md:w-auto">
              <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest w-full text-center md:text-left">Weekly Streak</span>
              <ActivityHeatmap sessions={sessions} />
