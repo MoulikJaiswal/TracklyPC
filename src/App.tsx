@@ -1133,7 +1133,9 @@ const App: React.FC = () => {
     const rgbCard = hexToRgb(themeConfig.colors.card);
     const rgbAccent = hexToRgb(themeConfig.colors.accent);
     
-    const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void', 'obsidian', 'earth', 'morning'];
+    // Determine optimal text color for accent backgrounds
+    // Themes with light/bright accents (like white, yellow, lime) need dark text.
+    const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void'];
     const onAccentColor = lightAccentThemes.includes(theme) ? '#020617' : '#ffffff';
 
     return `
@@ -1310,7 +1312,7 @@ const App: React.FC = () => {
       </div>
 
       <main 
-          className={`relative z-10 flex-grow p-4 md:p-10 pt-24 md:pt-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
+          className={`relative z-10 flex-grow p-4 md:p-10 pt-20 md:pt-10 pb-24 md:pb-10 w-full md:w-auto transition-all duration-500 ease-in-out overflow-x-hidden ${sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'}`}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
