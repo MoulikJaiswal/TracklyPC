@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { X, CheckCircle2, Map, MousePointer2, Sparkles, Layers, Volume2, VolumeX, Trash2, AlertTriangle, Eye, Smartphone, Battery, BatteryCharging, Activity, Palette, Zap, SlidersHorizontal, HelpCircle, Image as ImageIcon, Upload, Lock, Crown, LayoutTemplate } from 'lucide-react';
 import { Card } from './Card';
@@ -95,16 +94,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleClearData = async () => {
-      if (window.confirm("Are you sure? This will wipe all local data, settings, and guest progress. It will also unregister service workers to ensure you get the latest version.")) {
-          // Unregister Service Workers to fix stuck updates
-          if ('serviceWorker' in navigator) {
-              const registrations = await navigator.serviceWorker.getRegistrations();
-              for (const registration of registrations) {
-                  await registration.unregister();
-              }
-          }
-          
+  const handleClearData = () => {
+      if (window.confirm("Are you sure? This will wipe all local data, settings, and guest progress. This action cannot be undone.")) {
           localStorage.clear();
           window.location.reload();
       }
@@ -559,7 +550,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="text-left">
                       <p className="text-sm font-bold text-rose-700 dark:text-rose-300">Clear All Data</p>
                       <p className="text-[10px] text-rose-600/70 dark:text-rose-400/70 uppercase font-bold tracking-wider">
-                        Reset app & fix stuck updates
+                        Reset app & local storage
                       </p>
                     </div>
                 </div>
@@ -568,7 +559,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
         
         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-white/5 text-center shrink-0">
-          <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Trackly v1.4.1</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">Trackly v1.4.0</p>
         </div>
       </Card>
     </div>

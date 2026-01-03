@@ -13,13 +13,14 @@ import {
   Atom,
   Loader2,
   LogOut,
-  HardDrive,
+  ShieldCheck,
+  WifiOff,
+  ShoppingBag,
   Download,
   Trophy,
   ArrowRight,
   Crown,
-  Wifi,
-  WifiOff
+  Wifi
 } from 'lucide-react';
 import { ViewType, Session, TestResult, Target, ThemeId, QuestionLog, MistakeCounts } from './types';
 import { QUOTES, THEME_CONFIG } from './constants';
@@ -29,6 +30,11 @@ import { usePerformanceMonitor } from './hooks/usePerformanceMonitor';
 import { PerformanceToast } from './components/PerformanceToast';
 import { ProUpgradeModal } from './components/ProUpgradeModal';
 import { SmartRecommendationToast } from './components/SmartRecommendationToast';
+
+// Firebase Imports
+import { auth, db, googleProvider } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, QuerySnapshot, DocumentData } from 'firebase/firestore';
 
 // Lazy Load Components
 const Dashboard = lazy(() => import('./components/Dashboard').then(module => ({ default: module.Dashboard })));
@@ -418,6 +424,9 @@ const Sidebar = React.memo(({
     onOpenSettings, 
     isCollapsed, 
     toggleCollapsed,
+    user,
+    isGuest,
+    onLogin,
     onLogout,
     isInstalled,
     onInstall,
@@ -430,6 +439,9 @@ const Sidebar = React.memo(({
     onOpenSettings: () => void,
     isCollapsed: boolean,
     toggleCollapsed: () => void,
+    user: User | null,
+    isGuest: boolean,
+    onLogin: () => void,
     onLogout: () => void,
     isInstalled: boolean,
     onInstall: () => void,
@@ -488,20 +500,70 @@ const Sidebar = React.memo(({
         })}
       </nav>
 
-      <div className={`px-4 py-2 ${isCollapsed ? 'hidden' : 'block'}`}>
-          <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
-              <HardDrive size={16} className="text-slate-500" />
-              <div className="flex-1 overflow-hidden">
-                  <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Local Storage</p>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{userName}</p>
-              </div>
-              <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors" title="Log Out">
-                  <LogOut size={14} />
+      {/* Pro Badge */}
+      <div className={`px-4 mb-2 ${isCollapsed ? 'hidden' : 'block'}`}>
+          {!isPro ? (
+              <button 
+                onClick={onOpenUpgrade}
+                className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl group transition-all hover:scale-[1.02]"
+              >
+                  <div className="p-1.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg text-white shadow-lg shadow-amber-500/30">
+                      <Crown size={14} fill="currentColor" />
+                  </div>
+                  <div className="text-left">
+                      <p className="text-xs font-bold text-amber-600 dark:text-amber-400">Upgrade to Pro</p>
+                      <p className="text-[9px] text-amber-600/70 dark:text-amber-400/70 font-bold uppercase tracking-wider">Unleash Power</p>
+                  </div>
               </button>
-          </div>
+          ) : (
+              <div className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/30 rounded-xl">
+                  <div className="p-1.5 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-lg text-white shadow-lg shadow-emerald-500/30">
+                      <Crown size={14} fill="currentColor" />
+                  </div>
+                  <div>
+                      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Pro Active</p>
+                      <p className="text-[9px] text-emerald-600/70 dark:text-emerald-400/70 font-bold uppercase tracking-wider">Power User</p>
+                  </div>
+              </div>
+          )}
+      </div>
+
+      {/* Auth Status Section */}
+      <div className={`px-4 py-2 ${isCollapsed ? 'hidden' : 'block'}`}>
+          {user ? (
+            <div className="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                <ShieldCheck size={16} className="text-emerald-500" />
+                <div className="flex-1 overflow-hidden">
+                    <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">Sync Active</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{userName || 'User'}</p>
+                </div>
+                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
+                    <LogOut size={14} />
+                </button>
+            </div>
+          ) : isGuest ? (
+            <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10">
+                <WifiOff size={16} className="text-slate-500" />
+                <div className="flex-1 overflow-hidden">
+                    <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Offline Mode</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">{userName || 'Guest'}</p>
+                </div>
+                <button onClick={onLogout} className="text-slate-400 hover:text-rose-500 transition-colors">
+                    <LogOut size={14} />
+                </button>
+            </div>
+          ) : (
+            <button 
+                onClick={onLogin}
+                className="w-full flex items-center justify-center gap-2 p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+            >
+                Sign In to Save
+            </button>
+          )}
       </div>
 
       <div className="p-4 border-t border-slate-200 dark:border-white/5 w-full space-y-2">
+        {/* Install Button (Visible if not installed) */}
         {!isInstalled && (
             <button 
               onClick={onInstall}
@@ -530,6 +592,7 @@ const Sidebar = React.memo(({
   );
 });
 
+// Optimized slide variants
 const slideVariants = {
   enter: (direction: number) => ({
     x: direction > 0 ? 30 : -30,
@@ -558,14 +621,17 @@ const fadeVariants = {
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewType>('daily');
-  // Pure Local State
-  const [sessions, setSessions] = useState<Session[]>(() => safeJSONParse('trackly_sessions', []));
-  const [tests, setTests] = useState<TestResult[]>(() => safeJSONParse('trackly_tests', []));
-  const [targets, setTargets] = useState<Target[]>(() => safeJSONParse('trackly_targets', []));
-  const [goals, setGoals] = useState(() => safeJSONParse('trackly_goals', { Physics: 30, Chemistry: 30, Maths: 30 }));
-  const [userName, setUserName] = useState<string | null>(() => localStorage.getItem('trackly_user_name'));
-  
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [tests, setTests] = useState<TestResult[]>([]);
+  const [targets, setTargets] = useState<Target[]>([]);
+  const [goals, setGoals] = useState({ Physics: 30, Chemistry: 30, Maths: 30 });
   const [quoteIdx] = useState(() => Math.floor(Math.random() * QUOTES.length));
+
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [userName, setUserName] = useState<string | null>(null);
   const [guestNameInput, setGuestNameInput] = useState('');
 
   // Pro State
@@ -575,8 +641,8 @@ const App: React.FC = () => {
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
-  const [graphicsEnabled, setGraphicsEnabled] = useState(true);
-  const [lagDetectionEnabled, setLagDetectionEnabled] = useState(true);
+  const [graphicsEnabled, setGraphicsEnabled] = useState(true); // New Graphics Toggle
+  const [lagDetectionEnabled, setLagDetectionEnabled] = useState(true); // New Lag Detection Toggle
   const [theme, setTheme] = useState<ThemeId>('default-dark');
   const [showAurora, setShowAurora] = useState(true);
   
@@ -594,9 +660,11 @@ const App: React.FC = () => {
   // Audio Settings (Ambient)
   const [activeSound, setActiveSound] = useState<'off' | 'rain' | 'forest' | 'lofi' | 'cafe'>('off');
   
-  // Custom Background
+  // NEW: Custom Background
   const [customBackground, setCustomBackground] = useState<string | null>(null);
+  // NEW: Custom Background Toggle
   const [customBackgroundEnabled, setCustomBackgroundEnabled] = useState(false);
+  // NEW: Custom Background Align
   const [customBackgroundAlign, setCustomBackgroundAlign] = useState<'center' | 'top' | 'bottom'>('center');
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -608,20 +676,24 @@ const App: React.FC = () => {
   const [direction, setDirection] = useState(0);
   const minSwipeDistance = 50;
   
+  // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showNetworkToast, setShowNetworkToast] = useState(false);
 
+  // Reminders & Recommendations
   const [showTestReminder, setShowTestReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
   
+  // Recommendation State
   const [recommendation, setRecommendation] = useState<{subject: string, topic: string, accuracy: number} | null>(null);
   const [showRecommendation, setShowRecommendation] = useState(false);
 
+  // Audio Context Ref (Click sounds)
   const clickAudioCtxRef = useRef<AudioContext | null>(null);
 
-  // --- PERSISTENT TIMER STATE ---
+  // --- PERSISTENT TIMER STATE (Lifted from FocusTimer) ---
   const [timerMode, setTimerMode] = useState<'focus' | 'short' | 'long'>('focus');
   const [timerDurations, setTimerDurations] = useState({ focus: 25, short: 5, long: 15 });
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -636,22 +708,8 @@ const App: React.FC = () => {
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
 
+  // Initialize Performance Monitor (Only active if graphics are ON and Lag Detection is ENABLED)
   const { isLagging, dismiss: dismissLag } = usePerformanceMonitor(graphicsEnabled && lagDetectionEnabled);
-
-  // PERSISTENCE EFFECTS
-  useEffect(() => { localStorage.setItem('trackly_sessions', JSON.stringify(sessions)); }, [sessions]);
-  useEffect(() => { localStorage.setItem('trackly_tests', JSON.stringify(tests)); }, [tests]);
-  useEffect(() => { localStorage.setItem('trackly_targets', JSON.stringify(targets)); }, [targets]);
-  useEffect(() => { localStorage.setItem('trackly_goals', JSON.stringify(goals)); }, [goals]);
-
-  const changeView = useCallback((newView: ViewType) => {
-     if (view === newView) return;
-     const currentIdx = TABS.findIndex(t => t.id === view);
-     const newIdx = TABS.findIndex(t => t.id === newView);
-     setDirection(newIdx > currentIdx ? 1 : -1);
-     setView(newView);
-     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [view]);
 
   const activateLiteMode = useCallback(() => {
       setGraphicsEnabled(false);
@@ -659,6 +717,7 @@ const App: React.FC = () => {
       dismissLag();
   }, [dismissLag]);
 
+  // Network Status Monitor
   useEffect(() => {
       const handleOnline = () => {
           setIsOnline(true);
@@ -680,19 +739,24 @@ const App: React.FC = () => {
       };
   }, []);
 
+  // Initialize Stats from LS
   useEffect(() => {
       const today = getLocalDate();
       const saved = localStorage.getItem(`zenith_stats_${today}`);
       if (saved) setTodayStats(JSON.parse(saved));
   }, []);
 
+  // Persist Stats
   useEffect(() => {
       const today = getLocalDate();
       localStorage.setItem(`zenith_stats_${today}`, JSON.stringify(todayStats));
   }, [todayStats]);
 
+  // --------------------------------------------------------
+  // Recommendation Logic: Check sessions for weak spots
+  // --------------------------------------------------------
   useEffect(() => {
-      if (sessions.length < 5) return; 
+      if (sessions.length < 5) return; // Basic gate to avoid early firing
 
       const analyze = () => {
           const subjectTopics = { Physics: new Set<string>(), Chemistry: new Set<string>(), Maths: new Set<string>() };
@@ -700,6 +764,7 @@ const App: React.FC = () => {
 
           sessions.forEach(s => {
               if (!s.topic) return;
+              // Normalize subject names just in case
               const subj = s.subject as keyof typeof subjectTopics;
               if (subjectTopics[subj]) {
                   subjectTopics[subj].add(s.topic);
@@ -711,16 +776,18 @@ const App: React.FC = () => {
               }
           });
 
+          // Check trigger condition: 2 or more chapters touched in ALL subjects
           const pCount = subjectTopics.Physics.size;
           const cCount = subjectTopics.Chemistry.size;
           const mCount = subjectTopics.Maths.size;
 
           if (pCount >= 2 && cCount >= 2 && mCount >= 2) {
+              // Find weakest topic
               let weakest = null;
-              let minAcc = 100; 
+              let minAcc = 100; // Start at max
 
               Object.entries(topicStats).forEach(([key, stats]) => {
-                  if (stats.attempted < 5) return; 
+                  if (stats.attempted < 5) return; // Minimum questions to form an opinion
                   const acc = (stats.correct / stats.attempted) * 100;
                   if (acc < minAcc) {
                       minAcc = acc;
@@ -734,7 +801,11 @@ const App: React.FC = () => {
 
               if (weakest) {
                   const lastRec = localStorage.getItem('trackly_last_rec_hash');
+                  // Create unique hash for this recommendation state
                   const currentHash = `${weakest.subject}-${weakest.topic}-${Math.round(weakest.accuracy)}`;
+                  
+                  // Show if it's a different recommendation OR it's been a while
+                  // Logic: If current hash != last dismissed hash, show it.
                   if (lastRec !== currentHash) {
                       setRecommendation(weakest);
                       setShowRecommendation(true);
@@ -743,6 +814,7 @@ const App: React.FC = () => {
           }
       };
       
+      // Debounce slightly
       const timer = setTimeout(analyze, 1500);
       return () => clearTimeout(timer);
 
@@ -761,6 +833,7 @@ const App: React.FC = () => {
       changeView('focus');
   };
 
+  // Persistent Timer Logic
   useEffect(() => {
       if (isTimerActive) {
           timerRef.current = setInterval(() => {
@@ -770,7 +843,7 @@ const App: React.FC = () => {
                   setTimeLeft(0);
                   setIsTimerActive(false);
                   clearInterval(timerRef.current);
-                  if (activeSound !== 'off') setActiveSound('off'); 
+                  if (activeSound !== 'off') setActiveSound('off'); // Stop sound when time ends
               } else {
                   setTimeLeft(diff);
               }
@@ -779,7 +852,9 @@ const App: React.FC = () => {
       return () => clearInterval(timerRef.current);
   }, [isTimerActive, activeSound]);
 
+  // Persistent Audio Logic (Ambient Soundscapes)
   useEffect(() => {
+      // Cleanup previous sound
       if (sourceNodeRef.current) {
           try { sourceNodeRef.current.stop(); } catch(e){}
           sourceNodeRef.current.disconnect();
@@ -801,18 +876,23 @@ const App: React.FC = () => {
           const buffer = ctx!.createBuffer(1, bufferSize, ctx!.sampleRate);
           const data = buffer.getChannelData(0);
 
+          // 1. Noise Generation
           if (activeSound === 'cafe' || activeSound === 'lofi') {
+             // Brown Noise Base
              let lastOut = 0;
              for (let i = 0; i < bufferSize; i++) {
                  const white = Math.random() * 2 - 1;
                  data[i] = (lastOut + (0.02 * white)) / 1.02;
                  lastOut = data[i];
                  data[i] *= 3.5;
+                 
+                 // Add crackle for lofi vinyl effect
                  if (activeSound === 'lofi' && Math.random() > 0.9995) {
                     data[i] += (Math.random() * 0.8); 
                  }
              }
           } else {
+             // Pink Noise Base (Rain/Forest)
              let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
              for (let i = 0; i < bufferSize; i++) {
                  const white = Math.random() * 2 - 1;
@@ -833,8 +913,10 @@ const App: React.FC = () => {
           source.loop = true;
           const gain = ctx!.createGain();
           
+          // 2. Volume & EQ
           if (activeSound === 'forest') {
                gain.gain.value = 0.08;
+               // High pass for wind/rustle
                const filter = ctx!.createBiquadFilter();
                filter.type = 'highpass';
                filter.frequency.value = 600;
@@ -842,6 +924,7 @@ const App: React.FC = () => {
                filter.connect(gain);
           } else if (activeSound === 'rain') {
                gain.gain.value = 0.12;
+               // Low pass for heavy rain sound
                const filter = ctx!.createBiquadFilter();
                filter.type = 'lowpass';
                filter.frequency.value = 800;
@@ -849,12 +932,13 @@ const App: React.FC = () => {
                filter.connect(gain);
           } else if (activeSound === 'lofi') {
                gain.gain.value = 0.15;
+               // Bandpass to simulate radio/vinyl bandwidth
                const filter = ctx!.createBiquadFilter();
                filter.type = 'lowpass';
                filter.frequency.value = 2000;
                source.connect(filter);
                filter.connect(gain);
-          } else { 
+          } else { // cafe (brown)
                gain.gain.value = 0.1;
                source.connect(gain);
           }
@@ -867,11 +951,12 @@ const App: React.FC = () => {
       }
   }, [activeSound]);
 
+  // Timer Handlers
   const handleTimerToggle = useCallback(() => {
       if (!isTimerActive) {
           setIsTimerActive(true);
           endTimeRef.current = Date.now() + timeLeft * 1000;
-          setLastLogTime(Date.now()); 
+          setLastLogTime(Date.now()); // Start tracking question time
       } else {
           setIsTimerActive(false);
           clearInterval(timerRef.current);
@@ -898,28 +983,43 @@ const App: React.FC = () => {
       }
   }, [timerMode, isTimerActive]);
 
+  // Temporary local logging state update (for UI immediate feedback)
   const handleAddLog = useCallback((log: QuestionLog, subject: string) => {
       setSessionLogs(prev => [log, ...prev]);
       setTodayStats(prev => ({ ...prev, [subject]: (prev as any)[subject] + 1 }));
       setLastLogTime(Date.now());
   }, []);
 
+  // 3. Database Operations (Universal: Works for Firebase AND Guest)
   const handleSaveSession = useCallback(async (newSession: Omit<Session, 'id' | 'timestamp'>) => {
     const id = generateUUID();
     const timestamp = Date.now();
     const session: Session = { ...newSession, id, timestamp };
-    setSessions(prev => [session, ...prev]);
-  }, []);
 
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'sessions', id), session);
+    } else if (isGuest) {
+        // Need to read fresh state to avoid closure staleness if calling multiple times quickly
+        // But for guest mode, we usually do this:
+        const currentSessions = safeJSONParse('trackly_guest_sessions', []);
+        const updated = [session, ...currentSessions];
+        setSessions(updated);
+        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+    }
+  }, [user, isGuest, sessions]);
+
+  // FINAL SAVE: Aggregates logs and saves to Dashboard
   const handleCompleteSession = useCallback(() => {
       if (sessionLogs.length === 0) return;
 
+      // Group logs by subject
       const subjectGroups: Record<string, QuestionLog[]> = {};
       sessionLogs.forEach(log => {
           if (!subjectGroups[log.subject]) subjectGroups[log.subject] = [];
           subjectGroups[log.subject].push(log);
       });
 
+      // Create session for each subject
       Object.entries(subjectGroups).forEach(([subject, logs]) => {
           const attempted = logs.length;
           const correct = logs.filter(l => l.result === 'correct').length;
@@ -931,29 +1031,35 @@ const App: React.FC = () => {
               }
           });
 
+          // Save to persistent storage
           handleSaveSession({
               subject,
-              topic: 'Focus Session', 
+              topic: 'Focus Session', // Generic topic for timer sessions
               attempted,
               correct,
               mistakes
           });
       });
 
+      // Clear temporary logs after saving
       setSessionLogs([]);
       handleTimerReset();
   }, [sessionLogs, handleSaveSession, handleTimerReset]);
 
+  // Check Installation Status
   useEffect(() => {
+    // Check if standalone
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone || document.referrer.includes('android-app://');
     setIsInstalled(isStandalone);
     
+    // Listen for changes
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     const changeHandler = (e: any) => setIsInstalled(e.matches);
     mediaQuery.addEventListener('change', changeHandler);
     return () => mediaQuery.removeEventListener('change', changeHandler);
   }, []);
 
+  // Capture Install Prompt
   useEffect(() => {
     const handler = (e: any) => {
         e.preventDefault();
@@ -971,6 +1077,7 @@ const App: React.FC = () => {
               setDeferredPrompt(null);
           }
       } else {
+        // Fallback instructions
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
         if (isIOS) {
              alert("To install Trackly:\n\n1. Tap the Share button below\n2. Scroll down and tap 'Add to Home Screen'");
@@ -980,28 +1087,52 @@ const App: React.FC = () => {
       }
   };
 
+  // Auth Handlers
+  const handleLogin = useCallback(async () => {
+    try {
+        await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+        console.error("Login error:", error);
+        if (error.code === 'auth/unauthorized-domain') {
+            alert("Domain not authorized for Firebase Auth. \n\nPlease use 'Continue Offline' (Guest Mode) if you are running a preview or local build.");
+        }
+    }
+  }, []);
+
   const handleGuestLogin = useCallback(() => {
       if (!guestNameInput.trim()) return;
-      localStorage.setItem('trackly_user_name', guestNameInput.trim());
-      setUserName(guestNameInput.trim());
+      localStorage.setItem('trackly_guest_name', guestNameInput.trim());
+      setIsGuest(true);
+      localStorage.setItem('trackly_is_guest', 'true');
   }, [guestNameInput]);
 
   const handleLogout = useCallback(async () => {
-      if (confirm('Logging out will clear your local name setting. Data persists until you clear cache.')) {
-          localStorage.removeItem('trackly_user_name');
-          setUserName(null);
+      if (user) {
+          await signOut(auth);
       }
-  }, []);
+      setIsGuest(false);
+      localStorage.removeItem('trackly_is_guest');
+      localStorage.removeItem('trackly_guest_name');
+      setUserName(null);
+      // Reset state
+      setSessions([]);
+      setTests([]);
+      setTargets([]);
+  }, [user]);
 
+  // Handle Pro Upgrade
   const handleUpgrade = useCallback(() => {
       setIsPro(true);
+      // Persist Pro status (Simulator)
       localStorage.setItem('trackly_pro_status', 'true');
   }, []);
 
+  // Global Click Sound Effect
   useEffect(() => {
     const handleClick = () => {
        if (!soundEnabled) return;
 
+       // Initialize Audio Context on first interaction
        if (!clickAudioCtxRef.current) {
           clickAudioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
        }
@@ -1017,9 +1148,11 @@ const App: React.FC = () => {
        osc.type = 'sine';
        osc.frequency.setValueAtTime(soundPitch, ctx.currentTime);
 
+       // Envelope for a "click" or "pop" sound
+       // Start at 0, quick attack to volume, then decay
        gain.gain.setValueAtTime(0, ctx.currentTime);
-       gain.gain.linearRampToValueAtTime(soundVolume * 0.5, ctx.currentTime + 0.005); 
-       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08); 
+       gain.gain.linearRampToValueAtTime(soundVolume * 0.5, ctx.currentTime + 0.005); // Attack
+       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08); // Decay
 
        osc.start(ctx.currentTime);
        osc.stop(ctx.currentTime + 0.08);
@@ -1029,26 +1162,119 @@ const App: React.FC = () => {
     return () => window.removeEventListener('click', handleClick);
   }, [soundEnabled, soundPitch, soundVolume]);
 
-  const handleDeleteSession = useCallback(async (id: string) => {
-      setSessions(prev => prev.filter(s => s.id !== id));
+  // 1. Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+          setIsGuest(false);
+          setUserName(currentUser.displayName || 'User');
+      }
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
+
+  // Check for existing guest session
+  useEffect(() => {
+      const storedGuest = localStorage.getItem('trackly_is_guest');
+      if (storedGuest === 'true' && !user) {
+          setIsGuest(true);
+          setUserName(localStorage.getItem('trackly_guest_name') || 'Guest');
+      }
+  }, [user]);
+
+  // 2. Data Syncing (Firestore OR LocalStorage)
+  useEffect(() => {
+    if (user) {
+        // --- Firebase Sync ---
+        const sessionsQ = query(collection(db, 'users', user.uid, 'sessions'), orderBy('timestamp', 'desc'));
+        const unsubSessions = onSnapshot(sessionsQ, (snapshot: QuerySnapshot<DocumentData>) => {
+            setSessions(snapshot.docs.map(d => d.data() as Session));
+        });
+
+        const testsQ = query(collection(db, 'users', user.uid, 'tests'), orderBy('timestamp', 'desc'));
+        const unsubTests = onSnapshot(testsQ, (snapshot: QuerySnapshot<DocumentData>) => {
+            setTests(snapshot.docs.map(d => d.data() as TestResult));
+        });
+
+        const targetsQ = query(collection(db, 'users', user.uid, 'targets'), orderBy('timestamp', 'desc'));
+        const unsubTargets = onSnapshot(targetsQ, (snapshot: QuerySnapshot<DocumentData>) => {
+            setTargets(snapshot.docs.map(d => d.data() as Target));
+        });
+
+        return () => {
+            unsubSessions();
+            unsubTests();
+            unsubTargets();
+        }
+    } else if (isGuest) {
+        // --- LocalStorage Sync (Guest Mode) ---
+        setSessions(safeJSONParse('trackly_guest_sessions', []));
+        setTests(safeJSONParse('trackly_guest_tests', []));
+        setTargets(safeJSONParse('trackly_guest_targets', []));
+        setGoals(safeJSONParse('trackly_guest_goals', { Physics: 30, Chemistry: 30, Maths: 30 }));
+    } else {
+        // Reset if logged out
+        setSessions([]); 
+        setTests([]);
+        setTargets([]);
+    }
+  }, [user, isGuest]);
+
+  // Persist Goals to LS if Guest
+  useEffect(() => {
+    if(isGuest) {
+        localStorage.setItem('trackly_guest_goals', JSON.stringify(goals));
+    }
+  }, [goals, isGuest]);
+
+  const handleDeleteSession = useCallback(async (id: string) => {
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
+    } else if (isGuest) {
+        const updated = sessions.filter(s => s.id !== id);
+        setSessions(updated);
+        localStorage.setItem('trackly_guest_sessions', JSON.stringify(updated));
+    }
+  }, [user, isGuest, sessions]);
 
   const handleSaveTest = useCallback(async (newTest: Omit<TestResult, 'id' | 'timestamp'>) => {
     const id = generateUUID();
     const timestamp = Date.now();
     const test: TestResult = { ...newTest, id, timestamp };
-    setTests(prev => [test, ...prev]);
-  }, []);
+
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'tests', id), test);
+    } else if (isGuest) {
+        const updated = [test, ...tests];
+        setTests(updated);
+        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+    }
+  }, [user, isGuest, tests]);
 
   const handleDeleteTest = useCallback(async (id: string) => {
-      setTests(prev => prev.filter(t => t.id !== id));
-  }, []);
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'tests', id));
+    } else if (isGuest) {
+        const updated = tests.filter(t => t.id !== id);
+        setTests(updated);
+        localStorage.setItem('trackly_guest_tests', JSON.stringify(updated));
+    }
+  }, [user, isGuest, tests]);
 
   const handleSaveTarget = useCallback(async (target: Target) => {
-      setTargets(prev => [...prev, target]);
-  }, []);
+    if (user) {
+        await setDoc(doc(db, 'users', user.uid, 'targets', target.id), target);
+    } else if (isGuest) {
+        const updated = [...targets, target];
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
 
   const handleUpdateTarget = useCallback(async (id: string, completed: boolean) => {
+    // 1. Trigger Test Reminder logic if completing a test
     const target = targets.find(t => t.id === id);
     if (target && target.type === 'test' && completed && !target.completed) {
         const messages = [
@@ -1060,20 +1286,37 @@ const App: React.FC = () => {
         ];
         setReminderMessage(messages[Math.floor(Math.random() * messages.length)]);
         setShowTestReminder(true);
+        // Auto-dismiss after 8 seconds if not interacted with
         setTimeout(() => setShowTestReminder(false), 8000);
     }
-    setTargets(prev => prev.map(t => t.id === id ? { ...t, completed } : t));
-  }, [targets]);
+
+    // 2. Perform DB Update
+    if (user) {
+        if (target) {
+            await setDoc(doc(db, 'users', user.uid, 'targets', id), { ...target, completed });
+        }
+    } else if (isGuest) {
+        const updated = targets.map(t => t.id === id ? { ...t, completed } : t);
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
 
   const handleDeleteTarget = useCallback(async (id: string) => {
-      setTargets(prev => prev.filter(t => t.id !== id));
-  }, []);
+    if (user) {
+        await deleteDoc(doc(db, 'users', user.uid, 'targets', id));
+    } else if (isGuest) {
+        const updated = targets.filter(t => t.id !== id);
+        setTargets(updated);
+        localStorage.setItem('trackly_guest_targets', JSON.stringify(updated));
+    }
+  }, [user, isGuest, targets]);
 
   // Load Settings from LocalStorage
   useEffect(() => {
     setAnimationsEnabled(safeJSONParse('zenith_animations', true));
     setGraphicsEnabled(safeJSONParse('zenith_graphics', true));
-    setLagDetectionEnabled(safeJSONParse('zenith_lag_detection', true)); 
+    setLagDetectionEnabled(safeJSONParse('zenith_lag_detection', true)); // Load Lag Setting
     const savedTheme = localStorage.getItem('zenith_theme_id');
     if (savedTheme && THEME_CONFIG[savedTheme as ThemeId]) setTheme(savedTheme as ThemeId);
     setSidebarCollapsed(safeJSONParse('zenith_sidebar_collapsed', false));
@@ -1082,26 +1325,39 @@ const App: React.FC = () => {
     setShowParticles(safeJSONParse('zenith_particles', true));
     setSwipeAnimationEnabled(safeJSONParse('zenith_swipe_animation', true));
     
+    // SAFE CASTING for numbers
     setSwipeStiffness(Number(safeJSONParse('zenith_swipe_stiffness', 6000)) || 6000);
     setSwipeDamping(Number(safeJSONParse('zenith_swipe_damping', 300)) || 300);    
     
     setIsPro(safeJSONParse('trackly_pro_status', false));
     
+    // Audio & Timer Settings Load
     setSoundEnabled(safeJSONParse('zenith_sound_enabled', true));
     setSoundPitch(Number(safeJSONParse('zenith_sound_pitch', 600)));
     setSoundVolume(Number(safeJSONParse('zenith_sound_volume', 0.5)));
     setTimerDurations(safeJSONParse('zenith_timer_durations', { focus: 25, short: 5, long: 15 }));
 
+    // Sound Mixer Load (Backward compatibility)
     const savedSound = localStorage.getItem('zenith_active_sound');
     if (savedSound) {
        setActiveSound(savedSound as any);
+    } else {
+       // fallback for legacy boolean setting
+       const oldBool = safeJSONParse('zenith_sound_enabled', false); 
+       // Note: reusing key name accidently in original logic, assuming the ambient sound was meant.
+       // The original App had setBrownNoiseEnabled(safeJSONParse('zenith_brown_noise', false))? No, it wasn't persisted in useEffect.
+       // It seems brown noise state wasn't persisted in previous version.
+       // We'll just default to 'off'.
     }
 
+    // Load Custom Background
     const savedBg = localStorage.getItem('zenith_custom_bg');
     if (savedBg) setCustomBackground(savedBg);
     
+    // Load Custom Background Enabled Toggle
     setCustomBackgroundEnabled(safeJSONParse('zenith_custom_bg_enabled', false));
 
+    // Load Custom Background Alignment
     const savedBgAlign = localStorage.getItem('zenith_custom_bg_align');
     if (savedBgAlign) setCustomBackgroundAlign(savedBgAlign as any);
   }, []);
@@ -1117,7 +1373,7 @@ const App: React.FC = () => {
     document.body.classList.toggle('low-graphics', !graphicsEnabled);
   }, [graphicsEnabled]);
 
-  useEffect(() => { localStorage.setItem('zenith_lag_detection', JSON.stringify(lagDetectionEnabled)); }, [lagDetectionEnabled]); 
+  useEffect(() => { localStorage.setItem('zenith_lag_detection', JSON.stringify(lagDetectionEnabled)); }, [lagDetectionEnabled]); // Save Lag Setting
 
   useEffect(() => { localStorage.setItem('zenith_theme_id', theme); }, [theme]);
   useEffect(() => { localStorage.setItem('zenith_aurora', JSON.stringify(showAurora)); }, [showAurora]);
@@ -1133,6 +1389,7 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('zenith_timer_durations', JSON.stringify(timerDurations)); }, [timerDurations]);
   useEffect(() => { localStorage.setItem('zenith_active_sound', activeSound); }, [activeSound]);
   
+  // Persist Custom Background & Toggle
   useEffect(() => {
       if (customBackground) {
           try {
@@ -1157,6 +1414,7 @@ const App: React.FC = () => {
       setCustomBackgroundEnabled(prev => {
           const next = !prev;
           if (next) {
+              // Automatically disable conflicting effects
               setShowAurora(false);
               setParallaxEnabled(false);
           }
@@ -1168,6 +1426,15 @@ const App: React.FC = () => {
   const toggleSidebar = useCallback(() => {
       setSidebarCollapsed(prev => !prev);
   }, []);
+
+  const changeView = useCallback((newView: ViewType) => {
+     if (view === newView) return;
+     const currentIdx = TABS.findIndex(t => t.id === view);
+     const newIdx = TABS.findIndex(t => t.id === newView);
+     setDirection(newIdx > currentIdx ? 1 : -1);
+     setView(newView);
+     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [view]);
 
   const startTutorial = () => {
     setIsTutorialActive(true);
@@ -1217,6 +1484,7 @@ const App: React.FC = () => {
   }
 
   const themeConfig = THEME_CONFIG[theme];
+  // Calculate effective visual states
   const effectiveShowAurora = graphicsEnabled && showAurora;
   const effectiveParallax = animationsEnabled && parallaxEnabled;
   const effectiveShowParticles = graphicsEnabled && showParticles;
@@ -1229,7 +1497,8 @@ const App: React.FC = () => {
     
     // Determine optimal text color for accent backgrounds
     // Themes with light/bright accents (like white, yellow, lime) need dark text.
-    const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void'];
+    // Themes with dark/deep accents (like indigo, blue) need white text.
+    const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void', 'obsidian', 'earth', 'morning'];
     const onAccentColor = lightAccentThemes.includes(theme) ? '#020617' : '#ffffff';
 
     return `
@@ -1253,9 +1522,11 @@ const App: React.FC = () => {
         .border-indigo-100, .border-indigo-200, .border-indigo-300, .border-indigo-400, .border-indigo-500, .border-indigo-600 {
             border-color: var(--theme-accent) !important;
         }
+        /* Override Ring Colors for Focus Rings */
         .ring-indigo-500 {
             --tw-ring-color: var(--theme-accent) !important;
         }
+        /* Override specific shadow opacities used in the app */
         .shadow-indigo-500\\/30 {
             --tw-shadow-color: rgba(var(--theme-accent-rgb), 0.3) !important;
         }
@@ -1264,8 +1535,19 @@ const App: React.FC = () => {
         }
   `}, [themeConfig, theme]);
 
+  if (isAuthLoading) {
+    return (
+        <div className={`min-h-screen flex items-center justify-center ${themeConfig.mode === 'dark' ? 'bg-[#020617]' : 'bg-slate-50'}`}>
+            <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <span className="text-sm font-bold uppercase tracking-widest text-slate-500">Syncing Data...</span>
+            </div>
+        </div>
+    );
+  }
+
   // Not Logged In View
-  if (!userName) {
+  if (!user && !isGuest) {
     return (
         <div className={`min-h-screen font-sans flex flex-col relative overflow-hidden transition-colors duration-500 ${themeConfig.mode === 'dark' ? 'dark text-slate-100' : 'text-slate-900'}`}>
              <style>{dynamicStyles}</style>
@@ -1282,11 +1564,22 @@ const App: React.FC = () => {
              <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6">
                 <TracklyLogo id="login-logo" />
                 <div className="mt-8 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl p-8 rounded-3xl border border-slate-200 dark:border-white/10 text-center max-w-sm w-full shadow-2xl cv-auto">
-                    <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Welcome</h2>
+                    <h2 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">Welcome Back</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                        Your private, high-performance study tracker.
-                        <br/><span className="text-[10px] uppercase font-bold opacity-70">Enter your name to begin.</span>
+                        Sign in to sync your progress, or enter your name to continue offline.
                     </p>
+                    <button 
+                        onClick={handleLogin}
+                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 mb-4"
+                    >
+                        <span>Sign In with Google</span>
+                    </button>
+                    
+                    <div className="my-6 flex items-center">
+                        <div className="flex-grow h-px bg-slate-200 dark:bg-white/10"></div>
+                        <span className="mx-4 text-xs font-bold uppercase text-slate-400">OR</span>
+                        <div className="flex-grow h-px bg-slate-200 dark:bg-white/10"></div>
+                    </div>
                     
                     <div className="space-y-4">
                         <input
@@ -1294,16 +1587,15 @@ const App: React.FC = () => {
                             placeholder="Enter your name..."
                             value={guestNameInput}
                             onChange={(e) => setGuestNameInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleGuestLogin()}
                             className="w-full p-4 bg-white/10 text-slate-900 dark:text-white rounded-2xl border border-slate-200 dark:border-white/10 transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder:text-slate-400"
                         />
                         <button 
                             onClick={handleGuestLogin}
                             disabled={!guestNameInput.trim()}
-                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-4 bg-white/10 hover:bg-white/20 text-slate-600 dark:text-slate-300 rounded-2xl font-bold uppercase tracking-widest border border-slate-200 dark:border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <span>Start Tracking</span>
-                            <ArrowRightIcon />
+                            <span>Continue Offline</span>
+                            <ArrowRight />
                         </button>
                     </div>
 
@@ -1379,6 +1671,9 @@ const App: React.FC = () => {
           onOpenSettings={() => setIsSettingsOpen(true)} 
           isCollapsed={sidebarCollapsed}
           toggleCollapsed={toggleSidebar}
+          user={user}
+          isGuest={isGuest}
+          onLogin={handleLogin}
           onLogout={handleLogout}
           isInstalled={isInstalled}
           onInstall={handleInstallClick}

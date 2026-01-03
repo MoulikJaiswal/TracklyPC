@@ -1,8 +1,6 @@
-
 import React, { useMemo, useState, memo } from 'react';
-import { createPortal } from 'react-dom';
-import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid, Lock, Crown, X, AlertCircle, CheckCircle2, PieChart } from 'lucide-react';
-import { Session, TestResult, MistakeCounts } from '../types';
+import { Target, Trophy, Brain, TrendingUp, Zap, Atom, Calculator, Grid, Lock, Crown } from 'lucide-react';
+import { Session, TestResult } from '../types';
 import { Card } from './Card';
 import { MISTAKE_TYPES, JEE_SYLLABUS } from '../constants';
 
@@ -72,156 +70,7 @@ const SubjectProficiency = memo(({ sessions }: { sessions: Session[] }) => {
   );
 });
 
-const TopicDetailModal = ({ 
-  subject, 
-  topic, 
-  sessions, 
-  onClose 
-}: { 
-  subject: string, 
-  topic: string, 
-  sessions: Session[], 
-  onClose: () => void 
-}) => {
-  const stats = useMemo(() => {
-      let attempted = 0;
-      let correct = 0;
-      const mistakes: Record<string, number> = {};
-      
-      sessions.forEach(s => {
-          attempted += (Number(s.attempted) || 0);
-          correct += (Number(s.correct) || 0);
-          if (s.mistakes) {
-              Object.entries(s.mistakes).forEach(([k, v]) => {
-                  mistakes[k] = (mistakes[k] || 0) + (Number(v) || 0);
-              });
-          }
-      });
-      return { attempted, correct, mistakes };
-  }, [sessions]);
-
-  const accuracy = stats.attempted > 0 ? Math.round((stats.correct / stats.attempted) * 100) : 0;
-  const incorrect = stats.attempted - stats.correct;
-  const mistakeCount = Object.values(stats.mistakes).reduce((a: number, b: number) => a + b, 0);
-
-  const colorConfig = subject === 'Physics' 
-      ? { text: 'text-blue-500', bg: 'bg-blue-500', border: 'border-blue-500' }
-      : subject === 'Chemistry' 
-      ? { text: 'text-orange-500', bg: 'bg-orange-500', border: 'border-orange-500' }
-      : { text: 'text-rose-500', bg: 'bg-rose-500', border: 'border-rose-500' };
-
-  return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#0f172a] w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-white/10 animate-in zoom-in-95 duration-300">
-        
-        {/* Header */}
-        <div className="relative p-6 bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/5 shrink-0">
-            <div className="flex justify-between items-start gap-4">
-                <div>
-                    <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-lg ${colorConfig.bg} bg-opacity-10 dark:bg-opacity-20 mb-3`}>
-                        {subject === 'Physics' && <Atom size={12} className={colorConfig.text} />}
-                        {subject === 'Chemistry' && <Zap size={12} className={colorConfig.text} />}
-                        {subject === 'Maths' && <Calculator size={12} className={colorConfig.text} />}
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${colorConfig.text}`}>{subject}</span>
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{topic}</h2>
-                </div>
-                <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
-                    <X size={20} />
-                </button>
-            </div>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
-            
-            {/* Big Stats */}
-            <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 dark:text-indigo-300 mb-1">Accuracy</p>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-mono font-bold text-indigo-700 dark:text-indigo-400">{accuracy}%</span>
-                    </div>
-                </div>
-                <div className="p-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Solved</p>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-mono font-bold text-slate-900 dark:text-white">{stats.attempted}</span>
-                        <span className="text-xs font-bold text-slate-400 uppercase">Qs</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Questions Breakdown */}
-            <div className="flex gap-1 h-3 rounded-full overflow-hidden w-full">
-                <div className="bg-emerald-500 h-full" style={{ width: `${stats.attempted > 0 ? (stats.correct/stats.attempted)*100 : 0}%` }} />
-                <div className="bg-rose-500 h-full" style={{ width: `${stats.attempted > 0 ? (incorrect/stats.attempted)*100 : 0}%` }} />
-            </div>
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500" /> {stats.correct} Correct</span>
-                <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-rose-500" /> {incorrect} Incorrect</span>
-            </div>
-
-            {/* Mistake Analysis */}
-            <div className="pt-2">
-                <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                        <Brain size={14} /> Mistake Patterns
-                    </h4>
-                    {mistakeCount > 0 && <span className="text-[9px] font-mono text-slate-400">{mistakeCount} Tagged</span>}
-                </div>
-
-                <div className="space-y-2">
-                    {MISTAKE_TYPES.map(type => {
-                        const count = stats.mistakes[type.id] || 0;
-                        if (count === 0 && mistakeCount > 0) return null;
-                        
-                        const maxMistake = Math.max(...(Object.values(stats.mistakes) as number[]), 1);
-                        const width = (count / maxMistake) * 100;
-
-                        return (
-                            <div key={type.id} className="flex items-center gap-3">
-                                <div className={`p-1.5 rounded-lg ${type.color.replace('text-', 'bg-').replace('400', '500/20')} shrink-0`}>
-                                    <span className={type.color}>{type.icon}</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{type.label}</span>
-                                        {count > 0 && <span className="text-[10px] font-mono text-slate-500">{count}</span>}
-                                    </div>
-                                    <div className="h-1.5 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full ${type.color.replace('text-', 'bg-')} transition-all duration-500`}
-                                            style={{ width: `${count > 0 ? width : 0}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    })}
-                    {stats.attempted > 0 && mistakeCount === 0 && incorrect > 0 && (
-                        <div className="text-center py-6 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No mistakes tagged for this topic yet</p>
-                        </div>
-                    )}
-                    {stats.attempted === 0 && (
-                        <div className="text-center py-6 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No sessions logged</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
 const SyllabusHeatmap = memo(({ sessions, isPro, onOpenUpgrade }: { sessions: Session[], isPro: boolean, onOpenUpgrade: () => void }) => {
-  const [selectedTopic, setSelectedTopic] = useState<{ subject: string, topic: string } | null>(null);
-
   const topicStats = useMemo(() => {
     const stats: Record<string, { attempted: number, correct: number }> = {};
     sessions.forEach(s => {
@@ -232,16 +81,6 @@ const SyllabusHeatmap = memo(({ sessions, isPro, onOpenUpgrade }: { sessions: Se
     });
     return stats;
   }, [sessions]);
-
-  const selectedSessions = useMemo(() => {
-      if (!selectedTopic) return [];
-      return sessions.filter(s => s.subject === selectedTopic.subject && s.topic === selectedTopic.topic);
-  }, [sessions, selectedTopic]);
-
-  const handleTopicClick = (subject: string, topic: string) => {
-      if (!isPro) return; 
-      setSelectedTopic({ subject, topic });
-  };
 
   return (
     <div className="mt-8 space-y-6 relative">
@@ -277,17 +116,16 @@ const SyllabusHeatmap = memo(({ sessions, isPro, onOpenUpgrade }: { sessions: Se
                         }
 
                         return (
-                            <button 
+                            <div 
                               key={topic} 
-                              onClick={() => handleTopicClick(subject, topic)}
                               className={`
-                                cursor-pointer h-8 px-3 rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95
+                                cursor-help h-8 px-3 rounded-lg flex items-center justify-center transition-all hover:scale-105
                                 ${bgClass}
                               `}
                               title={`${topic}: ${attempted} Qs (${Math.round(accuracy * 100)}%)`}
                             >
                                 <span className="text-[9px] font-bold uppercase truncate max-w-[100px]">{topic.split(' ').slice(0, 2).join(' ')}</span>
-                            </button>
+                            </div>
                         )
                     })}
                 </div>
@@ -313,15 +151,6 @@ const SyllabusHeatmap = memo(({ sessions, isPro, onOpenUpgrade }: { sessions: Se
               </div>
           </div>
       )}
-
-      {selectedTopic && (
-          <TopicDetailModal 
-              subject={selectedTopic.subject}
-              topic={selectedTopic.topic}
-              sessions={selectedSessions}
-              onClose={() => setSelectedTopic(null)}
-          />
-      )}
     </div>
   )
 });
@@ -334,11 +163,9 @@ export const Analytics: React.FC<AnalyticsProps> = memo(({ sessions, tests, isPr
 
     const mistakeDistribution: Record<string, number> = {};
     sessions.forEach(s => {
-        if (s.mistakes) {
-            Object.entries(s.mistakes).forEach(([key, val]) => {
-                mistakeDistribution[key] = (mistakeDistribution[key] || 0) + (Number(val) || 0);
-            });
-        }
+        Object.entries(s.mistakes).forEach(([key, val]) => {
+            mistakeDistribution[key] = (mistakeDistribution[key] || 0) + (Number(val) || 0);
+        });
     });
 
     const totalMistakes = Object.values(mistakeDistribution).reduce((a: number, b: number) => a + b, 0);

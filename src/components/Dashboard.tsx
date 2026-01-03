@@ -1,8 +1,6 @@
-
 import React, { useMemo, useState, memo, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History, ArrowLeft, Wind, TrendingUp, Target, BarChart2 } from 'lucide-react';
-import { Session, Target as TargetType, MistakeCounts } from '../types';
+import { Plus, Trash2, Activity, Zap, Atom, Calculator, CalendarClock, ArrowRight, CheckCircle2, Pencil, X, Brain, ChevronRight, History } from 'lucide-react';
+import { Session, Target, MistakeCounts } from '../types';
 import { Card } from './Card';
 import { JEE_SYLLABUS, MISTAKE_TYPES } from '../constants';
 
@@ -21,14 +19,13 @@ const getLocalDateFromTimestamp = (ts: number) => {
 
 interface DashboardProps {
   sessions: Session[];
-  targets: TargetType[];
+  targets: Target[];
   quote: { text: string; author: string };
   onDelete: (id: string) => void;
   goals: { Physics: number; Chemistry: number; Maths: number };
   setGoals: React.Dispatch<React.SetStateAction<{ Physics: number; Chemistry: number; Maths: number }>>;
   onSaveSession: (session: Omit<Session, 'id' | 'timestamp'>) => void;
   userName: string | null;
-  onOpenBreathwork: () => void;
 }
 
 const ActivityHeatmap = memo(({ sessions }: { sessions: Session[] }) => {
@@ -211,7 +208,7 @@ const SubjectPod = memo(({
   );
 });
 
-// SubjectDetailModal Component
+// SubjectDetailModal Component (Abbreviated to focus on fix, but including full content for consistency)
 const SubjectDetailModal = memo(({ 
   subject, 
   sessions, 
@@ -239,34 +236,6 @@ const SubjectDetailModal = memo(({
   const incorrectCount = logData.attempted - logData.correct;
   const allocatedMistakes = (Object.values(logData.mistakes) as number[]).reduce((a, b) => a + (b || 0), 0);
 
-  // Subject Theming
-  const theme = useMemo(() => {
-     switch(subject) {
-         case 'Physics': return { 
-             primary: 'text-cyan-600 dark:text-cyan-400', 
-             gradient: 'from-cyan-500 to-blue-600', 
-             bg: 'bg-cyan-500', 
-             border: 'border-cyan-500',
-             shadow: 'shadow-cyan-500/20'
-         };
-         case 'Chemistry': return { 
-             primary: 'text-amber-500 dark:text-amber-400', 
-             gradient: 'from-amber-400 to-orange-600', 
-             bg: 'bg-amber-500', 
-             border: 'border-amber-500',
-             shadow: 'shadow-amber-500/20'
-         };
-         case 'Maths': return { 
-             primary: 'text-rose-500 dark:text-rose-400', 
-             gradient: 'from-rose-500 to-pink-600', 
-             bg: 'bg-rose-500', 
-             border: 'border-rose-500',
-             shadow: 'shadow-rose-500/20'
-         };
-         default: return { primary: 'text-indigo-500', gradient: 'from-indigo-500 to-purple-600', bg: 'bg-indigo-500', border: 'border-indigo-500', shadow: 'shadow-indigo-500/20' };
-     }
-  }, [subject]);
-
   const updateMistake = (type: keyof MistakeCounts, val: number) => {
     const current = logData.mistakes[type] || 0;
     const next = Math.max(0, current + val);
@@ -276,6 +245,7 @@ const SubjectDetailModal = memo(({
 
   const handleSave = () => {
     onSaveSession({ subject, ...logData });
+    // Reset and show history/success
     setLogData({ topic: '', attempted: 0, correct: 0, mistakes: {} });
     setStep(1);
     setActiveTab('history');
@@ -292,297 +262,206 @@ const SubjectDetailModal = memo(({
   }, [sessions]);
 
   return (
-    <AnimatePresence>
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center pointer-events-none">
-            {/* Backdrop */}
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={onClose}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
-            />
-            
-            {/* Modal Content */}
-            <motion.div 
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="pointer-events-auto bg-white dark:bg-[#0f172a] w-full md:max-w-2xl h-[92vh] md:h-auto md:max-h-[85vh] rounded-t-[2.5rem] md:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative"
-            >
-                {/* Header Gradient */}
-                <div className={`absolute top-0 left-0 w-full h-32 bg-gradient-to-br ${theme.gradient} opacity-10`} />
-                <div className={`absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-${theme.border}-500 to-transparent opacity-50`} />
-
-                {/* Header */}
-                <div className="relative px-6 pt-6 pb-4 flex justify-between items-start shrink-0 z-10">
-                    <div className="flex flex-col">
-                        <div className="flex items-center gap-3 mb-1">
-                            <div className={`p-2.5 rounded-2xl bg-gradient-to-br ${theme.gradient} text-white shadow-lg ${theme.shadow}`}>
-                                {subject === 'Physics' && <Atom size={20} />}
-                                {subject === 'Chemistry' && <Zap size={20} />}
-                                {subject === 'Maths' && <Calculator size={20} />}
-                            </div>
-                            <span className={`text-xs font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg bg-white/50 dark:bg-white/5 border border-white/10 ${theme.primary}`}>
-                                {subject}
-                            </span>
-                        </div>
-                        <h2 className="text-3xl font-display font-bold text-slate-900 dark:text-white tracking-tight mt-2">
-                            {activeTab === 'log' ? (step === 1 ? 'New Session' : 'Mistake Analysis') : 'History'}
-                        </h2>
-                    </div>
-                    <button 
-                        onClick={onClose} 
-                        className="p-2 rounded-full bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {/* Tab Switcher */}
-                <div className="px-6 pb-2 shrink-0 z-10">
-                    <div className="flex p-1 bg-slate-100 dark:bg-black/20 rounded-xl relative">
-                        <div 
-                            className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-slate-700 rounded-lg shadow-sm transition-all duration-300"
-                            style={{ left: activeTab === 'log' ? '4px' : 'calc(50%)' }}
-                        />
-                        <button 
-                            onClick={() => setActiveTab('log')}
-                            className={`flex-1 py-2.5 relative z-10 text-xs font-bold uppercase tracking-wider transition-colors text-center ${activeTab === 'log' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
-                        >
-                            Log Activity
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab('history')}
-                            className={`flex-1 py-2.5 relative z-10 text-xs font-bold uppercase tracking-wider transition-colors text-center ${activeTab === 'history' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
-                        >
-                            Past Sessions
-                        </button>
-                    </div>
-                </div>
-
-                {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto px-6 py-4 overscroll-contain relative z-10">
-                    <AnimatePresence mode="wait">
-                    {activeTab === 'log' ? (
-                        <motion.div 
-                            key="log"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            transition={{ duration: 0.2 }}
-                            className="space-y-6 pb-20"
-                        >
-                            {step === 1 ? (
-                                <>
-                                    <div className="space-y-6">
-                                        {/* Topic Select */}
-                                        <div className="space-y-2">
-                                            <label className={`text-[10px] uppercase font-bold tracking-widest ml-1 ${theme.primary}`}>Chapter</label>
-                                            <div className="relative group">
-                                                <select 
-                                                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-white/5 p-4 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-indigo-500 dark:focus:border-indigo-500 transition-all text-sm font-medium appearance-none shadow-sm group-hover:border-slate-300 dark:group-hover:border-white/10"
-                                                    value={logData.topic}
-                                                    onChange={e => setLogData({...logData, topic: e.target.value})}
-                                                >
-                                                    <option value="">Select Topic...</option>
-                                                    {JEE_SYLLABUS[subject as keyof typeof JEE_SYLLABUS].map(t => <option key={t} value={t}>{t}</option>)}
-                                                </select>
-                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                                    <ChevronRight size={16} className="rotate-90" />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Score Inputs */}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className={`text-[10px] uppercase font-bold tracking-widest ml-1 ${theme.primary}`}>Attempted</label>
-                                                <div className="relative bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-200 dark:border-white/5 focus-within:border-indigo-500 dark:focus-within:border-indigo-500 transition-colors">
-                                                    <input 
-                                                        type="number" min="0" 
-                                                        className="w-full bg-transparent p-4 text-3xl font-mono font-bold text-slate-900 dark:text-white outline-none text-center placeholder:text-slate-300 dark:placeholder:text-slate-700"
-                                                        value={logData.attempted || ''}
-                                                        placeholder="0"
-                                                        onChange={e => setLogData({...logData, attempted: parseInt(e.target.value) || 0})}
-                                                    />
-                                                    <div className="absolute bottom-2 left-0 w-full text-center text-[9px] font-bold text-slate-400 uppercase tracking-wider">Questions</div>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className={`text-[10px] uppercase font-bold tracking-widest ml-1 ${theme.primary}`}>Correct</label>
-                                                <div className="relative bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-200 dark:border-white/5 focus-within:border-emerald-500 dark:focus-within:border-emerald-500 transition-colors">
-                                                    <input 
-                                                        type="number" min="0" 
-                                                        className="w-full bg-transparent p-4 text-3xl font-mono font-bold text-emerald-600 dark:text-emerald-400 outline-none text-center placeholder:text-slate-300 dark:placeholder:text-slate-700"
-                                                        value={logData.correct || ''}
-                                                        placeholder="0"
-                                                        onChange={e => setLogData({...logData, correct: Math.min(logData.attempted, parseInt(e.target.value) || 0)})}
-                                                    />
-                                                    <div className="absolute bottom-2 left-0 w-full text-center text-[9px] font-bold text-slate-400 uppercase tracking-wider">Correct</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Action Button */}
-                                    <button 
-                                        disabled={!logData.topic || logData.attempted < 1} 
-                                        onClick={() => {
-                                            if (incorrectCount > 0) setStep(2);
-                                            else handleSave();
-                                        }}
-                                        className={`w-full py-4 rounded-2xl text-white font-bold uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r ${theme.gradient} ${theme.shadow} flex items-center justify-center gap-2`}
-                                    >
-                                        {incorrectCount > 0 ? 'Analyze Mistakes' : 'Save Session'} {incorrectCount > 0 && <ArrowRight size={16} />}
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex items-center justify-between">
-                                        <div>
-                                            <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide">Incorrect Answers</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-2xl font-mono font-bold text-rose-700 dark:text-rose-300">{incorrectCount - allocatedMistakes}</span>
-                                                <span className="text-[10px] text-rose-500 uppercase font-bold">Remaining</span>
-                                            </div>
-                                        </div>
-                                        <div className="h-10 w-10 rounded-full bg-rose-100 dark:bg-rose-500/20 flex items-center justify-center text-rose-500">
-                                            <Brain size={20} />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {MISTAKE_TYPES.map(type => {
-                                            const count = logData.mistakes[type.id as keyof MistakeCounts] || 0;
-                                            return (
-                                                <button
-                                                    key={type.id}
-                                                    onClick={() => updateMistake(type.id as any, 1)}
-                                                    className={`
-                                                        relative flex flex-col p-3 rounded-2xl border transition-all active:scale-95 text-left h-24 justify-between
-                                                        ${count > 0 
-                                                            ? 'bg-white dark:bg-slate-800 border-indigo-500 dark:border-indigo-400 shadow-md' 
-                                                            : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10'
-                                                        }
-                                                    `}
-                                                >
-                                                    <div className="flex justify-between items-start w-full">
-                                                        <span className={`${type.color}`}>{type.icon}</span>
-                                                        {count > 0 && (
-                                                            <div 
-                                                                onClick={(e) => { e.stopPropagation(); updateMistake(type.id as any, -1); }}
-                                                                className="w-6 h-6 flex items-center justify-center bg-slate-100 dark:bg-white/10 rounded-full text-slate-500 hover:bg-rose-100 hover:text-rose-500 transition-colors"
-                                                            >
-                                                                <span className="text-lg leading-none mb-0.5">-</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex justify-between items-end w-full">
-                                                        <span className={`text-[10px] font-bold uppercase tracking-wider leading-tight max-w-[70%] ${count > 0 ? 'text-slate-900 dark:text-white' : 'text-slate-500'}`}>{type.label}</span>
-                                                        <span className={`text-xl font-mono font-bold ${count > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-300 dark:text-slate-700'}`}>{count}</span>
-                                                    </div>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-
-                                    <div className="flex gap-3">
-                                        <button onClick={() => setStep(1)} className="px-6 py-4 rounded-2xl bg-slate-100 dark:bg-white/5 text-slate-500 font-bold uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">Back</button>
-                                        <button 
-                                            onClick={handleSave} 
-                                            disabled={allocatedMistakes !== incorrectCount}
-                                            className="flex-1 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            Complete Log
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </motion.div>
-                    ) : (
-                        <motion.div 
-                            key="history"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            transition={{ duration: 0.2 }}
-                            className="space-y-6 pb-20"
-                        >
-                            {/* Summary Stats */}
-                            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                                <div className="min-w-[120px] p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Total Qs</p>
-                                    <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">{sessions.reduce((a,b) => a + b.attempted, 0)}</p>
-                                </div>
-                                <div className="min-w-[120px] p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
-                                    <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Accuracy</p>
-                                    <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">
-                                        {sessions.length > 0 ? Math.round((sessions.reduce((a,b) => a + b.correct, 0) / sessions.reduce((a,b) => a + b.attempted, 0)) * 100) : 0}%
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Timeline */}
-                            <div className="space-y-4">
-                                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                                    <History size={14} /> Recent Timeline
-                                </h4>
-                                {sessions.length === 0 ? (
-                                    <div className="py-12 text-center border-2 border-dashed border-slate-200 dark:border-white/10 rounded-3xl">
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No sessions yet</p>
-                                    </div>
-                                ) : (
-                                    sessions.map(s => {
-                                        const accuracy = Math.round((s.correct / s.attempted) * 100);
-                                        return (
-                                            <div key={s.id} className="group relative pl-4 border-l-2 border-slate-200 dark:border-white/10 pb-6 last:pb-0">
-                                                <div className={`absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${accuracy > 80 ? 'bg-emerald-500' : accuracy > 50 ? 'bg-amber-500' : 'bg-rose-500'}`} />
-                                                
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">
-                                                            {new Date(s.timestamp).toLocaleDateString()}
-                                                        </span>
-                                                        <h5 className="text-sm font-bold text-slate-900 dark:text-white">{s.topic}</h5>
-                                                    </div>
-                                                    <button onClick={() => onDeleteSession(s.id)} className="text-slate-400 hover:text-rose-500 transition-colors p-1">
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${accuracy > 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'}`}>
-                                                        {accuracy}%
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-500 font-medium">{s.correct}/{s.attempted} Correct</span>
-                                                </div>
-
-                                                {/* Mistake Pills */}
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {Object.entries(s.mistakes).map(([k, v]) => {
-                                                        const mType = MISTAKE_TYPES.find(m => m.id === k);
-                                                        if (!mType || !v) return null;
-                                                        return (
-                                                            <span key={k} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-[9px] text-slate-500 font-bold uppercase">
-                                                                <span className={mType.color}>{mType.icon}</span> {v}
-                                                            </span>
-                                                        )
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )
-                                    })
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                    </AnimatePresence>
-                </div>
-            </motion.div>
+    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-0 md:p-4 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white/90 dark:bg-slate-900/80 backdrop-blur-2xl border-t md:border border-slate-200 dark:border-white/10 w-full md:max-w-2xl rounded-t-[2rem] md:rounded-3xl shadow-2xl flex flex-col h-[85vh] md:h-auto md:max-h-[90vh] animate-in slide-in-from-bottom-10 duration-300 overflow-hidden transform-gpu">
+        
+        {/* Header */}
+        <div className="p-5 md:p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-gradient-to-r from-indigo-50/50 to-transparent dark:from-indigo-500/10 dark:to-transparent shrink-0">
+          <div className="flex items-center gap-3 md:gap-4">
+             {subject === 'Physics' && <Atom className="text-blue-500 dark:text-blue-400" size={24} />}
+             {subject === 'Chemistry' && <Zap className="text-orange-500 dark:text-orange-400" size={24} />}
+             {subject === 'Maths' && <Calculator className="text-rose-500 dark:text-rose-400" size={24} />}
+             <div>
+               <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-wider">{subject} Hub</h2>
+               <p className="text-[9px] md:text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest">Chapter Progress</p>
+             </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-white">
+            <X size={20} />
+          </button>
         </div>
-    </AnimatePresence>
+
+        {/* Tabs */}
+        <div className="flex p-2 gap-2 border-b border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-black/20 shrink-0">
+          <button 
+            onClick={() => setActiveTab('log')}
+            className={`flex-1 py-3 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'log' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-white/5'}`}
+          >
+            Add Session
+          </button>
+          <button 
+             onClick={() => setActiveTab('history')}
+             className={`flex-1 py-3 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-white/5'}`}
+          >
+            Past Sessions
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 md:p-6 overflow-y-auto flex-grow overscroll-contain">
+          {activeTab === 'log' ? (
+            <div className="space-y-6 pb-10">
+              {step === 1 ? (
+                <>
+                  <div className="space-y-5">
+                     <div className="space-y-2">
+                        <label className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400 ml-1 tracking-widest">Topic / Chapter</label>
+                        <select 
+                          className="w-full bg-slate-50/50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white outline-none focus:border-indigo-500 transition-all text-sm appearance-none backdrop-blur-sm"
+                          value={logData.topic}
+                          onChange={e => setLogData({...logData, topic: e.target.value})}
+                        >
+                          <option value="">Select Chapter...</option>
+                          {JEE_SYLLABUS[subject as keyof typeof JEE_SYLLABUS].map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400 ml-1 tracking-widest">Attempted</label>
+                          <input 
+                            type="number" min="0" 
+                            className="w-full bg-slate-50/50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white font-mono text-xl outline-none focus:border-indigo-500 backdrop-blur-sm"
+                            value={logData.attempted || ''}
+                            onChange={e => setLogData({...logData, attempted: parseInt(e.target.value) || 0})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase font-bold text-indigo-500 dark:text-indigo-400 ml-1 tracking-widest">Correct</label>
+                          <input 
+                            type="number" min="0" 
+                            className="w-full bg-slate-50/50 dark:bg-black/30 border border-slate-200 dark:border-white/10 p-4 rounded-2xl text-slate-900 dark:text-white font-mono text-xl outline-none focus:border-indigo-500 backdrop-blur-sm"
+                            value={logData.correct || ''}
+                            onChange={e => setLogData({...logData, correct: Math.min(logData.attempted, parseInt(e.target.value) || 0)})}
+                          />
+                        </div>
+                     </div>
+                  </div>
+                  <button 
+                    disabled={!logData.topic || logData.attempted < 1} 
+                    onClick={() => {
+                      if (incorrectCount > 0) setStep(2);
+                      else handleSave();
+                    }}
+                    className="w-full bg-indigo-600 py-4 rounded-2xl text-white font-bold uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-50 shadow-lg shadow-indigo-600/20 transition-all mt-6 active:scale-95"
+                  >
+                    {incorrectCount > 0 ? 'Next: Review Mistakes' : 'Save Session'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex justify-between items-center mb-4">
+                     <div>
+                       <span className="text-xs font-bold text-rose-500 dark:text-rose-300 uppercase block">Incorrect Answers</span>
+                       <span className="text-[10px] text-rose-500/60 font-bold uppercase">{allocatedMistakes} / {incorrectCount} Tagged</span>
+                     </div>
+                     <span className="text-2xl font-mono text-rose-500 dark:text-rose-400">{incorrectCount - allocatedMistakes} Left</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                    {MISTAKE_TYPES.map(type => (
+                      <div key={type.id} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/5">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                           <span className={`${type.color} shrink-0`}>{type.icon}</span>
+                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 truncate">{type.label}</span>
+                        </div>
+                        <div className="flex items-center gap-3 bg-white dark:bg-black/40 border border-slate-200 dark:border-none rounded-lg p-1 shrink-0">
+                          <button onClick={() => updateMistake(type.id as any, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-md text-slate-500 dark:text-slate-400 transition-colors text-lg active:scale-90">-</button>
+                          <span className="w-6 text-center text-base font-mono text-slate-900 dark:text-white">{logData.mistakes[type.id as any] || 0}</span>
+                          <button onClick={() => updateMistake(type.id as any, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-md text-slate-500 dark:text-slate-400 transition-colors text-lg active:scale-90">+</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl bg-slate-200 dark:bg-white/5 text-slate-600 dark:text-slate-400 font-bold uppercase text-xs tracking-wider hover:bg-slate-300 dark:hover:bg-white/10 active:scale-95 transition-all">Back</button>
+                    <button 
+                      onClick={handleSave} 
+                      disabled={allocatedMistakes !== incorrectCount}
+                      className="flex-[2] py-3 rounded-xl bg-emerald-600 text-white font-bold uppercase text-xs tracking-wider hover:bg-emerald-500 disabled:opacity-50 shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
+                    >
+                      Save Progress
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6 pb-10">
+              {/* History Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 p-4 rounded-2xl">
+                   <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Questions Done</p>
+                   <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">
+                     {sessions.reduce((a,b) => a + b.attempted, 0)}
+                   </p>
+                </div>
+                <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 p-4 rounded-2xl">
+                   <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Success Rate</p>
+                   <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">
+                     {sessions.length > 0 ? Math.round((sessions.reduce((a,b) => a + b.correct, 0) / sessions.reduce((a,b) => a + b.attempted, 0)) * 100) : 0}%
+                   </p>
+                </div>
+              </div>
+
+              {/* Mistake Breakdown */}
+              <div className="space-y-3">
+                 <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2"><Brain size={14} /> Mistake Patterns</h4>
+                 {Object.keys(mistakesSummary).length === 0 ? (
+                   <p className="text-xs text-slate-600 italic">No mistakes recorded yet.</p>
+                 ) : (
+                   MISTAKE_TYPES.map(type => {
+                     const count = mistakesSummary[type.id] || 0;
+                     if(count === 0) return null;
+                     const max = Math.max(...(Object.values(mistakesSummary) as number[]), 1);
+                     const scaleVal = isFinite(count/max) ? count/max : 0;
+                     
+                     return (
+                       <div key={type.id} className="flex items-center gap-3">
+                         <div className={`w-2 h-2 rounded-full shrink-0 ${type.color.replace('text', 'bg')}`} />
+                         <span className="text-[10px] uppercase font-bold text-slate-400 w-32 shrink-0 truncate">{type.label}</span>
+                         <div className="flex-grow h-1.5 bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden">
+                           <div 
+                                className={`h-full ${type.color.replace('text', 'bg')} origin-left transition-transform duration-500`} 
+                                style={{ width: '100%', transform: `scaleX(${scaleVal})` }} 
+                           />
+                         </div>
+                         <span className="text-xs font-mono text-slate-700 dark:text-white shrink-0 w-6 text-right">{count}</span>
+                       </div>
+                     )
+                   })
+                 )}
+              </div>
+
+              {/* Session List */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2 mt-2"><History size={14} /> Recent Sessions</h4>
+                {sessions.length === 0 ? (
+                  <div className="text-center py-8 opacity-30 border border-dashed border-slate-400 dark:border-white/10 rounded-xl">
+                    <p className="text-[10px] uppercase font-bold tracking-widest">No history</p>
+                  </div>
+                ) : (
+                  sessions.map(s => (
+                    <div key={s.id} className="bg-slate-50/50 dark:bg-white/5 p-4 rounded-xl flex justify-between items-center group active:scale-[0.98] transition-all">
+                      <div className="min-w-0 pr-4">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{s.topic}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mt-0.5">{new Date(s.timestamp).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex items-center gap-4 shrink-0">
+                        <div className="text-right">
+                          <span className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-300">{s.correct}/{s.attempted}</span>
+                        </div>
+                        <button onClick={() => onDeleteSession(s.id)} className="text-rose-500/50 hover:text-rose-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all p-2"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 });
 
@@ -594,8 +473,7 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
   goals, 
   setGoals, 
   onSaveSession,
-  userName,
-  onOpenBreathwork
+  userName
 }) => {
   const todayStr = getLocalDate();
   const todaysSessions = useMemo(() => sessions.filter(s => getLocalDateFromTimestamp(s.timestamp) === todayStr), [sessions, todayStr]);
@@ -631,18 +509,9 @@ export const Dashboard: React.FC<DashboardProps> = memo(({
             <h2 className="text-2xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight flex items-center justify-center md:justify-end gap-3">
               {greeting}{displayName}!
             </h2>
-            <div className="flex items-center justify-center md:justify-end gap-3">
-                <p className="text-xs md:text-sm text-indigo-600 dark:text-indigo-300 uppercase tracking-widest font-bold opacity-70">
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                </p>
-                <button 
-                    onClick={onOpenBreathwork}
-                    className="p-1.5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-colors"
-                    title="Zen Mode"
-                >
-                    <Wind size={14} />
-                </button>
-            </div>
+            <p className="text-xs md:text-sm text-indigo-600 dark:text-indigo-300 uppercase tracking-widest font-bold opacity-70">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
           </div>
         </div>
         <Card className="bg-indigo-50/50 dark:bg-indigo-600/5 border-indigo-100 dark:border-indigo-500/10 p-5 md:p-8 flex flex-col justify-center items-center text-center relative overflow-hidden transform-gpu will-change-transform">

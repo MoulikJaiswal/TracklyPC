@@ -1133,9 +1133,7 @@ const App: React.FC = () => {
     const rgbCard = hexToRgb(themeConfig.colors.card);
     const rgbAccent = hexToRgb(themeConfig.colors.accent);
     
-    // Determine optimal text color for accent backgrounds
-    // Themes with light/bright accents (like white, yellow, lime) need dark text.
-    const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void'];
+    const lightAccentThemes: ThemeId[] = ['midnight', 'forest', 'void', 'obsidian', 'earth', 'morning'];
     const onAccentColor = lightAccentThemes.includes(theme) ? '#020617' : '#ffffff';
 
     return `
@@ -1169,10 +1167,6 @@ const App: React.FC = () => {
             --tw-shadow-color: rgba(var(--theme-accent-rgb), 0.2) !important;
         }
   `}, [themeConfig, theme]);
-
-  const handleOpenBreathwork = useCallback(() => {
-      changeView('focus');
-  }, [changeView]);
 
   // Not Logged In View
   if (!userName) {
@@ -1357,7 +1351,6 @@ const App: React.FC = () => {
                           setGoals={setGoals}
                           onSaveSession={handleSaveSession}
                           userName={userName}
-                          onOpenBreathwork={handleOpenBreathwork}
                       />
                   )}
                   {view === 'planner' && (
